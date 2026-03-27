@@ -1,0 +1,122 @@
+"""
+cogito config — loaded from env vars or .cogito.json.
+
+Priority: env vars > .cogito.json > defaults.
+No workspace paths. No internal tooling assumptions.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Any
+
+
+_DEFAULTS: dict[str, Any] = {
+    "port": 19420,
+    "user_id": "agent",
+    "recall_limit": 50,
+    "recall_threshold": 400.0,
+    "query_threshold": 250.0,
+    "filter_model": "anthropic/claude-haiku-4-5",
+    "filter_timeout_ms": 12000,
+    "store_path": str(Path.home() / ".cogito" / "store"),
+    "collection": "cogito_memory",
+    "ollama_url": "http://localhost:11434",
+    "llm_model": "mistral:7b",
+    "embed_model": "nomic-embed-text",
+}
+
+_ENV_MAP = {
+    "COGITO_PORT": ("port", int),
+    "COGITO_USER_ID": ("user_id", str),
+    "COGITO_FILTER_ENDPOINT": ("filter_endpoint", str),
+    "COGITO_FILTER_TOKEN": ("filter_token", str),
+    "COGITO_FILTER_MODEL": ("filter_model", str),
+    "COGITO_FILTER_TIMEOUT_MS": ("filter_timeout_ms", int),
+    "COGITO_STORE_PATH": ("store_path", str),
+    "COGITO_COLLECTION": ("collection", str),
+    "COGITO_OLLAMA_URL": ("ollama_url", str),
+    "COGITO_LLM_MODEL": ("llm_model", str),
+    "COGITO_EMBED_MODEL": ("embed_model", str),
+    "COGITO_RECALL_LIMIT": ("recall_limit", int),
+    "COGITO_RECALL_THRESHOLD": ("recall_threshold", float),
+    "COGITO_QUERY_THRESHOLD": ("query_threshold", float),
+    # Also accept raw Anthropic key for direct calls (no gateway needed)
+    "ANTHROPIC_API_KEY": ("anthropic_api_key", str),
+}
+
+
+def load(config_path: str | Path | None = None) -> dict[str, Any]:
+    """
+    Load config. Searches for .cogito.json in cwd and home dir if not specified.
+    Env vars override file values.
+    """
+    cfg: dict[str, Any] = dict(_DEFAULTS)
+
+    # File
+    paths_to_try: list[Path] = []
+    if config_path:
+        paths_to_try.append(Path(config_path))
+    else:
+        paths_to_try += [
+            Path.cwd() / ".cogito.json",
+            Path.home() / ".cogito" / "config.json",
+        ]
+
+    for p in paths_to_try:
+        if p.exists():
+            try:
+                with open(p) as f:
+                    file_cfg = json.load(f)
+                cfg.update(file_cfg)
+                cfg["_config_file"] = str(p)
+                break
+            except Exception:
+                pass
+
+    # Env vars win
+    for env_key, (cfg_key, cast) in _ENV_MAP.items():
+        val = os.environ.get(env_key)
+        if val is not None:
+            try:
+                cfg[cfg_key] = cast(val)
+            except (ValueError, TypeError):
+                pass
+
+    return cfg
+
+
+def mem0_config(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Build the mem0 Memory.from_config() dict from resolved config."""
+    store_path = str(Path(cfg["store_path"]).expanduser())
+
+    m = {
+        "llm": {
+            "provider": "ollama",
+            "config": {
+                "model": cfg["llm_model"],
+                "ollama_base_url": cfg["ollama_url"],
+            },
+        },
+        "embedder": {
+            "provider": "ollama",
+            "config": {
+                "model": cfg["embed_model"],
+                "ollama_base_url": cfg["ollama_url"],
+            },
+        },
+        "vector_store": {
+            "provider": "chroma",
+            "config": {
+                "collection_name": cfg["collection"],
+                "path": store_path,
+            },
+        },
+    }
+
+    if "custom_fact_extraction_prompt" in cfg:
+        m["custom_fact_extraction_prompt"] = cfg["custom_fact_extraction_prompt"]
+
+    return m

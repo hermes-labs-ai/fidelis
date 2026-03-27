@@ -1,0 +1,25 @@
+{
+  "_comment": "Copy to .cogito.json and edit. All fields optional — env vars override everything.",
+
+  "port": 19420,
+  "user_id": "agent",
+
+  "store_path": "~/.cogito/store",
+  "collection": "cogito_memory",
+
+  "ollama_url": "http://localhost:11434",
+  "llm_model": "mistral:7b",
+  "embed_model": "nomic-embed-text",
+
+  "filter_endpoint": "http://127.0.0.1:19051",
+  "filter_token": "your-gateway-or-api-token",
+  "filter_model": "anthropic/claude-haiku-4-5",
+  "filter_timeout_ms": 12000,
+
+  "recall_limit": 50,
+  "recall_threshold": 400.0,
+  "query_threshold": 250.0,
+
+  "_note_filter": "filter_endpoint accepts any OpenAI-compatible URL. Set ANTHROPIC_API_KEY instead to call Anthropic directly.",
+  "_note_extraction": "Add custom_fact_extraction_prompt here to override mem0's default extraction prompt (recommended for technical domains — see zer0lint)."
+}

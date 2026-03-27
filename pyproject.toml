@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cogito-ergo"
+version = "0.1.0"
+description = "A memory layer for AI agents — dual-layer retrieval with fidelity-guaranteed re-ranking"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["ai", "agents", "memory", "rag", "retrieval", "llm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+]
+dependencies = [
+  "mem0ai>=1.0.5",
+  "chromadb>=0.5.0",
+]
+
+[project.optional-dependencies]
+ollama = []  # no extra deps — Ollama runs locally
+dev = ["pytest", "pytest-asyncio", "httpx"]
+
+[project.scripts]
+cogito = "cogito.cli:main"
+cogito-server = "cogito.server:main"
+
+[project.urls]
+Homepage = "https://github.com/roli-lpci/cogito-ergo"
+Repository = "https://github.com/roli-lpci/cogito-ergo"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cogito"]
