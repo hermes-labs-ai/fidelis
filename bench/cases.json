@@ -1,0 +1,42 @@
+[
+  {
+    "query": "suy-sideguy mypy fix",
+    "expected": ["suy", "mypy", "OllamaLLMJudge"],
+    "notes": "confirmed hit in prior test"
+  },
+  {
+    "query": "lintlang release version",
+    "expected": ["lintlang", "release", "v0.", "version", "published"],
+    "notes": "was returning zer0lint downloads — Stage 1 miss under investigation"
+  },
+  {
+    "query": "quickthink direct mode",
+    "expected": ["quickthink", "direct"],
+    "notes": "confirmed hit in prior test"
+  },
+  {
+    "query": "PyPI downloads stats",
+    "expected": ["download", "PyPI", "install"],
+    "notes": "confirmed hit in prior test"
+  },
+  {
+    "query": "zer0dex memory retrieval architecture",
+    "expected": ["zer0dex", "memory", "retrieval", "dual"],
+    "notes": "core architecture work from this session"
+  },
+  {
+    "query": "ChromaDB metadata user_id fix",
+    "expected": ["user_id", "chromadb", "metadata", "patch"],
+    "notes": "root cause fix from this session"
+  },
+  {
+    "query": "Hermes Labs products funding",
+    "expected": ["hermes", "labs", "funding", "lintlang", "suy"],
+    "notes": "company context"
+  },
+  {
+    "query": "Agent Gorgon brand UI",
+    "expected": ["agent gorgon", "gorgon", "brand", "ui", "craftclaw"],
+    "notes": "this session's UI work"
+  }
+]

@@ -110,10 +110,9 @@ def make_handler(memory: object, cfg: dict) -> type:
                     self._json({"memories": [], "method": "empty_query"})
                     return
                 limit = int(data.get("limit", cfg.get("recall_limit", 50)))
-                threshold = float(data.get("threshold", cfg.get("recall_threshold", 400.0)))
                 memories, method = do_recall(
                     memory, text, user_id=user_id, cfg=cfg,
-                    limit=limit, threshold=threshold,
+                    limit=limit,
                 )
                 print(f"[cogito] /recall '{text[:50]}' → {len(memories)} results ({method})", flush=True)
                 self._json({"memories": memories, "method": method})
