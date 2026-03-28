@@ -43,6 +43,7 @@ from pathlib import Path
 from cogito import __version__
 from cogito.config import load, mem0_config
 from cogito.recall import recall as do_recall
+from cogito.recall_b import recall_b as do_recall_b
 
 
 def _boot(cfg: dict) -> object:
@@ -89,7 +90,7 @@ def make_handler(memory: object, cfg: dict) -> type:
                 except Exception:
                     result = memory.get_all(user_id=user_id, limit=10000)  # type: ignore
                     count = len(result.get("results", []))
-                self._json({"status": "ok", "count": count, "version": __version__})
+                self._json({"status": "ok", "count": count, "version": __version__, "calibrated": bool(cfg.get("vocab_map"))})
             else:
                 self._json({"error": "not found"}, 404)
 
@@ -124,6 +125,19 @@ def make_handler(memory: object, cfg: dict) -> type:
                     limit=limit,
                 )
                 print(f"[cogito] /recall '{text[:50]}' → {len(memories)} results ({method})", flush=True)
+                self._json({"memories": memories, "method": method})
+
+            elif self.path == "/recall_b":
+                text = data.get("text", "")
+                if not text or len(text.strip()) < 3:
+                    self._json({"memories": [], "method": "empty_query"})
+                    return
+                limit = int(data.get("limit", cfg.get("recall_limit", 50)))
+                memories, method = do_recall_b(
+                    memory, text, user_id=user_id, cfg=cfg,
+                    limit=limit,
+                )
+                print(f"[cogito] /recall_b '{text[:50]}' → {len(memories)} results ({method})", flush=True)
                 self._json({"memories": memories, "method": method})
 
             elif self.path == "/store":

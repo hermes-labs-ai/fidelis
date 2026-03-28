@@ -26,6 +26,8 @@ _DEFAULTS: dict[str, Any] = {
     "ollama_url": "http://localhost:11434",
     "llm_model": "mistral:7b",
     "embed_model": "nomic-embed-text",
+    "vocab_map": {},
+    "calibrate_model": "mistral:7b",
 }
 
 _ENV_MAP = {

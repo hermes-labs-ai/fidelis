@@ -2,61 +2,73 @@
   {
     "query": "lintlang version published PyPI",
     "expected": ["lintlang", "v0.3", "published", "PyPI"],
-    "notes": "easy — keyword overlap with stored fact. baseline sanity check"
+    "notes": "easy — keyword overlap with stored fact. baseline sanity check",
+    "difficulty": "easy"
   },
   {
     "query": "cogito recall two-stage pipeline",
     "expected": ["cogito", "recall", "two-stage", "vector", "filter"],
-    "notes": "easy — keyword overlap"
+    "notes": "easy — keyword overlap",
+    "difficulty": "easy"
   },
   {
     "query": "mem0 memory text field retrieval",
     "expected": ["mem0", "data", "memory", "payload", "field"],
-    "notes": "easy — keyword overlap: mem0 v1.0.5 payload[data] fix"
+    "notes": "easy — keyword overlap: mem0 v1.0.5 payload[data] fix",
+    "difficulty": "easy"
   },
   {
     "query": "suy-sideguy mypy missing return statement",
     "expected": ["suy", "mypy", "return", "OllamaLLMJudge", "warden"],
-    "notes": "medium — partial keyword overlap"
+    "notes": "medium — partial keyword overlap",
+    "difficulty": "medium"
   },
   {
     "query": "which tool blocks unsafe agent behaviour",
     "expected": ["canary", "guard", "halt", "block", "trust"],
-    "notes": "medium — semantic: little canary / canaryguard"
+    "notes": "medium — semantic: little canary / canaryguard",
+    "difficulty": "medium"
   },
   {
     "query": "why was the memory extraction producing garbage",
     "expected": ["extraction", "prompt", "consumer", "fact", "mem0"],
-    "notes": "medium — semantic: mem0 consumer extraction prompt"
-  },
-  {
-    "query": "what is our open source adoption",
-    "expected": ["download", "PyPI", "lintlang", "canary", "monthly"],
-    "notes": "HARD — semantic miss in baseline. concept: PyPI download counts"
-  },
-  {
-    "query": "how do we prevent the filter from corrupting retrieved text",
-    "expected": ["integer", "pointer", "verbatim", "index", "fidelity"],
-    "notes": "HARD — semantic miss in baseline. concept: integer-pointer fidelity"
-  },
-  {
-    "query": "why was nothing being found in the memory store",
-    "expected": ["flat", "score", "metadata", "user_id", "chromadb"],
-    "notes": "HARD — semantic miss in baseline. concept: ChromaDB metadata bug"
-  },
-  {
-    "query": "what caused the agent to freeze mid-session",
-    "expected": ["timeout", "seed", "auto", "ollama", "cascade"],
-    "notes": "HARD — semantic miss in baseline. concept: auto-seed Ollama timeouts"
-  },
-  {
-    "query": "describe the two layers of the memory architecture",
-    "expected": ["MEMORY.md", "hot", "cold", "vector", "layer"],
-    "notes": "HARD — semantic miss in baseline. concept: zer0dex hot/cold layers"
+    "notes": "medium — semantic: mem0 consumer extraction prompt",
+    "difficulty": "medium"
   },
   {
     "query": "outreach emails design partners prospects pipeline",
     "expected": ["outreach", "email", "prospect", "design partner", "pipeline"],
-    "notes": "medium — BD strategy entries in corpus"
+    "notes": "medium — BD strategy entries in corpus",
+    "difficulty": "medium"
+  },
+  {
+    "query": "what is our open source adoption",
+    "expected": ["download", "PyPI", "lintlang", "canary", "monthly"],
+    "notes": "HARD — semantic miss in baseline. concept: PyPI download counts",
+    "difficulty": "hard"
+  },
+  {
+    "query": "how do we prevent the filter from corrupting retrieved text",
+    "expected": ["integer", "pointer", "verbatim", "index", "fidelity"],
+    "notes": "HARD — semantic miss in baseline. concept: integer-pointer fidelity",
+    "difficulty": "hard"
+  },
+  {
+    "query": "why was nothing being found in the memory store",
+    "expected": ["flat", "score", "metadata", "user_id", "chromadb"],
+    "notes": "HARD — semantic miss in baseline. concept: ChromaDB metadata bug",
+    "difficulty": "hard"
+  },
+  {
+    "query": "what caused the agent to freeze mid-session",
+    "expected": ["timeout", "seed", "auto", "ollama", "cascade"],
+    "notes": "HARD — semantic miss in baseline. concept: auto-seed Ollama timeouts",
+    "difficulty": "hard"
+  },
+  {
+    "query": "describe the two layers of the memory architecture",
+    "expected": ["MEMORY.md", "hot", "cold", "vector", "layer"],
+    "notes": "HARD — semantic miss in baseline. concept: zer0dex hot/cold layers",
+    "difficulty": "hard"
   }
 ]

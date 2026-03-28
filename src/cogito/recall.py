@@ -1,9 +1,10 @@
 """
 cogito recall — two-stage retrieval with integer-pointer fidelity filter.
 
-Stage 1: broad vector search — top-N by rank, NO hard L2 threshold.
-         Threshold would exclude the right memory before Stage 2 ever sees it.
-         Stage 2 exists to handle noise, so Stage 1 should maximise recall.
+Stage 1: recall_b (zero-LLM multi-query RRF) — broad candidate pool, no threshold cut.
+         Uses sub-query decomposition + vocab expansion to maximise recall.
+         Replacing single memory.search() here removes the recall ceiling caused
+         by a single query's embedding being far from the stored fact's embedding.
 
 Stage 2: cheap LLM receives numbered candidate list, outputs integer indices ONLY.
          Never outputs memory text — structurally cannot corrupt or hallucinate
@@ -26,6 +27,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from cogito.recall_b import recall_b as _stage1
+
 
 def recall(
     memory: Any,
@@ -38,24 +41,26 @@ def recall(
     Run two-stage recall. Returns (memories, method).
 
     memories: list of {"text": str, "score": float}
-    method:   "filter" | "fallback_*"
+    method:   "filter" | "fallback_*" | "<stage1_method>|<fallback>"
     """
     limit = limit or cfg.get("recall_limit", 50)
 
-    # Stage 1 — top-N by rank, no threshold cut.
-    # The filter handles precision; cutting here only creates recall ceiling.
-    raw = memory.search(query, user_id=user_id, limit=min(limit, 100))
-    candidates = [
-        {"text": r.get("memory", ""), "score": round(r.get("score", 9999), 3)}
-        for r in raw.get("results", [])
-        if r.get("memory")  # skip empty strings only
-    ]
+    # Stage 1 — broad multi-query search via recall_b (zero-LLM).
+    # recall_b issues multiple sub-queries and merges with RRF.
+    # No threshold cut — Stage 2 handles precision.
+    # Using recall_b instead of single memory.search() removes the single-query
+    # recall ceiling: the right memory can fail one query vector but surface in another.
+    candidates, stage1_method = _stage1(
+        memory, query, user_id=user_id, cfg=cfg, limit=min(limit, 100)
+    )
 
     if not candidates:
         return [], "no_candidates"
 
     # Stage 2 — integer-pointer filter
-    selected, method = _filter(query, candidates, cfg)
+    selected, filter_method = _filter(query, candidates, cfg)
+    # Method tag: just "filter" when clean, compound when fallback
+    method = f"{stage1_method}|{filter_method}" if filter_method != "filter" else "filter"
     return selected, method
 
 
@@ -84,7 +89,8 @@ def _filter(
     system = (
         "You are a relevance filter for a memory retrieval system. "
         "Decide which numbered memories are relevant to the query. "
-        "Output ONLY a JSON array of integers — no explanation, no other text. "
+        "Output ONLY a JSON array of integers, ordered from most to least relevant. "
+        "No explanation, no other text. "
         "Examples: [1, 4, 7]   or   []"
     )
     user = (

@@ -122,6 +122,24 @@ def cmd_seed(args):
     )
 
 
+def cmd_calibrate(args):
+    import os
+    import sys
+    from cogito.config import load, mem0_config
+    from cogito.calibrate import calibrate
+
+    cfg = load(args.config)
+
+    site = os.environ.get("COGITO_SITE_PACKAGES")
+    if site and site not in sys.path:
+        sys.path.insert(0, site)
+
+    from mem0 import Memory  # type: ignore
+    memory = Memory.from_config(mem0_config(cfg))
+
+    calibrate(memory, cfg, n=args.sample, dry_run=args.dry_run)
+
+
 def cmd_server(args):
     # Delegate to server.main()
     from cogito.server import main as server_main
@@ -169,6 +187,13 @@ def main():
     p_seed.add_argument("--delay", type=int, default=0, help="ms between /store calls (default: 0)")
     p_seed.add_argument("--add", action="store_true", help="Use /add (mem0 extraction) instead of agent-curated /store")
     p_seed.set_defaults(func=cmd_seed)
+
+    # calibrate
+    p_cal = sub.add_parser("calibrate", help="Extract vocab bridge from corpus (one-time)")
+    p_cal.add_argument("--sample", type=int, default=200, help="Number of memories to sample (default: 200)")
+    p_cal.add_argument("--dry-run", action="store_true", help="Preview mappings, don't write config")
+    p_cal.add_argument("--config", help="Path to .cogito.json")
+    p_cal.set_defaults(func=cmd_calibrate)
 
     # server
     p_server = sub.add_parser("server", help="Start the cogito server")

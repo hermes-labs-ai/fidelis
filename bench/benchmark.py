@@ -46,6 +46,7 @@ class Case:
     query: str
     expected: list[str]
     notes: str = ""
+    difficulty: str = ""
 
 
 @dataclass
@@ -108,6 +109,8 @@ def _post(base_url: str, path: str, payload: dict, timeout: int = 30) -> tuple[d
 def run_case(base_url: str, case: Case, method: str, limit: int) -> Result:
     if method == "recall":
         resp, latency = _post(base_url, "/recall", {"text": case.query, "limit": limit})
+    elif method == "recall_b":
+        resp, latency = _post(base_url, "/recall_b", {"text": case.query, "limit": limit})
     else:
         resp, latency = _post(base_url, "/query", {"text": case.query, "limit": limit})
 
@@ -141,9 +144,11 @@ def run_case(base_url: str, case: Case, method: str, limit: int) -> Result:
 def print_results(results_by_method: dict[str, list[Result]], cases: list[Case], verbose: bool):
     n = len(cases)
     methods = list(results_by_method.keys())
+    hard_indices = [i for i, c in enumerate(cases) if c.difficulty == "hard"]
+    n_hard = len(hard_indices)
 
     print(f"\n{'─'*70}")
-    print(f"  cogito benchmark  —  {n} queries")
+    print(f"  cogito benchmark  —  {n} queries  ({n_hard} hard semantic)")
     print(f"{'─'*70}\n")
 
     # Per-query detail
@@ -190,21 +195,48 @@ def print_results(results_by_method: dict[str, list[Result]], cases: list[Case],
                 print(f"  {val:>10.3f}", end="")
         print()
 
+    # Hard-case breakdown
+    if n_hard > 0:
+        print(f"\n  Hard cases only ({n_hard} semantic-gap queries):")
+        hard_metrics = {
+            "Hard Recall@1":  lambda rs: sum(rs[i].hit_at_1 for i in hard_indices) / n_hard,
+            "Hard Recall@3":  lambda rs: sum(rs[i].hit_at_3 for i in hard_indices) / n_hard,
+            "Hard MRR":       lambda rs: sum(rs[i].rr for i in hard_indices) / n_hard,
+        }
+        for label, fn in hard_metrics.items():
+            print(f"  {label:<22}", end="")
+            for method in methods:
+                val = fn(results_by_method[method])
+                print(f"  {val:>10.3f}", end="")
+            print()
+
     print(f"\n{'─'*70}\n")
 
     # Delta summary
+    sign = lambda x: "+" if x >= 0 else ""
+
     if "recall" in results_by_method and "query" in results_by_method:
         r_recall = results_by_method["recall"]
         r_query = results_by_method["query"]
         delta_r1 = (sum(r.hit_at_1 for r in r_recall) - sum(r.hit_at_1 for r in r_query)) / n
         delta_r3 = (sum(r.hit_at_3 for r in r_recall) - sum(r.hit_at_3 for r in r_query)) / n
         delta_lat = (sum(r.latency_ms for r in r_recall) - sum(r.latency_ms for r in r_query)) / n
-
-        sign = lambda x: "+" if x >= 0 else ""
         print(f"  /recall vs /query:")
         print(f"    Recall@1  {sign(delta_r1)}{delta_r1:+.1%}")
         print(f"    Recall@3  {sign(delta_r3)}{delta_r3:+.1%}")
         print(f"    Latency   {sign(delta_lat)}{delta_lat:+.0f}ms  (cost of filter call)")
+        print()
+
+    if "recall_b" in results_by_method and "query" in results_by_method:
+        r_b = results_by_method["recall_b"]
+        r_query = results_by_method["query"]
+        delta_r1 = (sum(r.hit_at_1 for r in r_b) - sum(r.hit_at_1 for r in r_query)) / n
+        delta_r3 = (sum(r.hit_at_3 for r in r_b) - sum(r.hit_at_3 for r in r_query)) / n
+        delta_lat = (sum(r.latency_ms for r in r_b) - sum(r.latency_ms for r in r_query)) / n
+        print(f"  /recall_b vs /query (zero-LLM decomposition baseline):")
+        print(f"    Recall@1  {sign(delta_r1)}{delta_r1:+.1%}")
+        print(f"    Recall@3  {sign(delta_r3)}{delta_r3:+.1%}")
+        print(f"    Latency   {sign(delta_lat)}{delta_lat:+.0f}ms")
         print()
 
 
@@ -223,8 +255,8 @@ def main():
     parser.add_argument("--port", type=int, default=int(os.environ.get("COGITO_PORT", "19420")))
     parser.add_argument("--limit", type=int, default=50, help="Candidate limit for /recall")
     parser.add_argument("--query-limit", type=int, default=5, help="Result limit for /query")
-    parser.add_argument("--methods", default="recall,query",
-                        help="Comma-separated methods to test (recall, query)")
+    parser.add_argument("--methods", default="recall,query,recall_b",
+                        help="Comma-separated methods to test (recall, query, recall_b)")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -243,7 +275,8 @@ def main():
 
     results_by_method: dict[str, list[Result]] = {}
     for method in methods:
-        limit = args.limit if method == "recall" else args.query_limit
+        # recall and recall_b both use broad candidate pool; query uses narrow limit
+        limit = args.limit if method in ("recall", "recall_b") else args.query_limit
         print(f"\nRunning /{method} (limit={limit})...")
         results = []
         for case in cases:
