@@ -106,15 +106,19 @@ def cmd_seed(args):
     from pathlib import Path
     from cogito.seed import seed
 
+    from cogito.config import load
     sources = [Path(s) for s in args.sources]
+    cfg = load()
     seed(
         sources=sources,
         base_url=_base_url(),
+        cfg=cfg,
         glob_pattern=args.glob,
         dry_run=args.dry_run,
         force=args.force,
         verbose=args.verbose,
         delay_ms=args.delay,
+        use_add=args.add,
     )
 
 
@@ -162,7 +166,8 @@ def main():
     p_seed.add_argument("--dry-run", action="store_true", help="Show what would be sent, don't write")
     p_seed.add_argument("--force", action="store_true", help="Re-seed even unchanged files")
     p_seed.add_argument("--verbose", "-v", action="store_true")
-    p_seed.add_argument("--delay", type=int, default=200, help="ms between chunks (default: 200)")
+    p_seed.add_argument("--delay", type=int, default=0, help="ms between /store calls (default: 0)")
+    p_seed.add_argument("--add", action="store_true", help="Use /add (mem0 extraction) instead of agent-curated /store")
     p_seed.set_defaults(func=cmd_seed)
 
     # server

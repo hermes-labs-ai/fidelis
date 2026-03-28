@@ -13,8 +13,16 @@ Endpoints:
        → {"memories": [...], "method": "filter"|"fallback_*"}
        Broad search + cheap-LLM integer-pointer filter. Smart.
 
+  POST /store   {"text": "...", "id": "<optional uuid>"}
+       → {"id": "...", "text": "..."}
+       Write one memory verbatim — no extraction LLM, agent decides content.
+       This is the preferred write path. Use /add only if you want mem0
+       extraction to summarise raw text for you.
+
   POST /add     {"text": "..."}
        → {"count": N, "memories": [...]}
+       Feeds text through mem0's extraction LLM before storing. Use when
+       you have raw/unstructured text and want automatic summarisation.
 
 Start:
   cogito-server                        # uses .cogito.json or env vars
@@ -28,6 +36,7 @@ import argparse
 import json
 import os
 import sys
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -86,7 +95,7 @@ def make_handler(memory: object, cfg: dict) -> type:
 
         def do_POST(self):
             data = self._read_body()
-            if not data and self.path not in ("/add",):
+            if not data and self.path not in ("/add", "/store"):
                 self._json({"error": "invalid json"}, 400)
                 return
 
@@ -116,6 +125,24 @@ def make_handler(memory: object, cfg: dict) -> type:
                 )
                 print(f"[cogito] /recall '{text[:50]}' → {len(memories)} results ({method})", flush=True)
                 self._json({"memories": memories, "method": method})
+
+            elif self.path == "/store":
+                # Verbatim write — agent decides content, no extraction LLM.
+                text = data.get("text", "")
+                if not text or len(text.strip()) < 3:
+                    self._json({"error": "no text"}, 400)
+                    return
+                mem_id = data.get("id") or str(uuid.uuid4())
+                try:
+                    vector = memory.embedding_model.embed(text)  # type: ignore
+                    memory.vector_store.insert(  # type: ignore
+                        vectors=[vector],
+                        payloads=[{"data": text, "user_id": user_id}],
+                        ids=[mem_id],
+                    )
+                    self._json({"id": mem_id, "text": text})
+                except Exception as e:
+                    self._json({"error": str(e)}, 500)
 
             elif self.path == "/add":
                 text = data.get("text", "")

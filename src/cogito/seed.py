@@ -1,17 +1,18 @@
 """
 cogito seed — bulk-seed the memory store from markdown/text files.
 
-Reads source files, chunks them by section, and posts each chunk to the
-running cogito server's /add endpoint. The extraction LLM inside mem0
-decides which facts to store — this script never decides what's memorable.
+The agent (or a capable LLM) decides what to remember. Raw text is read,
+a curation LLM (default: same filter endpoint as /recall) extracts a list
+of atomic facts, and each fact is written verbatim via POST /store — no
+mem0 extraction prompt involved.
 
 Usage:
     cogito seed ~/memory/                          # seed all .md files
     cogito seed ~/memory/ ~/notes/sessions/        # multiple dirs
-    cogito seed --file ~/notes/today.md            # single file
-    cogito seed ~/memory/ --dry-run                # show what would be sent
+    cogito seed ~/memory/ --dry-run                # show facts without writing
     cogito seed ~/memory/ --force                  # re-seed even unchanged files
     cogito seed ~/memory/ --glob "*.md"            # filter by pattern
+    cogito seed ~/memory/ --add                    # use /add (mem0 extraction) instead
 
 State is tracked in ~/.cogito/seeded.json (file path → mtime hash).
 Re-run at any time — only changed or new files are seeded.
@@ -19,8 +20,6 @@ Re-run at any time — only changed or new files are seeded.
 
 from __future__ import annotations
 
-import fnmatch
-import hashlib
 import json
 import os
 import sys
@@ -28,23 +27,21 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 
 # ── chunking ───────────────────────────────────────────────────────────────
 
-def _chunks_from_file(path: Path, max_chars: int = 1500) -> list[str]:
+def _chunks_from_file(path: Path, max_chars: int = 3000) -> list[str]:
     """
-    Split a markdown file into chunks by ## heading.
-    Each chunk is at most max_chars. Long chunks are split further by
-    paragraph. Short consecutive sections may stay merged.
+    Split a markdown file into chunks by heading.
+    Larger chunks than before — the curation LLM reads the full section
+    and decides which facts matter, so we want enough context per chunk.
     """
+    import re
     text = path.read_text(errors="replace")
     if not text.strip():
         return []
 
-    # Split on markdown section headings (## or ###)
-    import re
     sections = re.split(r"(?m)^(?=#{1,3} )", text)
     sections = [s.strip() for s in sections if s.strip()]
 
@@ -53,7 +50,6 @@ def _chunks_from_file(path: Path, max_chars: int = 1500) -> list[str]:
         if len(section) <= max_chars:
             chunks.append(section)
         else:
-            # Split long sections by paragraph
             paras = re.split(r"\n{2,}", section)
             buf = ""
             for para in paras:
@@ -69,6 +65,85 @@ def _chunks_from_file(path: Path, max_chars: int = 1500) -> list[str]:
                 chunks.append(buf)
 
     return [c for c in chunks if len(c.strip()) >= 40]
+
+
+# ── LLM curation ───────────────────────────────────────────────────────────
+
+_CURATE_SYSTEM = (
+    "You are a memory curator for an AI agent. "
+    "Read the provided text and extract a list of atomic, self-contained facts "
+    "worth remembering for future reference. Each fact must be independently "
+    "understandable without the surrounding text. "
+    "Focus on: decisions made, tools/versions/configs, bugs fixed, "
+    "architecture choices, project names, people, deadlines, lessons learned, "
+    "file paths, API shapes, and anything that would be useful weeks later. "
+    "Discard: status updates that are now stale, meeting chatter with no outcome, "
+    "and anything too vague to be actionable. "
+    "Output ONLY a JSON array of strings — one fact per string, no explanation. "
+    'Example: ["lintlang v0.3.1 published to PyPI", "mem0 v1.0.5 reads from payload[\\"data\\"]"]'
+)
+
+
+def _curate(text: str, endpoint: str, token: str, model: str, timeout: float) -> list[str]:
+    """
+    Call the filter LLM to extract curated facts from a text chunk.
+    Returns list of fact strings, or [] on failure.
+    """
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _CURATE_SYSTEM},
+            {"role": "user", "content": f"Text to extract facts from:\n\n{text}"},
+        ],
+        "max_tokens": 1000,
+        "temperature": 0,
+    }).encode()
+
+    req = urllib.request.Request(
+        f"{endpoint}/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            result = json.loads(resp.read())
+        raw = result["choices"][0]["message"]["content"].strip()
+
+        # Strip thinking tokens
+        if "<think>" in raw:
+            end = raw.rfind("</think>")
+            raw = raw[end + 8:].strip() if end >= 0 else raw
+
+        start = raw.find("[")
+        end = raw.rfind("]") + 1
+        if start < 0 or end <= start:
+            return []
+        facts = json.loads(raw[start:end])
+        if isinstance(facts, list):
+            return [f for f in facts if isinstance(f, str) and len(f.strip()) > 5]
+        return []
+    except Exception:
+        return []
+
+
+def _resolve_curation_endpoint(cfg: dict) -> tuple[str, str, str]:
+    """Return (base_url, token, model) for the curation LLM."""
+    endpoint = cfg.get("filter_endpoint", "")
+    token = cfg.get("filter_token", "")
+    model = cfg.get("filter_model", "anthropic/claude-haiku-4-5")
+    if endpoint and token:
+        return endpoint.rstrip("/"), token, model
+
+    api_key = cfg.get("anthropic_api_key", "")
+    if api_key:
+        return "https://api.anthropic.com", api_key, "claude-haiku-4-5-20251001"
+
+    return "", "", model
 
 
 # ── state tracking ──────────────────────────────────────────────────────────
@@ -94,15 +169,28 @@ def _save_state(state: dict[str, str]) -> None:
 
 
 def _file_hash(path: Path) -> str:
-    """Cheap hash: file size + mtime. Fast and sufficient for change detection."""
     stat = path.stat()
     return f"{stat.st_size}:{stat.st_mtime_ns}"
 
 
 # ── HTTP ────────────────────────────────────────────────────────────────────
 
+def _store(base_url: str, text: str, timeout: int = 30) -> str:
+    """POST /store — verbatim write. Returns memory id."""
+    data = json.dumps({"text": text}).encode()
+    req = urllib.request.Request(
+        f"{base_url}/store",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        result = json.loads(resp.read())
+    return result.get("id", "")
+
+
 def _add(base_url: str, text: str, timeout: int = 120) -> tuple[int, list[str]]:
-    """POST /add and return (count, memories)."""
+    """POST /add — mem0 extraction path. Returns (count, memories)."""
     data = json.dumps({"text": text}).encode()
     req = urllib.request.Request(
         f"{base_url}/add",
@@ -110,20 +198,15 @@ def _add(base_url: str, text: str, timeout: int = 120) -> tuple[int, list[str]]:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            result = json.loads(resp.read())
-        return result.get("count", 0), result.get("memories", [])
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"Server not reachable at {base_url}: {e}") from e
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        result = json.loads(resp.read())
+    return result.get("count", 0), result.get("memories", [])
 
 
 def _check_server(base_url: str) -> int:
-    """Return memory count from /health, or raise if unreachable."""
     try:
         with urllib.request.urlopen(f"{base_url}/health", timeout=5) as resp:
-            result = json.loads(resp.read())
-            return result.get("count", 0)
+            return json.loads(resp.read()).get("count", 0)
     except urllib.error.URLError as e:
         raise RuntimeError(f"cogito server not reachable at {base_url}") from e
 
@@ -133,26 +216,41 @@ def _check_server(base_url: str) -> int:
 def seed(
     sources: list[Path],
     base_url: str,
+    cfg: dict | None = None,
     glob_pattern: str = "*.md",
     dry_run: bool = False,
     force: bool = False,
     verbose: bool = False,
-    delay_ms: int = 200,
+    delay_ms: int = 0,
+    use_add: bool = False,
 ) -> dict:
     """
     Seed the cogito store from source dirs/files.
 
-    Returns a summary dict: {files_processed, files_skipped, chunks_sent,
-                              facts_added, errors}.
+    Default path: LLM curates facts → POST /store (verbatim, no extraction).
+    With use_add=True: raw chunks → POST /add (mem0 extraction, legacy path).
     """
+    cfg = cfg or {}
     state = _load_state()
     stats = {
         "files_processed": 0,
         "files_skipped": 0,
-        "chunks_sent": 0,
-        "facts_added": 0,
+        "chunks_read": 0,
+        "facts_written": 0,
         "errors": 0,
     }
+
+    # Curation endpoint
+    curation_available = False
+    if not use_add:
+        endpoint, token, model = _resolve_curation_endpoint(cfg)
+        timeout = cfg.get("filter_timeout_ms", 15000) / 1000
+        if endpoint:
+            curation_available = True
+            print(f"[cogito seed] Curation model: {model} @ {endpoint}")
+        else:
+            print("[cogito seed] No curation endpoint — falling back to /add (mem0 extraction)")
+            use_add = True
 
     # Collect files
     all_files: list[Path] = []
@@ -161,8 +259,7 @@ def seed(
         if src.is_file():
             all_files.append(src)
         elif src.is_dir():
-            matched = sorted(src.rglob(glob_pattern))
-            all_files.extend(matched)
+            all_files.extend(sorted(src.rglob(glob_pattern)))
         else:
             print(f"  [skip] not found: {src}", file=sys.stderr)
 
@@ -170,17 +267,16 @@ def seed(
         print("No files found to seed.")
         return stats
 
-    # Check server (unless dry run)
     if not dry_run:
         try:
             count_before = _check_server(base_url)
             print(f"[cogito seed] Server OK — {count_before} memories before seeding")
         except RuntimeError as e:
             print(f"Error: {e}", file=sys.stderr)
-            print("Start with: cogito-server", file=sys.stderr)
             sys.exit(1)
 
-    print(f"[cogito seed] {len(all_files)} file(s) to consider\n")
+    mode = "/add (mem0 extraction)" if use_add else "/store (agent-curated, verbatim)"
+    print(f"[cogito seed] {len(all_files)} file(s) — write path: {mode}\n")
 
     for path in all_files:
         file_key = str(path)
@@ -189,45 +285,67 @@ def seed(
         if not force and state.get(file_key) == file_hash:
             stats["files_skipped"] += 1
             if verbose:
-                print(f"  [=] {path.name}  (unchanged, skip)")
+                print(f"  [=] {path.name}  (unchanged)")
             continue
 
         chunks = _chunks_from_file(path)
         if not chunks:
-            if verbose:
-                print(f"  [0] {path.name}  (empty)")
             state[file_key] = file_hash
             continue
 
-        rel = path.name
-        print(f"  [→] {rel}  {len(chunks)} chunk(s)")
+        print(f"  [→] {path.name}  {len(chunks)} chunk(s)")
+        stats["chunks_read"] += len(chunks)
 
         file_facts = 0
         file_errors = 0
 
         for i, chunk in enumerate(chunks, 1):
-            if dry_run:
-                preview = chunk[:80].replace("\n", " ")
-                print(f"      [{i}/{len(chunks)}] DRY: {preview!r}...")
-                stats["chunks_sent"] += 1
-                continue
+            if use_add:
+                # Legacy: raw chunk → mem0 extraction → store
+                if dry_run:
+                    print(f"      [{i}/{len(chunks)}] DRY /add: {chunk[:80].replace(chr(10),' ')!r}")
+                    stats["facts_written"] += 1
+                    continue
+                try:
+                    count, memories = _add(base_url, chunk)
+                    file_facts += count
+                    stats["facts_written"] += count
+                    if verbose:
+                        for m in memories:
+                            print(f"      + {m[:90]}")
+                    if delay_ms:
+                        time.sleep(delay_ms / 1000)
+                except Exception as e:
+                    print(f"      [!] chunk {i}: {e}", file=sys.stderr)
+                    file_errors += 1
+                    stats["errors"] += 1
+            else:
+                # Preferred: LLM curates → /store verbatim
+                facts = _curate(chunk, endpoint, token, model, timeout)  # type: ignore[possibly-undefined]
+                if not facts:
+                    if verbose:
+                        print(f"      [{i}/{len(chunks)}] (no facts extracted)")
+                    continue
 
-            try:
-                count, memories = _add(base_url, chunk)
-                file_facts += count
-                stats["chunks_sent"] += 1
-                stats["facts_added"] += count
-                if verbose and memories:
-                    for m in memories:
-                        print(f"      ✓ {m[:80]}")
-                elif verbose:
-                    print(f"      [{i}/{len(chunks)}] +{count} facts")
-                if delay_ms > 0:
-                    time.sleep(delay_ms / 1000)
-            except RuntimeError as e:
-                print(f"      [!] chunk {i}: {e}", file=sys.stderr)
-                file_errors += 1
-                stats["errors"] += 1
+                if dry_run:
+                    for f in facts:
+                        print(f"      DRY: {f[:100]}")
+                    stats["facts_written"] += len(facts)
+                    continue
+
+                for fact in facts:
+                    try:
+                        _store(base_url, fact)
+                        file_facts += 1
+                        stats["facts_written"] += 1
+                        if verbose:
+                            print(f"      + {fact[:100]}")
+                        if delay_ms:
+                            time.sleep(delay_ms / 1000)
+                    except Exception as e:
+                        print(f"      [!] store failed: {e}", file=sys.stderr)
+                        file_errors += 1
+                        stats["errors"] += 1
 
         if not dry_run and file_errors == 0:
             state[file_key] = file_hash
@@ -245,8 +363,8 @@ def seed(
 
     print(f"\n  files processed : {stats['files_processed']}")
     print(f"  files skipped   : {stats['files_skipped']}  (unchanged)")
-    print(f"  chunks sent     : {stats['chunks_sent']}")
-    print(f"  facts added     : {stats['facts_added']}")
+    print(f"  chunks read     : {stats['chunks_read']}")
+    print(f"  facts written   : {stats['facts_written']}")
     if stats["errors"]:
         print(f"  errors          : {stats['errors']}")
 
