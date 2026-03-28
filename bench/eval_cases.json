@@ -1,0 +1,74 @@
+[
+  {
+    "query": "what tools and projects are being built",
+    "expected": ["lintlang", "canary", "suy", "cogito"],
+    "case_type": "cross_reference",
+    "notes": "multi-project aggregation — snapshot should have all of these; vector recall unlikely to aggregate"
+  },
+  {
+    "query": "what open source packages have been released",
+    "expected": ["PyPI", "published", "release", "lintlang"],
+    "case_type": "cross_reference",
+    "notes": "cross-project release status — snapshot layer handles better than per-memory lookup"
+  },
+  {
+    "query": "what are the two layers of the memory system",
+    "expected": ["snapshot", "vector", "MEMORY.md", "layer"],
+    "case_type": "cross_reference",
+    "notes": "architectural summary — likely in snapshot under Architecture or Tools heading"
+  },
+  {
+    "query": "what bugs or incidents were tracked",
+    "expected": ["flat", "timeout", "chromadb", "metadata", "cascade"],
+    "case_type": "cross_reference",
+    "notes": "incident aggregation across multiple memories — snapshot condenses these"
+  },
+  {
+    "query": "what caused the agent to freeze mid-session",
+    "expected": ["timeout", "seed", "auto", "ollama", "cascade"],
+    "case_type": "semantic_gap",
+    "notes": "freeze → timeout/cascade/ollama: user word 'freeze' doesn't appear in corpus"
+  },
+  {
+    "query": "what is our open source adoption",
+    "expected": ["download", "PyPI", "lintlang", "monthly", "installs"],
+    "case_type": "semantic_gap",
+    "notes": "adoption → downloads/PyPI/installs: concept mismatch between user and corpus"
+  },
+  {
+    "query": "how do we prevent the filter from corrupting retrieved text",
+    "expected": ["integer", "pointer", "verbatim", "fidelity", "index"],
+    "case_type": "semantic_gap",
+    "notes": "corrupting → integer-pointer/verbatim/fidelity: the exact design pattern name"
+  },
+  {
+    "query": "why was nothing being found in the memory store",
+    "expected": ["flat", "score", "metadata", "user_id", "chromadb"],
+    "case_type": "semantic_gap",
+    "notes": "nothing found → flat scores/metadata missing/user_id: debugging vocabulary gap"
+  },
+  {
+    "query": "what is the hardware spec of the machine running ollama",
+    "expected": [],
+    "case_type": "adversarial_negative",
+    "notes": "near-miss: mentions ollama (in corpus) but hardware specs not stored"
+  },
+  {
+    "query": "how many contributors does mem0 have on github",
+    "expected": [],
+    "case_type": "adversarial_negative",
+    "notes": "near-miss: mem0 is in corpus context but its contributor count is not"
+  },
+  {
+    "query": "what is nomic-embed-text's embedding dimensionality",
+    "expected": [],
+    "case_type": "adversarial_negative",
+    "notes": "near-miss: nomic-embed-text is the embed model (mentioned in config) but dimensionality not stored"
+  },
+  {
+    "query": "how do I configure chromadb persistence for a production cluster",
+    "expected": [],
+    "case_type": "adversarial_negative",
+    "notes": "near-miss: chromadb is in corpus but this production config question isn't"
+  }
+]

@@ -13,6 +13,34 @@ from pathlib import Path
 from typing import Any
 
 
+_TECHNICAL_EXTRACTION_PROMPT = (
+    "You are a Technical Memory Organizer for an AI agent workspace. "
+    "Extract ALL factual statements from the input — technical decisions, "
+    "infrastructure changes, product details, research findings, scores, dates, "
+    "names, URLs, versions, and architectural choices.\n\n"
+    "Types of information to extract:\n"
+    "1. Infrastructure changes (services started/stopped, configs changed, versions installed)\n"
+    "2. Technical decisions and their rationale\n"
+    "3. Product/project details (names, versions, stars, URLs, status)\n"
+    "4. Research findings and experiment results (scores, percentages, benchmarks)\n"
+    "5. People, organizations, and relationships\n"
+    "6. Dates, deadlines, and timelines\n"
+    "7. File paths, port numbers, model names, and system specifics\n"
+    "8. Security findings and audit scores\n"
+    "9. Architecture patterns and design decisions\n"
+    "10. Task assignments and status changes\n\n"
+    "Examples:\n\n"
+    "Input: We upgraded the server to Ubuntu 24.04 LTS\n"
+    "Output: {\"facts\": [\"Server upgraded to Ubuntu 24.04 LTS\"]}\n\n"
+    "Input: Recall@1 improved from 58% to 85% after adding the snapshot layer\n"
+    "Output: {\"facts\": [\"Recall@1 improved from 58% to 85% after snapshot layer addition\"]}\n\n"
+    "Input: Hi, how are you?\n"
+    "Output: {\"facts\": []}\n\n"
+    "Return facts as JSON with key \"facts\" and a list of strings. "
+    "Extract generously — it's better to capture too much than too little. "
+    "Every concrete fact matters."
+)
+
 _DEFAULTS: dict[str, Any] = {
     "port": 19420,
     "user_id": "agent",
@@ -28,6 +56,7 @@ _DEFAULTS: dict[str, Any] = {
     "embed_model": "nomic-embed-text",
     "vocab_map": {},
     "calibrate_model": "mistral:7b",
+    "custom_fact_extraction_prompt": _TECHNICAL_EXTRACTION_PROMPT,
 }
 
 _ENV_MAP = {

@@ -1,0 +1,113 @@
+# cogito-ergo
+> Two-stage memory retrieval for AI agents. Integer-pointer fidelity guarantee. 85% R@1, 96% hit@any (31 test cases, 2026-03-28). Local, $0/month for retrieval.
+
+## What it is
+
+HTTP memory server for AI agents. Dual-layer architecture:
+1. Snapshot layer — compressed markdown index (~741 tokens) of the full corpus. Built once via `cogito snapshot`. Returned on demand. Solves cross-reference queries (0%→50% R@1).
+2. Two-stage recall — zero-LLM sub-query decomposition + RRF (Stage 1, 127ms), then cheap LLM integer-pointer filter (Stage 2, +1176ms).
+
+Fidelity guarantee: filter LLM outputs ONLY integers (e.g. [3, 7, 12]). Server fetches candidates[3], candidates[7], candidates[12] — verbatim stored text. Filter cannot rephrase, summarize, hallucinate into, or corrupt returned content. Structural, not prompting.
+
+## Benchmarks (31 test cases, 2026-03-28)
+
+- Combined (snapshot + recall): R@1=85%, hit@any=96%, MRR=0.878, latency=1303ms
+- recall only: R@1=63%, hit@any=81%, latency=1197ms
+- recall_b (zero-LLM): R@1=56%, hit@any=96%, latency=127ms
+- snapshot only: R@1=41%
+- Snapshot adds +15% hit@any vs recall-only
+- Cross-reference queries: recall=0% R@1, combined=50% R@1
+
+## HTTP Endpoints (base: http://127.0.0.1:19420)
+
+GET  /health        → {status, count, version, calibrated, snapshot}
+GET  /snapshot      → {snapshot: "<markdown>", path: "..."}  — 404 if not built
+POST /recall        → {memories: [{text, score}], method}    — two-stage, recommended
+POST /recall_b      → {memories: [{text, score}], method}    — zero-LLM only, 127ms
+POST /query         → {memories: [{text, score}]}            — narrow vector search, no LLM
+POST /store         → {id, text}                             — write verbatim, preferred write path
+POST /add           → {count, memories: [...]}               — write via mem0 extraction LLM
+
+## Request/Response shapes
+
+POST /recall   body: {"text": "query", "limit": 50, "threshold": 400}
+POST /recall_b body: {"text": "query", "limit": 50}
+POST /query    body: {"text": "query", "limit": 5}
+POST /store    body: {"text": "verbatim text", "id": "<optional uuid>"}
+POST /add      body: {"text": "raw unstructured text"}
+
+method field in /recall: "filter" (clean), "fallback_no_endpoint", "fallback_unreachable", "fallback_parse_error", "fallback_error"
+method field in /recall_b: "decompose_N" or "decompose_N_v" (v = vocab expansion applied)
+
+## Modules
+
+src/cogito/server.py    — HTTP server, all endpoints, boots mem0 Memory instance
+src/cogito/recall.py    — two-stage recall: calls recall_b for candidates, then _filter() for integer selection
+src/cogito/recall_b.py  — zero-LLM recall: query decomposition, stop-word stripping, bigrams, trigrams, vocab expansion, RRF merge (k=60), up to 8 sub-queries
+src/cogito/snapshot.py  — snapshot build + read/write: samples corpus, single LLM call, structured markdown output
+src/cogito/calibrate.py — vocab bridge extraction (one-time): maps plain-English terms to technical terms in corpus
+src/cogito/config.py    — config load: env vars > .cogito.json > defaults; builds mem0_config dict
+src/cogito/seed.py      — bulk seed from files via /store or /add
+src/cogito/cli.py       — CLI: recall, query, add, store, seed, snapshot, calibrate, health, server
+
+## Key Config Keys
+
+port               default 19420          server port
+user_id            default "agent"        memory namespace
+filter_endpoint    required               OpenAI-compat base URL for filter LLM
+filter_token       required               bearer token for filter endpoint
+filter_model       default claude-haiku-4-5  filter LLM model
+filter_timeout_ms  default 12000          filter LLM timeout
+anthropic_api_key  optional               direct Anthropic key (alternative to endpoint+token)
+store_path         default ~/.cogito/store  ChromaDB persistence
+collection         default cogito_memory  ChromaDB collection
+ollama_url         default http://localhost:11434  Ollama base URL
+llm_model          default mistral:7b     extraction LLM (/add)
+embed_model        default nomic-embed-text  embedding model
+recall_limit       default 50             candidate pool size
+recall_threshold   default 400.0          L2 cutoff for recall candidates
+query_threshold    default 250.0          L2 cutoff for /query
+vocab_map          default {}             written by cogito calibrate
+
+## CLI Commands
+
+cogito-server                        start server
+cogito recall "query"                two-stage recall
+cogito recall_b "query"              zero-LLM recall  (via /recall_b)
+cogito query "query"                 simple vector query
+cogito add "text"                    add via extraction
+cogito seed <dir>                    bulk seed from files (--add for extraction mode)
+cogito snapshot                      build compressed index
+cogito snapshot --rebuild            force rebuild
+cogito calibrate                     build vocab bridge
+cogito health                        check server status
+
+## Python API
+
+from cogito.recall import recall
+from cogito.recall_b import recall_b
+from cogito.config import load, mem0_config
+from mem0 import Memory
+cfg = load()
+memory = Memory.from_config(mem0_config(cfg))
+memories, method = recall(memory, "query", user_id=cfg["user_id"], cfg=cfg)
+# memories: list of {"text": str, "score": float}
+# method: "filter" | "fallback_*"
+
+## Dependencies
+
+mem0ai>=1.0.5   — memory abstraction layer (extraction, storage, search)
+chromadb>=0.5.0 — vector store backend
+Ollama (external, local) — embedding + extraction LLM
+Filter LLM (external) — any OpenAI-compatible endpoint or direct ANTHROPIC_API_KEY
+
+## Related
+
+zer0lint (roli-lpci/zer0lint) — ingestion diagnostics; run before benchmarking
+zer0dex (roli-lpci/zer0dex) — architecture pattern cogito implements (dual-layer retrieval)
+Both by Hermes Labs.
+
+## Install
+
+pip install cogito-ergo
+Python 3.10+. MIT license.

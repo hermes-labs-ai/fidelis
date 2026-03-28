@@ -140,6 +140,53 @@ captured in this file and the research repo without committing to the publicatio
 
 ---
 
+## Case Study: The Ingestion Blindspot (2026-03-28)
+
+**What happened:** While building cogito-ergo's retrieval benchmark, we ran zer0lint
+against the live corpus and got 0/5 (CRITICAL) on ingestion quality. mistral:7b was
+returning malformed JSON from mem0's extraction prompt — unterminated strings, bad
+delimiters. mem0 silently dropped the facts and stored degraded fallbacks ("tooling
+discussed") instead of structured memories.
+
+**Why it was invisible:** The retrieval benchmark (bench/eval.py) measured how well
+you retrieve what's stored. It had no visibility into whether what's stored reflects
+the original signal. The system appeared to work end-to-end: `/add` returned results,
+`/recall` returned memories, the benchmark showed 96% hit@any. All three layers looked
+healthy. The ingestion failure was silent at every level.
+
+**The broader pattern:** Most people integrating mem0 follow the same path:
+1. Call `/add`, see `{"results": [...]}` — looks like it worked
+2. Query the store, get results — looks like retrieval works
+3. Run a retrieval benchmark — numbers look decent
+4. Ship
+
+Nobody checks what actually got written. The extraction failure is silent. The
+retrieval benchmark measures retrieval of garbage and reports a healthy number.
+
+**The end-to-end fidelity framing:** This extends the integer-pointer fidelity argument
+from the retrieval side to a full pipeline decomposition with two independent failure
+modes — both silent, both fixable, neither visible without the right diagnostic:
+
+```
+raw text
+   ↓  [INGESTION FAILURE: extraction LLM corrupts or drops facts]
+vector store
+   ↓  [RETRIEVAL FAILURE: filter LLM corrupts returned text]  ← integer-pointer fixes this
+agent context
+```
+
+zer0lint catches the first. Integer-pointer fidelity eliminates the second.
+The 96% retrieval number only means something after the ingestion number is healthy.
+
+**Implication for the paper:** This is a concrete, reproducible case study where
+the author ran their own diagnostic tool against their own system and caught the failure.
+The meta-point — that most practitioners are benchmarking retrieval of a broken store
+without knowing it — is empirically grounded and has rhetorical weight. It reframes
+the contribution from "here's a retrieval trick" to "here's why end-to-end fidelity
+decomposition is the right unit of analysis."
+
+---
+
 ## Evidence to Gather (if pursuing)
 
 1. **Lit search:** Search for "integer pointer selection LLM", "constrained reranking",

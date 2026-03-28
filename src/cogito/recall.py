@@ -72,6 +72,10 @@ def _filter(
     """
     Ask the filter model which candidates are relevant.
     Outputs only integer indices — the model never generates memory text.
+
+    Supports two call paths:
+      - OpenAI-compat (/v1/chat/completions): cloud APIs, non-thinking local models
+      - Native Ollama (/api/chat with think:false): qwen3 thinking models
     """
     endpoint, token = _resolve_filter_endpoint(cfg)
     if not endpoint:
@@ -90,6 +94,7 @@ def _filter(
         "You are a relevance filter for a memory retrieval system. "
         "Decide which numbered memories are relevant to the query. "
         "Output ONLY a JSON array of integers, ordered from most to least relevant. "
+        "If the query is off-topic or none of the candidates are relevant, output []. "
         "No explanation, no other text. "
         "Examples: [1, 4, 7]   or   []"
     )
@@ -98,6 +103,14 @@ def _filter(
         f"Candidate memories:\n{candidates_block}\n\n"
         "Return a JSON array of the relevant memory numbers."
     )
+
+    # Qwen3 thinking models (qwen3, qwen3.5) need the native Ollama API to
+    # disable thinking mode — /v1/chat/completions returns empty content for these.
+    is_ollama_local = "localhost:11434" in endpoint or "127.0.0.1:11434" in endpoint
+    is_thinking_model = model.startswith("qwen3") or model.startswith("qwen3.5")
+
+    if is_ollama_local and is_thinking_model:
+        return _filter_ollama_native(query, model, system, user, candidates, endpoint, timeout)
 
     payload = json.dumps({
         "model": model,
@@ -123,6 +136,55 @@ def _filter(
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             result = json.loads(resp.read())
         raw_output = result["choices"][0]["message"]["content"].strip()
+        return _parse_indices(raw_output, candidates)
+    except urllib.error.URLError as e:
+        reason = getattr(e, "reason", str(e))
+        return candidates, f"fallback_unreachable:{reason}"
+    except Exception as e:
+        return candidates, f"fallback_error:{type(e).__name__}"
+
+
+def _filter_ollama_native(
+    query: str,
+    model: str,
+    system: str,
+    user: str,
+    candidates: list[dict],
+    endpoint: str,
+    timeout: float,
+) -> tuple[list[dict], str]:
+    """
+    Filter using native Ollama /api/chat with think:false.
+    Required for qwen3/qwen3.5 thinking models which return empty content
+    via the OpenAI-compat endpoint.
+    """
+    # Derive base URL (strip /v1 if present, point at ollama native)
+    base = endpoint.split("/v1")[0].rstrip("/")
+    # Ollama native endpoint is always localhost:11434 or the configured host
+    if "11434" not in base:
+        base = "http://localhost:11434"
+
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "think": False,
+        "stream": False,
+    }).encode()
+
+    req = urllib.request.Request(
+        f"{base}/api/chat",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            result = json.loads(resp.read())
+        raw_output = result["message"]["content"].strip()
         return _parse_indices(raw_output, candidates)
     except urllib.error.URLError as e:
         reason = getattr(e, "reason", str(e))

@@ -99,7 +99,9 @@ def cmd_health(args):
     status = result.get("status", "unknown")
     count = result.get("count", "?")
     version = result.get("version", "?")
-    print(f"status: {status}  |  memories: {count}  |  version: {version}")
+    calibrated = "yes" if result.get("calibrated") else "no"
+    has_snapshot = "yes" if result.get("snapshot") else "no"
+    print(f"status: {status}  |  memories: {count}  |  version: {version}  |  calibrated: {calibrated}  |  snapshot: {has_snapshot}")
 
 
 def cmd_seed(args):
@@ -120,6 +122,24 @@ def cmd_seed(args):
         delay_ms=args.delay,
         use_add=args.add,
     )
+
+
+def cmd_snapshot(args):
+    import os
+    import sys
+    from cogito.config import load, mem0_config
+    from cogito.snapshot import snapshot
+
+    cfg = load(args.config)
+
+    site = os.environ.get("COGITO_SITE_PACKAGES")
+    if site and site not in sys.path:
+        sys.path.insert(0, site)
+
+    from mem0 import Memory  # type: ignore
+    memory = Memory.from_config(mem0_config(cfg))
+
+    snapshot(memory, cfg, n=args.sample, dry_run=args.dry_run, rebuild=args.rebuild)
 
 
 def cmd_calibrate(args):
@@ -187,6 +207,14 @@ def main():
     p_seed.add_argument("--delay", type=int, default=0, help="ms between /store calls (default: 0)")
     p_seed.add_argument("--add", action="store_true", help="Use /add (mem0 extraction) instead of agent-curated /store")
     p_seed.set_defaults(func=cmd_seed)
+
+    # snapshot
+    p_snap = sub.add_parser("snapshot", help="Build compressed index (zer0dex-style MEMORY.md layer)")
+    p_snap.add_argument("--sample", type=int, default=500, help="Memories to sample (default: 500)")
+    p_snap.add_argument("--dry-run", action="store_true", help="Preview without writing")
+    p_snap.add_argument("--rebuild", action="store_true", help="Force rebuild even if snapshot exists")
+    p_snap.add_argument("--config", help="Path to .cogito.json")
+    p_snap.set_defaults(func=cmd_snapshot)
 
     # calibrate
     p_cal = sub.add_parser("calibrate", help="Extract vocab bridge from corpus (one-time)")

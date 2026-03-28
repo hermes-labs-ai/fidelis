@@ -11,6 +11,6 @@ never memory text — so it cannot corrupt or hallucinate into the content
 returned to the main agent.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from cogito.recall import recall  # noqa: F401

@@ -1,0 +1,127 @@
+"""
+Smoke tests — no Ollama, no ChromaDB, no network required.
+"""
+
+import pytest
+from cogito.config import load
+from cogito.recall import _parse_indices
+from cogito.recall_b import _build_subqueries
+
+
+# ---------------------------------------------------------------------------
+# config
+# ---------------------------------------------------------------------------
+
+def test_config_load_defaults():
+    cfg = load(config_path="/nonexistent/path/.cogito.json")
+    assert cfg["port"] == 19420
+    assert cfg["user_id"] == "agent"
+
+
+def test_config_load_returns_dict():
+    cfg = load(config_path="/nonexistent/path/.cogito.json")
+    assert isinstance(cfg, dict)
+    assert "recall_limit" in cfg
+    assert "llm_model" in cfg
+
+
+# ---------------------------------------------------------------------------
+# _parse_indices
+# ---------------------------------------------------------------------------
+
+CANDIDATES = [
+    {"text": "alpha", "score": 1.0},
+    {"text": "beta", "score": 2.0},
+    {"text": "gamma", "score": 3.0},
+]
+
+
+def test_parse_indices_basic():
+    result, method = _parse_indices("[1, 3]", CANDIDATES)
+    assert method == "filter"
+    assert len(result) == 2
+    assert result[0]["text"] == "alpha"
+    assert result[1]["text"] == "gamma"
+
+
+def test_parse_indices_empty_array():
+    result, method = _parse_indices("[]", CANDIDATES)
+    assert method == "filter"
+    assert result == []
+
+
+def test_parse_indices_out_of_range():
+    result, method = _parse_indices("[0, 4, 99]", CANDIDATES)
+    # 0 and 4+ are out of range for 3 candidates — should be dropped
+    assert method == "filter"
+    assert result == []
+
+
+def test_parse_indices_bad_json_fallback():
+    result, method = _parse_indices("not json at all", CANDIDATES)
+    assert method == "fallback_parse_error"
+    assert result is CANDIDATES
+
+
+def test_parse_indices_strips_think_tokens():
+    raw = "<think>I should return 1 and 2</think>[1, 2]"
+    result, method = _parse_indices(raw, CANDIDATES)
+    assert method == "filter"
+    assert len(result) == 2
+
+
+def test_parse_indices_deduplicates():
+    result, method = _parse_indices("[1, 1, 2]", CANDIDATES)
+    assert method == "filter"
+    assert len(result) == 2
+
+
+# ---------------------------------------------------------------------------
+# _build_subqueries
+# ---------------------------------------------------------------------------
+
+def test_build_subqueries_original_always_first():
+    query = "What is the recall score for the snapshot layer?"
+    subqueries, _ = _build_subqueries(query)
+    assert subqueries[0] == query
+
+
+def test_build_subqueries_no_stop_words_in_stripped():
+    query = "how does the snapshot layer improve recall"
+    subqueries, _ = _build_subqueries(query)
+    # Second item should be the stripped phrase — no stop words
+    stripped = subqueries[1]
+    stop_words = {"how", "does", "the"}
+    for word in stop_words:
+        assert word not in stripped.split(), f"stop word '{word}' found in stripped phrase"
+
+
+def test_build_subqueries_max_count():
+    from cogito.recall_b import MAX_SUBQUERIES
+    query = "tell me about the infrastructure changes to the server configuration"
+    subqueries, _ = _build_subqueries(query)
+    assert len(subqueries) <= MAX_SUBQUERIES
+
+
+def test_build_subqueries_empty_query():
+    subqueries, expanded = _build_subqueries("")
+    # Empty query: original is empty string, gets added then tokens are empty
+    assert isinstance(subqueries, list)
+    assert expanded is False
+
+
+def test_build_subqueries_with_vocab_map():
+    vocab_map = {"recall": ["retrieval", "memory search"]}
+    query = "recall score after snapshot"
+    subqueries, expanded = _build_subqueries(query, vocab_map)
+    assert expanded is True
+    # Expansion terms should appear in subqueries
+    all_sq = " ".join(subqueries)
+    assert "retrieval" in all_sq or "memory search" in all_sq
+
+
+def test_build_subqueries_no_vocab_expansion_when_no_match():
+    vocab_map = {"unrelated_term": ["something"]}
+    query = "recall score after snapshot"
+    subqueries, expanded = _build_subqueries(query, vocab_map)
+    assert expanded is False

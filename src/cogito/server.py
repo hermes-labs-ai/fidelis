@@ -44,6 +44,7 @@ from cogito import __version__
 from cogito.config import load, mem0_config
 from cogito.recall import recall as do_recall
 from cogito.recall_b import recall_b as do_recall_b
+from cogito.snapshot import _read_snapshot, _snapshot_path
 
 
 def _boot(cfg: dict) -> object:
@@ -90,7 +91,20 @@ def make_handler(memory: object, cfg: dict) -> type:
                 except Exception:
                     result = memory.get_all(user_id=user_id, limit=10000)  # type: ignore
                     count = len(result.get("results", []))
-                self._json({"status": "ok", "count": count, "version": __version__, "calibrated": bool(cfg.get("vocab_map"))})
+                snap_path = _snapshot_path(cfg)
+                self._json({
+                    "status": "ok",
+                    "count": count,
+                    "version": __version__,
+                    "calibrated": bool(cfg.get("vocab_map")),
+                    "snapshot": snap_path.exists(),
+                })
+            elif self.path == "/snapshot":
+                text = _read_snapshot(cfg)
+                if text is None:
+                    self._json({"error": "no snapshot — run `cogito snapshot` first"}, 404)
+                else:
+                    self._json({"snapshot": text, "path": str(_snapshot_path(cfg))})
             else:
                 self._json({"error": "not found"}, 404)
 

@@ -4,12 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cogito-ergo"
-version = "0.1.0"
+version = "0.2.0"
 description = "A memory layer for AI agents — dual-layer retrieval with fidelity-guaranteed re-ranking"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-keywords = ["ai", "agents", "memory", "rag", "retrieval", "llm"]
+keywords = [
+  "ai", "agents", "memory", "rag", "retrieval", "llm",
+  "mem0", "agent", "zer0dex", "integer-pointer", "fidelity",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -24,7 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 ollama = []  # no extra deps — Ollama runs locally
-dev = ["pytest", "pytest-asyncio", "httpx"]
+dev = ["pytest", "pytest-asyncio", "httpx", "ruff"]
 
 [project.scripts]
 cogito = "cogito.cli:main"
@@ -33,6 +36,16 @@ cogito-server = "cogito.server:main"
 [project.urls]
 Homepage = "https://github.com/roli-lpci/cogito-ergo"
 Repository = "https://github.com/roli-lpci/cogito-ergo"
+"Bug Tracker" = "https://github.com/roli-lpci/cogito-ergo/issues"
+Changelog = "https://github.com/roli-lpci/cogito-ergo/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cogito"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

@@ -1,12 +1,17 @@
 __pycache__/
 *.py[cod]
+*.pyc
 *.egg-info/
 dist/
 build/
 .eggs/
 .venv/
 venv/
+node_modules/
+.env
 .cogito.json
+snapshot.md
 *.sqlite3
 *.chroma/
 .cogito/store/
+.pytest_cache/
