@@ -1,42 +1,62 @@
 [
   {
-    "query": "suy-sideguy mypy fix",
-    "expected": ["suy", "mypy", "OllamaLLMJudge"],
-    "notes": "confirmed hit in prior test"
+    "query": "lintlang version published PyPI",
+    "expected": ["lintlang", "v0.3", "published", "PyPI"],
+    "notes": "easy — keyword overlap with stored fact. baseline sanity check"
   },
   {
-    "query": "lintlang release version",
-    "expected": ["lintlang", "release", "v0.", "version", "published"],
-    "notes": "was returning zer0lint downloads — Stage 1 miss under investigation"
+    "query": "cogito recall two-stage pipeline",
+    "expected": ["cogito", "recall", "two-stage", "vector", "filter"],
+    "notes": "easy — keyword overlap"
   },
   {
-    "query": "quickthink direct mode",
-    "expected": ["quickthink", "direct"],
-    "notes": "confirmed hit in prior test"
+    "query": "mem0 memory text field retrieval",
+    "expected": ["mem0", "data", "memory", "payload", "field"],
+    "notes": "easy — keyword overlap: mem0 v1.0.5 payload[data] fix"
   },
   {
-    "query": "PyPI downloads stats",
-    "expected": ["download", "PyPI", "install"],
-    "notes": "confirmed hit in prior test"
+    "query": "suy-sideguy mypy missing return statement",
+    "expected": ["suy", "mypy", "return", "OllamaLLMJudge", "warden"],
+    "notes": "medium — partial keyword overlap"
   },
   {
-    "query": "zer0dex memory retrieval architecture",
-    "expected": ["zer0dex", "memory", "retrieval", "dual"],
-    "notes": "core architecture work from this session"
+    "query": "which tool blocks unsafe agent behaviour",
+    "expected": ["canary", "guard", "halt", "block", "trust"],
+    "notes": "medium — semantic: little canary / canaryguard"
   },
   {
-    "query": "ChromaDB metadata user_id fix",
-    "expected": ["user_id", "chromadb", "metadata", "patch"],
-    "notes": "root cause fix from this session"
+    "query": "why was the memory extraction producing garbage",
+    "expected": ["extraction", "prompt", "consumer", "fact", "mem0"],
+    "notes": "medium — semantic: mem0 consumer extraction prompt"
   },
   {
-    "query": "Hermes Labs products funding",
-    "expected": ["hermes", "labs", "funding", "lintlang", "suy"],
-    "notes": "company context"
+    "query": "what is our open source adoption",
+    "expected": ["download", "PyPI", "lintlang", "canary", "monthly"],
+    "notes": "HARD — semantic miss in baseline. concept: PyPI download counts"
   },
   {
-    "query": "Agent Gorgon brand UI",
-    "expected": ["agent gorgon", "gorgon", "brand", "ui", "craftclaw"],
-    "notes": "this session's UI work"
+    "query": "how do we prevent the filter from corrupting retrieved text",
+    "expected": ["integer", "pointer", "verbatim", "index", "fidelity"],
+    "notes": "HARD — semantic miss in baseline. concept: integer-pointer fidelity"
+  },
+  {
+    "query": "why was nothing being found in the memory store",
+    "expected": ["flat", "score", "metadata", "user_id", "chromadb"],
+    "notes": "HARD — semantic miss in baseline. concept: ChromaDB metadata bug"
+  },
+  {
+    "query": "what caused the agent to freeze mid-session",
+    "expected": ["timeout", "seed", "auto", "ollama", "cascade"],
+    "notes": "HARD — semantic miss in baseline. concept: auto-seed Ollama timeouts"
+  },
+  {
+    "query": "describe the two layers of the memory architecture",
+    "expected": ["MEMORY.md", "hot", "cold", "vector", "layer"],
+    "notes": "HARD — semantic miss in baseline. concept: zer0dex hot/cold layers"
+  },
+  {
+    "query": "outreach emails design partners prospects pipeline",
+    "expected": ["outreach", "email", "prospect", "design partner", "pipeline"],
+    "notes": "medium — BD strategy entries in corpus"
   }
 ]
