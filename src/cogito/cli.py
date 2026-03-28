@@ -4,6 +4,7 @@ cogito CLI
   cogito recall "query"              two-stage recall via running server
   cogito query  "query"              simple vector query (no filter)
   cogito add    "text"               add a memory
+  cogito seed   ~/memory/ ~/notes/   bulk-seed from markdown files
   cogito health                      check server health
   cogito server                      start the server (alias for cogito-server)
 
@@ -101,6 +102,22 @@ def cmd_health(args):
     print(f"status: {status}  |  memories: {count}  |  version: {version}")
 
 
+def cmd_seed(args):
+    from pathlib import Path
+    from cogito.seed import seed
+
+    sources = [Path(s) for s in args.sources]
+    seed(
+        sources=sources,
+        base_url=_base_url(),
+        glob_pattern=args.glob,
+        dry_run=args.dry_run,
+        force=args.force,
+        verbose=args.verbose,
+        delay_ms=args.delay,
+    )
+
+
 def cmd_server(args):
     # Delegate to server.main()
     from cogito.server import main as server_main
@@ -137,6 +154,16 @@ def main():
     # health
     p_health = sub.add_parser("health", help="Check server health")
     p_health.set_defaults(func=cmd_health)
+
+    # seed
+    p_seed = sub.add_parser("seed", help="Bulk-seed store from markdown/text files")
+    p_seed.add_argument("sources", nargs="+", help="Dirs or files to seed from")
+    p_seed.add_argument("--glob", default="*.md", help="File pattern (default: *.md)")
+    p_seed.add_argument("--dry-run", action="store_true", help="Show what would be sent, don't write")
+    p_seed.add_argument("--force", action="store_true", help="Re-seed even unchanged files")
+    p_seed.add_argument("--verbose", "-v", action="store_true")
+    p_seed.add_argument("--delay", type=int, default=200, help="ms between chunks (default: 200)")
+    p_seed.set_defaults(func=cmd_seed)
 
     # server
     p_server = sub.add_parser("server", help="Start the cogito server")
