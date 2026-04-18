@@ -36,6 +36,36 @@ Escalation fires on 377/470 questions (80%).
 
 ---
 
+## 2026-04-18 update — runP-v35-improved (terse prompts)
+
+**Verdict: FAILED experiment. Terse per-qtype prompts hurt, quote-first helps.**
+
+Tried terse category-specific prompts (`qa_eval_v2_improved.py`): `"Answer in under 10 words"`, `"Quote exactly, then under 10 words"`, etc.
+
+Result: 18/41 = 43.9% vs qwen-max baseline 54.2%.
+
+| qtype | ok/tot | acc | prior v1 (runJ-v33) |
+|---|---|---|---|
+| single-session-assistant | 5/6 | 83.3% | 98.2% |
+| multi-session | 7/13 | 53.8% | 43.8% |
+| single-session-user | 3/7 | 42.9% | 96.9% |
+| knowledge-update | 3/8 | 37.5% | 64.8% |
+| single-session-preference | 0/3 | 0.0% | 13.3% |
+| temporal-reasoning | 0/4 | 0.0% | 26.8% |
+
+Failure modes sampled:
+- Wells Fargo $400K question → reader answered with "Technology Development" bullets (wrong session in top-5)
+- "What degree?" → reader echoed the system prompt verbatim: `"Follow the procedure. Quote first, then answer."`
+- Preference questions → reader picked a distractor session's topic
+
+Root cause: removing the quote-first CoT lets the reader pick any session in the top-5 window. Retrieval is 100% R@5 on this sample — the gold is always there, but the reader lands on distractors.
+
+**Action: revert to qa_eval_v2.py quote-first CoT. Do NOT scale runP-v35-improved to 470.** To push toward 94.87%, the lever is (a) stronger reader model (gpt-4o-mini per prior recommendation), or (b) quote-first + per-qtype format constraint layered together — NOT terse prompts alone.
+
+Saved memory: `feedback_qa_prompt_tradeoff.md`.
+
+---
+
 ## QA Accuracy (Task B) -- Diagnosis Complete
 
 ### Root Cause
