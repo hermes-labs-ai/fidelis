@@ -212,9 +212,9 @@ _QA_SYSTEM = (
 
 def generate_qa_answer(question: str, session_text: str, use_openai: bool) -> str | None:
     """Generate an answer to the question using the session text."""
-    # Truncate session text — use 20000 chars to capture full sessions (avg ~17K chars)
-    # Do NOT truncate too aggressively: answer may appear late in the session
-    max_session_len = 20000
+    # Truncate session text — use 40000 chars to handle multi-session contexts
+    # Single sessions avg ~17K chars; multi-session may pass up to 5 sessions
+    max_session_len = 40000
     if len(session_text) > max_session_len:
         session_text = session_text[:max_session_len] + "\n[... truncated ...]"
 
@@ -310,7 +310,7 @@ def main():
         gold_answer = gold_entry.get("answer", "")
         qtype = gold_entry.get("question_type", "unknown")
 
-        # Get top-1 retrieved session ID
+        # Get retrieved session IDs
         s2_top5 = pq_entry.get("s2_top5_ids", [])
         if not s2_top5:
             print(f"  [{qi+1}/{total}] WARNING: no s2_top5_ids for {qid}, skipping")
@@ -319,11 +319,20 @@ def main():
         top1_sid = s2_top5[0]
         retrieval_hit = pq_entry.get("s2_hit_at_1", False)
 
-        # Get session text
-        session_text = session_id_to_text(gold_entry, top1_sid)
-        if session_text is None:
-            # Fallback: use any available text from the haystack
-            session_text = f"[session {top1_sid} not found in haystack]"
+        # For multi-session questions, pass all top-5 sessions as context
+        # (multi-session questions require aggregating info across multiple sessions)
+        is_multi = qtype in ("multi-session", "knowledge-update", "temporal-reasoning")
+        if is_multi:
+            session_parts = []
+            for sid in s2_top5[:5]:
+                st = session_id_to_text(gold_entry, sid)
+                if st:
+                    session_parts.append(f"--- Session {sid} ---\n{st}")
+            session_text = "\n\n".join(session_parts) if session_parts else f"[session {top1_sid} not found]"
+        else:
+            session_text = session_id_to_text(gold_entry, top1_sid)
+            if session_text is None:
+                session_text = f"[session {top1_sid} not found in haystack]"
 
         # Generate QA answer
         qa_answer = generate_qa_answer(question, session_text, use_openai)
