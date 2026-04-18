@@ -1,0 +1,32 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "bm25_hybrid",
+  "engine": "BM25 (bm25s) + nomic-embed-text cosine, RRF fusion",
+  "embed_model": "nomic-embed-text (Ollama)",
+  "changes": "BM25 (bm25s) runs in parallel with dense cosine per sub-query. All ranked lists (both types) fed into RRF merge. BM25 index built per-question. search_query/search_document prefixes retained. 2000-char truncation.",
+  "questions_evaluated": 470,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.732,
+      "R@3": 0.868,
+      "R@5": 0.928,
+      "R@10": 0.97
+    },
+    "recall_all": {
+      "R@1": 0.245,
+      "R@3": 0.638,
+      "R@5": 0.757,
+      "R@10": 0.883
+    },
+    "ndcg": {
+      "R@1": 0.732,
+      "R@3": 0.754,
+      "R@5": 0.788,
+      "R@10": 0.819
+    }
+  },
+  "avg_retrieval_time_ms": 139,
+  "total_time_s": 65.2
+}

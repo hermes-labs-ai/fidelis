@@ -1,0 +1,32 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "turn_level_chunking",
+  "engine": "recall_b + turn-level chunks + search_query/search_document prefixes",
+  "embed_model": "nomic-embed-text (Ollama)",
+  "changes": "Sessions chunked into turn-level units (prev turn as context + current turn). Chunks embedded with 'search_document: ' prefix. Queries with 'search_query: '. Chunk rankings deduped back to session rankings for scoring. 2000-char truncation.",
+  "questions_evaluated": 470,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.668,
+      "R@3": 0.887,
+      "R@5": 0.951,
+      "R@10": 0.981
+    },
+    "recall_all": {
+      "R@1": 0.223,
+      "R@3": 0.613,
+      "R@5": 0.779,
+      "R@10": 0.904
+    },
+    "ndcg": {
+      "R@1": 0.668,
+      "R@3": 0.736,
+      "R@5": 0.788,
+      "R@10": 0.816
+    }
+  },
+  "avg_retrieval_time_ms": 200,
+  "total_time_s": 94.1
+}

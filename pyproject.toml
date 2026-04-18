@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cogito-ergo"
-version = "0.0.8"
+version = "0.2.0"
 description = "Two-stage memory retrieval for AI agents — integer-pointer fidelity guarantee, 85% R@1. By Hermes Labs."
 readme = "README.md"
 license = { text = "MIT" }
@@ -36,6 +36,7 @@ dev = ["pytest", "pytest-asyncio", "httpx", "ruff"]
 [project.scripts]
 cogito = "cogito.cli:main"
 cogito-server = "cogito.server:main"
+cogito-scaffold = "cogito.scaffold_server:main"
 
 [project.urls]
 Homepage = "https://hermes-labs.ai"

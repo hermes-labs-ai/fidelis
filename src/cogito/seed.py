@@ -140,7 +140,7 @@ def _resolve_curation_endpoint(cfg: dict) -> tuple[str, str, str]:
     """Return (base_url, token, model) for the curation LLM."""
     endpoint = cfg.get("filter_endpoint", "")
     token = cfg.get("filter_token", "")
-    model = cfg.get("filter_model", "anthropic/claude-haiku-4-5")
+    model = cfg.get("curation_model", cfg.get("llm_model", "mistral:7b"))
     if endpoint and token:
         return endpoint.rstrip("/"), token, model
 

@@ -57,6 +57,10 @@ _DEFAULTS: dict[str, Any] = {
     "vocab_map": {},
     "calibrate_model": "mistral:7b",
     "custom_fact_extraction_prompt": _TECHNICAL_EXTRACTION_PROMPT,
+    # Scaffold memory
+    "scaffold_port": 19421,
+    "scaffold_model": "qwen3.5:4b",
+    "scaffold_budget": 7000,
 }
 
 _ENV_MAP = {
@@ -76,6 +80,9 @@ _ENV_MAP = {
     "COGITO_QUERY_THRESHOLD": ("query_threshold", float),
     # Also accept raw Anthropic key for direct calls (no gateway needed)
     "ANTHROPIC_API_KEY": ("anthropic_api_key", str),
+    "COGITO_SCAFFOLD_MODEL": ("scaffold_model", str),
+    "COGITO_SCAFFOLD_BUDGET": ("scaffold_budget", int),
+    "COGITO_SCAFFOLD_PORT": ("scaffold_port", int),
 }
 
 

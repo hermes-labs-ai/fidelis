@@ -90,7 +90,7 @@ POST /add       {"text": "raw unstructured text for extraction"}
 /query     → {"memories": [{"text": "...", "score": 93.4}]}
 /store     → {"id": "abc123", "text": "..."}
 /add       → {"count": 3, "memories": ["fact 1", "fact 2", "fact 3"]}
-/health    → {"status": "ok", "count": 1484, "version": "0.0.8", "calibrated": true, "snapshot": true}
+/health    → {"status": "ok", "count": 1484, "version": "0.2.0", "calibrated": true, "snapshot": true}
 ```
 
 ### Method field meanings

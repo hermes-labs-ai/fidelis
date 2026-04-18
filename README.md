@@ -153,7 +153,7 @@ All endpoints return JSON. Server runs on port `19420` by default.
 ### `GET /health`
 
 ```json
-{"status": "ok", "count": 1484, "version": "0.0.8", "calibrated": true, "snapshot": true}
+{"status": "ok", "count": 1484, "version": "0.2.0", "calibrated": true, "snapshot": true}
 ```
 
 Fields: `count` = total memories in store; `calibrated` = vocab_map present; `snapshot` = snapshot.md exists.

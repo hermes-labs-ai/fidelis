@@ -1,0 +1,33 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "two_pass_rerank",
+  "engine": "recall_b + two-pass rerank (bge-reranker-v2-m3)",
+  "embed_model": "nomic-embed-text",
+  "rerank_model": "qllama/bge-reranker-v2-m3",
+  "rerank_weight": 0.5,
+  "questions_evaluated": 443,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.305,
+      "R@3": 0.544,
+      "R@5": 0.661,
+      "R@10": 0.853
+    },
+    "recall_all": {
+      "R@1": 0.135,
+      "R@3": 0.262,
+      "R@5": 0.366,
+      "R@10": 0.576
+    },
+    "ndcg": {
+      "R@1": 0.305,
+      "R@3": 0.362,
+      "R@5": 0.416,
+      "R@10": 0.494
+    }
+  },
+  "avg_retrieval_time_ms": 1186,
+  "total_time_s": 525.3
+}

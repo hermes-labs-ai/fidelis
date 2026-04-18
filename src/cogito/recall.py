@@ -231,17 +231,12 @@ def _resolve_filter_endpoint(cfg: dict[str, Any]) -> tuple[str, str]:
     """
     Return (base_url, token) for the filter LLM.
 
-    Priority:
-      1. COGITO_FILTER_ENDPOINT + COGITO_FILTER_TOKEN — any OpenAI-compat endpoint
-      2. ANTHROPIC_API_KEY — direct api.anthropic.com
+    Requires COGITO_FILTER_ENDPOINT + COGITO_FILTER_TOKEN (any OpenAI-compat endpoint).
+    For Ollama, set endpoint to http://localhost:11434 with an empty token.
     """
     endpoint = cfg.get("filter_endpoint", "")
     token = cfg.get("filter_token", "")
-    if endpoint and token:
+    if endpoint:
         return endpoint.rstrip("/"), token
-
-    api_key = cfg.get("anthropic_api_key", "")
-    if api_key:
-        return "https://api.anthropic.com", api_key
 
     return "", ""

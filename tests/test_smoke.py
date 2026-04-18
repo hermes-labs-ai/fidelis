@@ -5,7 +5,7 @@ Smoke tests — no Ollama, no ChromaDB, no network required.
 import pytest
 from cogito.config import load
 from cogito.recall import _parse_indices
-from cogito.recall_b import _build_subqueries
+from cogito.recall_b import _build_subqueries, _rrf_merge
 
 
 # ---------------------------------------------------------------------------
@@ -125,3 +125,65 @@ def test_build_subqueries_no_vocab_expansion_when_no_match():
     query = "recall score after snapshot"
     subqueries, expanded = _build_subqueries(query, vocab_map)
     assert expanded is False
+
+
+# ---------------------------------------------------------------------------
+# _rrf_merge
+# ---------------------------------------------------------------------------
+
+def test_rrf_merge_single_run():
+    runs = [[
+        {"text": "alpha", "score": 1.0},
+        {"text": "beta", "score": 2.0},
+    ]]
+    result = _rrf_merge(runs, limit=10)
+    assert len(result) == 2
+    # rank 1 should score higher than rank 2
+    assert result[0]["text"] == "alpha"
+    assert result[1]["text"] == "beta"
+
+
+def test_rrf_merge_deduplicates_across_runs():
+    runs = [
+        [{"text": "alpha", "score": 1.0}, {"text": "beta", "score": 2.0}],
+        [{"text": "beta", "score": 1.0}, {"text": "gamma", "score": 2.0}],
+    ]
+    result = _rrf_merge(runs, limit=10)
+    texts = [r["text"] for r in result]
+    assert len(texts) == 3
+    assert len(set(texts)) == 3  # no duplicates
+
+
+def test_rrf_merge_boosted_by_multiple_runs():
+    # "beta" appears at rank 1 in both runs, "alpha" at rank 1 in one only
+    runs = [
+        [{"text": "alpha", "score": 1.0}, {"text": "beta", "score": 2.0}],
+        [{"text": "beta", "score": 1.0}, {"text": "gamma", "score": 2.0}],
+    ]
+    result = _rrf_merge(runs, limit=10)
+    # beta appears in both runs (rank 2 + rank 1) → higher RRF than alpha (rank 1 only)
+    assert result[0]["text"] == "beta"
+
+
+def test_rrf_merge_respects_limit():
+    runs = [[
+        {"text": f"item_{i}", "score": float(i)}
+        for i in range(20)
+    ]]
+    result = _rrf_merge(runs, limit=5)
+    assert len(result) == 5
+
+
+def test_rrf_merge_empty_runs():
+    result = _rrf_merge([], limit=10)
+    assert result == []
+
+
+def test_rrf_merge_skips_empty_text():
+    runs = [[
+        {"text": "", "score": 1.0},
+        {"text": "valid", "score": 2.0},
+    ]]
+    result = _rrf_merge(runs, limit=10)
+    assert len(result) == 1
+    assert result[0]["text"] == "valid"

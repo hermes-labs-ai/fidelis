@@ -1,0 +1,3 @@
+# LongMemEval Retrieval Benchmark — 2026-04-15
+
+cogito `recall_b` (zero-LLM multi-query RRF + cosine rerank via nomic-embed-text) evaluated on LongMemEval S split: 443 of 470 non-abstention questions scored (27 skipped due to Ollama embedding failures on large corpus batches). **R@1 56.2%, R@5 81.3%, R@10 92.3%**, recall_all R@10 77.0%, NDCG@10 69.2%. Average retrieval latency 75ms per question, 33s total. These numbers are below the previous killed-session report (R@1 80%, R@any 94.4%) — the delta likely comes from running the full 470-question set rather than a limited subset, plus 27 embed-failure skips that may have disproportionately affected harder multi-session questions with larger corpora.

@@ -1,0 +1,32 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "combined_all",
+  "engine": "BM25 (bm25s) + nomic-embed-text cosine on turn-level chunks, RRF fusion",
+  "embed_model": "nomic-embed-text (Ollama)",
+  "changes": "Sessions chunked into turn-level units (prev turn as context + current turn). BM25 index built per-question over chunks (not whole sessions). BM25 and dense cosine both run per sub-query; all ranked lists fused via RRF. Chunk rankings deduped back to session rankings for scoring. search_query/search_document prefixes. 2000-char truncation.",
+  "questions_evaluated": 470,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.832,
+      "R@3": 0.951,
+      "R@5": 0.983,
+      "R@10": 0.991
+    },
+    "recall_all": {
+      "R@1": 0.311,
+      "R@3": 0.751,
+      "R@5": 0.851,
+      "R@10": 0.938
+    },
+    "ndcg": {
+      "R@1": 0.832,
+      "R@3": 0.86,
+      "R@5": 0.884,
+      "R@10": 0.9
+    }
+  },
+  "avg_retrieval_time_ms": 296,
+  "total_time_s": 139.1
+}

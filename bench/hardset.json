@@ -1,0 +1,1060 @@
+[
+  {
+    "qid": "5d3d2817",
+    "qi": 10,
+    "qtype": "single-session-user",
+    "question": "What was my previous occupation?",
+    "gold_session_ids": [
+      "answer_235eb6fb"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "e93efd9a_1",
+      "answer_235eb6fb",
+      "sharegpt_ebWP6Hz_0",
+      "sharegpt_ipLglky_48",
+      "sharegpt_Gdrz2qz_15"
+    ],
+    "s2_top5_ids": [
+      "e93efd9a_1",
+      "answer_235eb6fb",
+      "sharegpt_ebWP6Hz_0",
+      "sharegpt_ipLglky_48",
+      "sharegpt_Gdrz2qz_15"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "ccb36322",
+    "qi": 43,
+    "qtype": "single-session-user",
+    "question": "What is the name of the music streaming service have I been using lately?",
+    "gold_session_ids": [
+      "answer_f1fbb330"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "06d1a1a0",
+      "answer_f1fbb330",
+      "04a0b385",
+      "facfdfe2",
+      "sharegpt_h1UXagU_9"
+    ],
+    "s2_top5_ids": [
+      "06d1a1a0",
+      "answer_f1fbb330",
+      "04a0b385",
+      "facfdfe2",
+      "sharegpt_h1UXagU_9"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "c14c00dd",
+    "qi": 60,
+    "qtype": "single-session-user",
+    "question": "What brand of shampoo do I currently use?",
+    "gold_session_ids": [
+      "answer_304511ce"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "sharegpt_FfqJ2xI_0",
+      "answer_304511ce",
+      "c77250d2",
+      "sharegpt_vXWOUqx_11",
+      "183b6085"
+    ],
+    "s2_top5_ids": [
+      "sharegpt_FfqJ2xI_0",
+      "answer_304511ce",
+      "c77250d2",
+      "sharegpt_vXWOUqx_11",
+      "183b6085"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "knowledge_update",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "6d550036",
+    "qi": 65,
+    "qtype": "multi-session",
+    "question": "How many projects have I led or am currently leading?",
+    "gold_session_ids": [
+      "answer_ec904b3c_1",
+      "answer_ec904b3c_4",
+      "answer_ec904b3c_3",
+      "answer_ec904b3c_2"
+    ],
+    "n_gold": 4,
+    "s1_top5_ids": [
+      "2e4430d8_2",
+      "sharegpt_zciCXP1_12",
+      "answer_ec904b3c_2",
+      "sharegpt_J7ZAFLd_0",
+      "sharegpt_UbMVpdp_93"
+    ],
+    "s2_top5_ids": [
+      "2e4430d8_2",
+      "answer_ec904b3c_2",
+      "sharegpt_zciCXP1_12",
+      "sharegpt_J7ZAFLd_0",
+      "sharegpt_UbMVpdp_93"
+    ],
+    "route_decision": "llm",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "32260d93",
+    "qi": 125,
+    "qtype": "single-session-preference",
+    "question": "Can you recommend a show or movie for me to watch tonight?",
+    "gold_session_ids": [
+      "answer_0250ae1c"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "ultrachat_507667",
+      "ultrachat_486807",
+      "573dc24b_1",
+      "answer_0250ae1c",
+      "6d3f5c68_4"
+    ],
+    "s2_top5_ids": [
+      "ultrachat_507667",
+      "ultrachat_486807",
+      "573dc24b_1",
+      "answer_0250ae1c",
+      "6d3f5c68_4"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "06f04340",
+    "qi": 130,
+    "qtype": "single-session-preference",
+    "question": "What should I serve for dinner this weekend with my homegrown ingredients?",
+    "gold_session_ids": [
+      "answer_92d5f7cd"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "6e6fbb6b",
+      "91223fd5_1",
+      "8b156015_2",
+      "answer_92d5f7cd",
+      "ultrachat_161745"
+    ],
+    "s2_top5_ids": [
+      "6e6fbb6b",
+      "91223fd5_1",
+      "8b156015_2",
+      "answer_92d5f7cd",
+      "ultrachat_161745"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "6b7dfb22",
+    "qi": 131,
+    "qtype": "single-session-preference",
+    "question": "I've been feeling a bit stuck with my paintings lately. Do you have any ideas on how I can find new inspiration?",
+    "gold_session_ids": [
+      "answer_f6502d0f"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "574df152_1",
+      "answer_f6502d0f",
+      "3a980e89_4",
+      "fc69fd44_3",
+      "sharegpt_NAagJWR_0"
+    ],
+    "s2_top5_ids": [
+      "574df152_1",
+      "answer_f6502d0f",
+      "3a980e89_4",
+      "fc69fd44_3",
+      "sharegpt_NAagJWR_0"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "d24813b1",
+    "qi": 135,
+    "qtype": "single-session-preference",
+    "question": "I'm thinking of inviting my colleagues over for a small gathering. Any tips on what to bake?",
+    "gold_session_ids": [
+      "answer_7c0ade93"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "ultrachat_494027",
+      "ultrachat_223231",
+      "3124bb28_1",
+      "answer_7c0ade93",
+      "128f4e4d_3"
+    ],
+    "s2_top5_ids": [
+      "ultrachat_494027",
+      "ultrachat_223231",
+      "3124bb28_1",
+      "answer_7c0ade93",
+      "128f4e4d_3"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "57f827a0",
+    "qi": 136,
+    "qtype": "single-session-preference",
+    "question": "I was thinking about rearranging the furniture in my bedroom this weekend. Any tips?",
+    "gold_session_ids": [
+      "answer_1bde8d3b"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "e85e0eaf_1",
+      "1bff1675",
+      "answer_1bde8d3b",
+      "d0f42e3f",
+      "5150a4e9_2"
+    ],
+    "s2_top5_ids": [
+      "e85e0eaf_1",
+      "1bff1675",
+      "answer_1bde8d3b",
+      "d0f42e3f",
+      "5150a4e9_2"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "d6233ab6",
+    "qi": 140,
+    "qtype": "single-session-preference",
+    "question": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?",
+    "gold_session_ids": [
+      "answer_b0fac439"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "ultrachat_125013",
+      "0e726047",
+      "sharegpt_ZWqMvoL_607",
+      "94bc18df_3",
+      "ultrachat_459148"
+    ],
+    "s2_top5_ids": [
+      "ultrachat_125013",
+      "0e726047",
+      "sharegpt_ZWqMvoL_607",
+      "94bc18df_3",
+      "ultrachat_459148"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "1da05512",
+    "qi": 141,
+    "qtype": "single-session-preference",
+    "question": "I'm trying to decide whether to buy a NAS device now or wait. What do you think?",
+    "gold_session_ids": [
+      "answer_4d3be2ab"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "f2565b3b_2",
+      "answer_4d3be2ab",
+      "aea71da3_2",
+      "58de8f9b",
+      "sharegpt_eSTYwMj_14"
+    ],
+    "s2_top5_ids": [
+      "f2565b3b_2",
+      "answer_4d3be2ab",
+      "aea71da3_2",
+      "58de8f9b",
+      "sharegpt_eSTYwMj_14"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "knowledge_update",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "b0479f84",
+    "qi": 145,
+    "qtype": "single-session-preference",
+    "question": "I've got some free time tonight, any documentary recommendations?",
+    "gold_session_ids": [
+      "answer_30f63ddb"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "4f37e5ec",
+      "answer_30f63ddb",
+      "ultrachat_419825",
+      "ultrachat_158461",
+      "fbfda981"
+    ],
+    "s2_top5_ids": [
+      "4f37e5ec",
+      "answer_30f63ddb",
+      "ultrachat_419825",
+      "ultrachat_158461",
+      "fbfda981"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "1d4e3b97",
+    "qi": 146,
+    "qtype": "single-session-preference",
+    "question": "I noticed my bike seems to be performing even better during my Sunday group rides. Could there be a reason for this?",
+    "gold_session_ids": [
+      "answer_e6b6353d"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "ecb24dd8_2",
+      "answer_e6b6353d",
+      "809cabca_1",
+      "sharegpt_eOKax2Z_0",
+      "1b320137_1"
+    ],
+    "s2_top5_ids": [
+      "ecb24dd8_2",
+      "answer_e6b6353d",
+      "809cabca_1",
+      "sharegpt_eOKax2Z_0",
+      "1b320137_1"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "1c0ddc50",
+    "qi": 148,
+    "qtype": "single-session-preference",
+    "question": "Can you suggest some activities I can do during my commute to work?",
+    "gold_session_ids": [
+      "answer_8da8c7e0"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "2aa70c9c_1",
+      "a0aa5035",
+      "b33e89b5_1",
+      "answer_8da8c7e0",
+      "ultrachat_494933"
+    ],
+    "s2_top5_ids": [
+      "2aa70c9c_1",
+      "a0aa5035",
+      "b33e89b5_1",
+      "answer_8da8c7e0",
+      "ultrachat_494933"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "d3ab962e",
+    "qi": 150,
+    "qtype": "multi-session",
+    "question": "What is the total distance of the hikes I did on two consecutive weekends?",
+    "gold_session_ids": [
+      "answer_5237bb0b_2",
+      "answer_5237bb0b_1"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "3329e5e8_1",
+      "answer_5237bb0b_1",
+      "answer_5237bb0b_2",
+      "ultrachat_564044",
+      "ultrachat_248741"
+    ],
+    "s2_top5_ids": [
+      "3329e5e8_1",
+      "answer_5237bb0b_1",
+      "answer_5237bb0b_2",
+      "ultrachat_564044",
+      "ultrachat_248741"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "9aaed6a3",
+    "qi": 156,
+    "qtype": "multi-session",
+    "question": "How much cashback did I earn at SaveMart last Thursday?",
+    "gold_session_ids": [
+      "answer_353d3c6d_2",
+      "answer_353d3c6d_1"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "c846422a_1",
+      "answer_353d3c6d_1",
+      "answer_353d3c6d_2",
+      "a861a671_1",
+      "sharegpt_Le00ERV_0"
+    ],
+    "s2_top5_ids": [
+      "c846422a_1",
+      "answer_353d3c6d_1",
+      "answer_353d3c6d_2",
+      "a861a671_1",
+      "sharegpt_Le00ERV_0"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "a1cc6108",
+    "qi": 173,
+    "qtype": "multi-session",
+    "question": "How old was I when Alex was born?",
+    "gold_session_ids": [
+      "answer_17dc2f5b_2",
+      "answer_17dc2f5b_1"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "298a07de_5",
+      "answer_17dc2f5b_2",
+      "001cefa7_2",
+      "31e254b5",
+      "fb328ace_1"
+    ],
+    "s2_top5_ids": [
+      "298a07de_5",
+      "answer_17dc2f5b_2",
+      "001cefa7_2",
+      "31e254b5",
+      "fb328ace_1"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "078150f1",
+    "qi": 206,
+    "qtype": "multi-session",
+    "question": "How much more money did I raise than my initial goal in the charity cycling event?",
+    "gold_session_ids": [
+      "answer_254d8b09_1",
+      "answer_254d8b09_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "ultrachat_202549",
+      "answer_254d8b09_1",
+      "61b27d67_3",
+      "203a48bb_1",
+      "answer_254d8b09_2"
+    ],
+    "s2_top5_ids": [
+      "ultrachat_202549",
+      "answer_254d8b09_1",
+      "61b27d67_3",
+      "203a48bb_1",
+      "answer_254d8b09_2"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "e56a43b9",
+    "qi": 212,
+    "qtype": "multi-session",
+    "question": "How much discount will I get on my next purchase at FreshMart?",
+    "gold_session_ids": [
+      "answer_430d0a87_1",
+      "answer_430d0a87_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "7596ba6a",
+      "answer_430d0a87_2",
+      "answer_430d0a87_1",
+      "ce21f0e4",
+      "a59b73f6"
+    ],
+    "s2_top5_ids": [
+      "7596ba6a",
+      "answer_430d0a87_2",
+      "answer_430d0a87_1",
+      "ce21f0e4",
+      "a59b73f6"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "gpt4_468eb063",
+    "qi": 236,
+    "qtype": "temporal-reasoning",
+    "question": "How many days ago did I meet Emma?",
+    "gold_session_ids": [
+      "answer_9b09d95b_1"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "e60a93ff_2",
+      "sharegpt_gfhUw40_17",
+      "47183c60_5",
+      "07954926_1",
+      "sharegpt_rcDGgsg_0"
+    ],
+    "s2_top5_ids": [
+      "47183c60_5",
+      "e60a93ff_2",
+      "07954926_1",
+      "sharegpt_rcDGgsg_0",
+      "sharegpt_gfhUw40_17"
+    ],
+    "route_decision": "llm",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "gpt4_e061b84f",
+    "qi": 244,
+    "qtype": "temporal-reasoning",
+    "question": "What is the order of the three sports events I participated in during the past month, from earliest to latest?",
+    "gold_session_ids": [
+      "answer_8c64ce25_2",
+      "answer_8c64ce25_1",
+      "answer_8c64ce25_3"
+    ],
+    "n_gold": 3,
+    "s1_top5_ids": [
+      "ultrachat_129606",
+      "ultrachat_194928",
+      "answer_8c64ce25_3",
+      "77974d02",
+      "0a6bf5e4_1"
+    ],
+    "s2_top5_ids": [
+      "0a6bf5e4_1",
+      "answer_8c64ce25_3",
+      "ultrachat_194928",
+      "77974d02",
+      "ultrachat_129606"
+    ],
+    "route_decision": "llm",
+    "failure_mode_note": "temporal_multi_hop",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "gpt4_af6db32f",
+    "qi": 258,
+    "qtype": "temporal-reasoning",
+    "question": "How many days ago did I watch the Super Bowl?",
+    "gold_session_ids": [
+      "answer_184c8f56_1"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "aee13015_6",
+      "ultrachat_552923",
+      "ec1b557a_1",
+      "ultrachat_251919",
+      "8617737e"
+    ],
+    "s2_top5_ids": [
+      "ec1b557a_1",
+      "aee13015_6",
+      "8617737e",
+      "ultrachat_552923",
+      "ultrachat_251919"
+    ],
+    "route_decision": "llm",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "gpt4_4929293b",
+    "qi": 277,
+    "qtype": "temporal-reasoning",
+    "question": "What was the the life event of one of my relatives that I participated in a week ago?",
+    "gold_session_ids": [
+      "answer_add9b013_2",
+      "answer_add9b013_1"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "4090cbea",
+      "bda611f6_3",
+      "sharegpt_rqvR1Ep_0",
+      "sharegpt_KFhIUCO_0",
+      "c0dbabb8"
+    ],
+    "s2_top5_ids": [
+      "4090cbea",
+      "c0dbabb8",
+      "bda611f6_3",
+      "sharegpt_rqvR1Ep_0",
+      "sharegpt_KFhIUCO_0"
+    ],
+    "route_decision": "llm",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "gpt4_468eb064",
+    "qi": 278,
+    "qtype": "temporal-reasoning",
+    "question": "Who did I meet with during the lunch last Tuesday?",
+    "gold_session_ids": [
+      "answer_9b09d95b_1"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "1e5bd28d_2",
+      "a2f0054f",
+      "9c479e89_2",
+      "1d74a734",
+      "c3023a45_1"
+    ],
+    "s2_top5_ids": [
+      "c3023a45_1",
+      "1d74a734",
+      "9c479e89_2",
+      "a2f0054f",
+      "1e5bd28d_2"
+    ],
+    "route_decision": "llm",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "gpt4_fa19884d",
+    "qi": 279,
+    "qtype": "temporal-reasoning",
+    "question": "What is the artist that I started to listen to last Friday?",
+    "gold_session_ids": [
+      "answer_ff201787_1",
+      "answer_ff201787_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "5f9dd782",
+      "answer_ff201787_2",
+      "ccc87da9_1",
+      "answer_ff201787_1",
+      "ultrachat_176182"
+    ],
+    "s2_top5_ids": [
+      "5f9dd782",
+      "answer_ff201787_2",
+      "ccc87da9_1",
+      "answer_ff201787_1",
+      "ultrachat_176182"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "9a707b82",
+    "qi": 280,
+    "qtype": "temporal-reasoning",
+    "question": "I mentioned cooking something for my friend a couple of days ago. What was it?",
+    "gold_session_ids": [
+      "answer_dba89488_2",
+      "answer_dba89488_1"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "7a4d00b3_2",
+      "answer_dba89488_1",
+      "990f3ef9_2",
+      "ultrachat_466884",
+      "68d35085_1"
+    ],
+    "s2_top5_ids": [
+      "7a4d00b3_2",
+      "answer_dba89488_1",
+      "990f3ef9_2",
+      "ultrachat_466884",
+      "68d35085_1"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "eac54add",
+    "qi": 281,
+    "qtype": "temporal-reasoning",
+    "question": "What was the significant buisiness milestone I mentioned four weeks ago?",
+    "gold_session_ids": [
+      "answer_0d4d0348_1",
+      "answer_0d4d0348_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "ultrachat_133409",
+      "ultrachat_275712",
+      "ultrachat_385768",
+      "ultrachat_75926",
+      "sharegpt_5YtukCb_0"
+    ],
+    "s2_top5_ids": [
+      "ultrachat_133409",
+      "ultrachat_275712",
+      "ultrachat_385768",
+      "ultrachat_75926",
+      "sharegpt_5YtukCb_0"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "4dfccbf8",
+    "qi": 282,
+    "qtype": "temporal-reasoning",
+    "question": "What did I do with Rachel on the Wednesday two months ago?",
+    "gold_session_ids": [
+      "answer_4bebc783_1",
+      "answer_4bebc783_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "1c177942_4",
+      "edd89480_1",
+      "ultrachat_281546",
+      "sharegpt_oXgiN7q_131",
+      "answer_4bebc783_1"
+    ],
+    "s2_top5_ids": [
+      "1c177942_4",
+      "edd89480_1",
+      "ultrachat_281546",
+      "sharegpt_oXgiN7q_131",
+      "answer_4bebc783_1"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "6e984302",
+    "qi": 284,
+    "qtype": "temporal-reasoning",
+    "question": "I mentioned an investment for a competition four weeks ago? What did I buy?",
+    "gold_session_ids": [
+      "answer_88841f27_1",
+      "answer_88841f27_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "c03fc56c_1",
+      "answer_88841f27_1",
+      "ultrachat_542864",
+      "cf3dc165_1",
+      "ultrachat_252615"
+    ],
+    "s2_top5_ids": [
+      "c03fc56c_1",
+      "answer_88841f27_1",
+      "ultrachat_542864",
+      "cf3dc165_1",
+      "ultrachat_252615"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "gpt4_8279ba03",
+    "qi": 285,
+    "qtype": "temporal-reasoning",
+    "question": "What kitchen appliance did I buy 10 days ago?",
+    "gold_session_ids": [
+      "answer_56521e66_1"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "b357fb8b_2",
+      "652c0717_3",
+      "518d26d3_4",
+      "570fe405",
+      "bb107057_2"
+    ],
+    "s2_top5_ids": [
+      "b357fb8b_2",
+      "652c0717_3",
+      "518d26d3_4",
+      "570fe405",
+      "bb107057_2"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "gpt4_b5700ca0",
+    "qi": 286,
+    "qtype": "temporal-reasoning",
+    "question": "Where did I attend the religious activity last week?",
+    "gold_session_ids": [
+      "answer_a17423e8_1"
+    ],
+    "n_gold": 1,
+    "s1_top5_ids": [
+      "sharegpt_FpTfRvR_0",
+      "109e07e8_2",
+      "534be93d_1",
+      "answer_a17423e8_1",
+      "ultrachat_540666"
+    ],
+    "s2_top5_ids": [
+      "sharegpt_FpTfRvR_0",
+      "109e07e8_2",
+      "534be93d_1",
+      "answer_a17423e8_1",
+      "ultrachat_540666"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "other",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "gpt4_68e94288",
+    "qi": 287,
+    "qtype": "temporal-reasoning",
+    "question": "What was the social media activity I participated 5 days ago?",
+    "gold_session_ids": [
+      "answer_9793daa4_2",
+      "answer_9793daa4_1"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "c99dcd81",
+      "4c49e37f",
+      "answer_9793daa4_1",
+      "ultrachat_396489",
+      "ba80721c"
+    ],
+    "s2_top5_ids": [
+      "c99dcd81",
+      "4c49e37f",
+      "answer_9793daa4_1",
+      "ultrachat_396489",
+      "ba80721c"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "d01c6aa8",
+    "qi": 322,
+    "qtype": "temporal-reasoning",
+    "question": "How old was I when I moved to the United States?",
+    "gold_session_ids": [
+      "answer_991d55e5_1",
+      "answer_991d55e5_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "f2fa97f5_1",
+      "fc9a62c0_1",
+      "sharegpt_xd1G5uV_0",
+      "0c9f973b_1",
+      "ultrachat_333097"
+    ],
+    "s2_top5_ids": [
+      "f2fa97f5_1",
+      "fc9a62c0_1",
+      "sharegpt_xd1G5uV_0",
+      "0c9f973b_1",
+      "ultrachat_333097"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": false,
+    "s2_hit_at_5": false
+  },
+  {
+    "qid": "gpt4_88806d6e",
+    "qi": 327,
+    "qtype": "temporal-reasoning",
+    "question": "Who did I meet first, Mark and Sarah or Tom?",
+    "gold_session_ids": [
+      "answer_e60a93ff_1",
+      "answer_e60a93ff_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "sharegpt_WT6LnXo_0",
+      "answer_e60a93ff_1",
+      "answer_e60a93ff_2",
+      "20b1b65f_1",
+      "ultrachat_562852"
+    ],
+    "s2_top5_ids": [
+      "sharegpt_WT6LnXo_0",
+      "answer_e60a93ff_1",
+      "answer_e60a93ff_2",
+      "20b1b65f_1",
+      "ultrachat_562852"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "temporal_multi_hop",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "ce6d2d27",
+    "qi": 350,
+    "qtype": "knowledge-update",
+    "question": "What day of the week do I take a cocktail-making class?",
+    "gold_session_ids": [
+      "answer_73540165_1",
+      "answer_73540165_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "0e250059_1",
+      "answer_73540165_2",
+      "78dc3b29",
+      "9f6bec4f",
+      "7a4d00b3_2"
+    ],
+    "s2_top5_ids": [
+      "0e250059_1",
+      "answer_73540165_2",
+      "78dc3b29",
+      "9f6bec4f",
+      "7a4d00b3_2"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "2698e78f",
+    "qi": 361,
+    "qtype": "knowledge-update",
+    "question": "How often do I see my therapist, Dr. Smith?",
+    "gold_session_ids": [
+      "answer_9282283d_1",
+      "answer_9282283d_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "ultrachat_455955",
+      "answer_9282283d_1",
+      "answer_9282283d_2",
+      "ultrachat_110771",
+      "ultrachat_268576"
+    ],
+    "s2_top5_ids": [
+      "ultrachat_455955",
+      "answer_9282283d_1",
+      "answer_9282283d_2",
+      "ultrachat_110771",
+      "ultrachat_268576"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  },
+  {
+    "qid": "dad224aa",
+    "qi": 405,
+    "qtype": "knowledge-update",
+    "question": "What time do I wake up on Saturday mornings?",
+    "gold_session_ids": [
+      "answer_4a97ae40_1",
+      "answer_4a97ae40_2"
+    ],
+    "n_gold": 2,
+    "s1_top5_ids": [
+      "6de8645d_1",
+      "answer_4a97ae40_1",
+      "answer_4a97ae40_2",
+      "ultrachat_106352",
+      "sharegpt_2Qvu6BM_34"
+    ],
+    "s2_top5_ids": [
+      "6de8645d_1",
+      "answer_4a97ae40_1",
+      "answer_4a97ae40_2",
+      "ultrachat_106352",
+      "sharegpt_2Qvu6BM_34"
+    ],
+    "route_decision": "default_s1",
+    "failure_mode_note": "multi_session_aggregation",
+    "s1_hit_at_5": true,
+    "s2_hit_at_5": true
+  }
+]

@@ -37,7 +37,7 @@ import json
 import os
 import sys
 import uuid
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 
 from cogito import __version__
@@ -76,8 +76,12 @@ def make_handler(memory: object, cfg: dict) -> type:
             self.end_headers()
             self.wfile.write(body)
 
-        def _read_body(self) -> dict:
+        _MAX_BODY = 1_048_576  # 1 MB
+
+        def _read_body(self) -> dict | None:
             n = int(self.headers.get("Content-Length", 0))
+            if n > self._MAX_BODY:
+                return None  # signal rejection
             raw = self.rfile.read(n)
             try:
                 return json.loads(raw) if raw else {}
@@ -85,107 +89,116 @@ def make_handler(memory: object, cfg: dict) -> type:
                 return {}
 
         def do_GET(self):
-            if self.path == "/health":
-                try:
-                    count = memory.vector_store.col.count()  # type: ignore
-                except Exception:
-                    result = memory.get_all(user_id=user_id, limit=10000)  # type: ignore
-                    count = len(result.get("results", []))
-                snap_path = _snapshot_path(cfg)
-                self._json({
-                    "status": "ok",
-                    "count": count,
-                    "version": __version__,
-                    "calibrated": bool(cfg.get("vocab_map")),
-                    "snapshot": snap_path.exists(),
-                })
-            elif self.path == "/snapshot":
-                text = _read_snapshot(cfg)
-                if text is None:
-                    self._json({"error": "no snapshot — run `cogito snapshot` first"}, 404)
+            try:
+                if self.path == "/health":
+                    try:
+                        count = memory.vector_store.col.count()  # type: ignore
+                    except Exception:
+                        result = memory.get_all(user_id=user_id, limit=10000)  # type: ignore
+                        count = len(result.get("results", []))
+                    snap_path = _snapshot_path(cfg)
+                    self._json({
+                        "status": "ok",
+                        "count": count,
+                        "version": __version__,
+                        "calibrated": bool(cfg.get("vocab_map")),
+                        "snapshot": snap_path.exists(),
+                    })
+                elif self.path == "/snapshot":
+                    text = _read_snapshot(cfg)
+                    if text is None:
+                        self._json({"error": "no snapshot — run `cogito snapshot` first"}, 404)
+                    else:
+                        self._json({"snapshot": text, "path": str(_snapshot_path(cfg))})
                 else:
-                    self._json({"snapshot": text, "path": str(_snapshot_path(cfg))})
-            else:
-                self._json({"error": "not found"}, 404)
+                    self._json({"error": "not found"}, 404)
+            except Exception as e:
+                self._json({"error": f"internal error: {type(e).__name__}"}, 500)
 
         def do_POST(self):
-            data = self._read_body()
-            if not data and self.path not in ("/add", "/store"):
-                self._json({"error": "invalid json"}, 400)
-                return
-
-            if self.path == "/query":
-                text = data.get("text", "")
-                limit = int(data.get("limit", 5))
-                if not text or len(text.strip()) < 3:
-                    self._json({"memories": []})
+            try:
+                data = self._read_body()
+                if data is None:
+                    self._json({"error": "request body too large"}, 413)
                     return
-                raw = memory.search(text, user_id=user_id, limit=limit)  # type: ignore
-                memories = [
-                    {"text": r["memory"], "score": round(r["score"], 3)}
-                    for r in raw.get("results", [])
-                    if r.get("memory") and r.get("score", 9999) < query_threshold
-                ]
-                self._json({"memories": memories})
-
-            elif self.path == "/recall":
-                text = data.get("text", "")
-                if not text or len(text.strip()) < 3:
-                    self._json({"memories": [], "method": "empty_query"})
+                if not data and self.path not in ("/add", "/store"):
+                    self._json({"error": "invalid json"}, 400)
                     return
-                limit = int(data.get("limit", cfg.get("recall_limit", 50)))
-                memories, method = do_recall(
-                    memory, text, user_id=user_id, cfg=cfg,
-                    limit=limit,
-                )
-                print(f"[cogito] /recall '{text[:50]}' → {len(memories)} results ({method})", flush=True)
-                self._json({"memories": memories, "method": method})
 
-            elif self.path == "/recall_b":
-                text = data.get("text", "")
-                if not text or len(text.strip()) < 3:
-                    self._json({"memories": [], "method": "empty_query"})
-                    return
-                limit = int(data.get("limit", cfg.get("recall_limit", 50)))
-                memories, method = do_recall_b(
-                    memory, text, user_id=user_id, cfg=cfg,
-                    limit=limit,
-                )
-                print(f"[cogito] /recall_b '{text[:50]}' → {len(memories)} results ({method})", flush=True)
-                self._json({"memories": memories, "method": method})
+                if self.path == "/query":
+                    text = data.get("text", "")
+                    limit = int(data.get("limit", 5))
+                    if not text or len(text.strip()) < 3:
+                        self._json({"memories": []})
+                        return
+                    raw = memory.search(text, user_id=user_id, limit=limit)  # type: ignore
+                    memories = [
+                        {"text": r["memory"], "score": round(r["score"], 3)}
+                        for r in raw.get("results", [])
+                        if r.get("memory") and r.get("score", 9999) < query_threshold
+                    ]
+                    self._json({"memories": memories})
 
-            elif self.path == "/store":
-                # Verbatim write — agent decides content, no extraction LLM.
-                text = data.get("text", "")
-                if not text or len(text.strip()) < 3:
-                    self._json({"error": "no text"}, 400)
-                    return
-                mem_id = data.get("id") or str(uuid.uuid4())
-                try:
-                    vector = memory.embedding_model.embed(text)  # type: ignore
-                    memory.vector_store.insert(  # type: ignore
-                        vectors=[vector],
-                        payloads=[{"data": text, "user_id": user_id}],
-                        ids=[mem_id],
+                elif self.path == "/recall":
+                    text = data.get("text", "")
+                    if not text or len(text.strip()) < 3:
+                        self._json({"memories": [], "method": "empty_query"})
+                        return
+                    limit = int(data.get("limit", cfg.get("recall_limit", 50)))
+                    memories, method = do_recall(
+                        memory, text, user_id=user_id, cfg=cfg,
+                        limit=limit,
                     )
-                    self._json({"id": mem_id, "text": text})
-                except Exception as e:
-                    self._json({"error": str(e)}, 500)
+                    print(f"[cogito] /recall '{text[:50]}' → {len(memories)} results ({method})", flush=True)
+                    self._json({"memories": memories, "method": method})
 
-            elif self.path == "/add":
-                text = data.get("text", "")
-                if not text:
-                    self._json({"error": "no text"}, 400)
-                    return
-                result = memory.add(text, user_id=user_id)  # type: ignore
-                extracted = result.get("results", [])
-                self._json({
-                    "count": len(extracted),
-                    "memories": [m.get("memory", "") for m in extracted],
-                })
+                elif self.path == "/recall_b":
+                    text = data.get("text", "")
+                    if not text or len(text.strip()) < 3:
+                        self._json({"memories": [], "method": "empty_query"})
+                        return
+                    limit = int(data.get("limit", cfg.get("recall_limit", 50)))
+                    memories, method = do_recall_b(
+                        memory, text, user_id=user_id, cfg=cfg,
+                        limit=limit,
+                    )
+                    print(f"[cogito] /recall_b '{text[:50]}' → {len(memories)} results ({method})", flush=True)
+                    self._json({"memories": memories, "method": method})
 
-            else:
-                self._json({"error": "not found"}, 404)
+                elif self.path == "/store":
+                    # Verbatim write — agent decides content, no extraction LLM.
+                    text = data.get("text", "")
+                    if not text or len(text.strip()) < 3:
+                        self._json({"error": "no text"}, 400)
+                        return
+                    mem_id = data.get("id") or str(uuid.uuid4())
+                    try:
+                        vector = memory.embedding_model.embed(text)  # type: ignore
+                        memory.vector_store.insert(  # type: ignore
+                            vectors=[vector],
+                            payloads=[{"data": text, "user_id": user_id}],
+                            ids=[mem_id],
+                        )
+                        self._json({"id": mem_id, "text": text})
+                    except Exception as e:
+                        self._json({"error": str(e)}, 500)
+
+                elif self.path == "/add":
+                    text = data.get("text", "")
+                    if not text:
+                        self._json({"error": "no text"}, 400)
+                        return
+                    result = memory.add(text, user_id=user_id)  # type: ignore
+                    extracted = result.get("results", [])
+                    self._json({
+                        "count": len(extracted),
+                        "memories": [m.get("memory", "") for m in extracted],
+                    })
+
+                else:
+                    self._json({"error": "not found"}, 404)
+            except Exception as e:
+                self._json({"error": f"internal error: {type(e).__name__}"}, 500)
 
     return Handler
 
@@ -209,7 +222,7 @@ def main():
 
     port = cfg["port"]
     handler = make_handler(memory, cfg)
-    httpd = HTTPServer((args.host, port), handler)
+    httpd = ThreadingHTTPServer((args.host, port), handler)
     print(f"[cogito] Listening on {args.host}:{port}", flush=True)
     try:
         httpd.serve_forever()

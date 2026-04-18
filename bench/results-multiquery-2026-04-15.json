@@ -1,0 +1,32 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "multiquery_expansion",
+  "engine": "recall_b + LLM multi-query expansion (gemma3:4b)",
+  "embed_model": "nomic-embed-text",
+  "llm_model": "gemma3:4b",
+  "questions_evaluated": 20,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.65,
+      "R@3": 0.7,
+      "R@5": 0.75,
+      "R@10": 0.85
+    },
+    "recall_all": {
+      "R@1": 0.65,
+      "R@3": 0.7,
+      "R@5": 0.75,
+      "R@10": 0.85
+    },
+    "ndcg": {
+      "R@1": 0.65,
+      "R@3": 0.682,
+      "R@5": 0.703,
+      "R@10": 0.736
+    }
+  },
+  "avg_retrieval_time_ms": 2708,
+  "total_time_s": 54.2
+}

@@ -1,0 +1,52 @@
+{
+  "by_type": {
+    "single-session-user": {
+      "n": 64,
+      "s1_top1": 61,
+      "s1_top3": 3,
+      "s1_top5": 0,
+      "s1_miss": 0
+    },
+    "multi-session": {
+      "n": 121,
+      "s1_top1": 101,
+      "s1_top3": 20,
+      "s1_top5": 0,
+      "s1_miss": 0
+    },
+    "single-session-preference": {
+      "n": 30,
+      "s1_top1": 20,
+      "s1_top3": 9,
+      "s1_top5": 0,
+      "s1_miss": 1
+    },
+    "temporal-reasoning": {
+      "n": 127,
+      "s1_top1": 84,
+      "s1_top3": 36,
+      "s1_top5": 0,
+      "s1_miss": 7
+    },
+    "knowledge-update": {
+      "n": 72,
+      "s1_top1": 69,
+      "s1_top3": 3,
+      "s1_top5": 0,
+      "s1_miss": 0
+    },
+    "single-session-assistant": {
+      "n": 56,
+      "s1_top1": 56,
+      "s1_top3": 0,
+      "s1_top5": 0,
+      "s1_miss": 0
+    }
+  },
+  "hardset_retrieval_fails": 8,
+  "hardset_ranking_fails": 29,
+  "hardset_route_dist": {
+    "default_s1": 31,
+    "llm": 6
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "combined_pipeline",
+  "engine": "BM25+turn-level+prefixes \u2192 LLM filter (qwen-turbo)",
+  "filter_model": "qwen-turbo",
+  "filter_top_k": 5,
+  "questions_evaluated": 470,
+  "stage1_metrics": {
+    "recall_any": {
+      "R@1": 0.832,
+      "R@3": 0.947,
+      "R@5": 0.981,
+      "R@10": 0.991
+    }
+  },
+  "stage2_metrics": {
+    "recall_any": {
+      "R@1": 0.889,
+      "R@3": 0.962,
+      "R@5": 0.981,
+      "R@10": 0.991
+    },
+    "recall_all": {
+      "R@1": 0.309,
+      "R@3": 0.791,
+      "R@5": 0.851,
+      "R@10": 0.936
+    },
+    "ndcg": {
+      "R@1": 0.889,
+      "R@3": 0.9,
+      "R@5": 0.908,
+      "R@10": 0.924
+    }
+  },
+  "filter_delta_r1": 0.057,
+  "filter_methods": {
+    "default_s1": 224,
+    "llm": 205,
+    "skip": 41
+  },
+  "avg_retrieval_ms": 201,
+  "avg_filter_ms": 533,
+  "total_time_s": 344.8
+}

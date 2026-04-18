@@ -1,0 +1,33 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "engine": "recall_b (zero-LLM multi-query RRF + cosine rerank)",
+  "embed_model": "nomic-embed-text (Ollama)",
+  "questions_total": 470,
+  "questions_evaluated": 443,
+  "questions_skipped_embed_fail": 27,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.562,
+      "R@3": 0.745,
+      "R@5": 0.813,
+      "R@10": 0.923
+    },
+    "recall_all": {
+      "R@1": 0.210,
+      "R@3": 0.485,
+      "R@5": 0.612,
+      "R@10": 0.770
+    },
+    "ndcg": {
+      "R@1": 0.562,
+      "R@3": 0.601,
+      "R@5": 0.644,
+      "R@10": 0.692
+    }
+  },
+  "avg_retrieval_time_ms": 75,
+  "total_time_s": 33.1,
+  "notes": "27 questions skipped due to Ollama embed 400 errors on large corpus batches. Previous killed-session results (R@1 80%, R@any 94.4%) may have been on a limited subset."
+}

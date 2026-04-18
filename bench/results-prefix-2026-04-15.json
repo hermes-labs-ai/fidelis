@@ -1,0 +1,32 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "nomic_prefix_fix",
+  "engine": "recall_b + search_query/search_document prefixes",
+  "embed_model": "nomic-embed-text (Ollama)",
+  "changes": "Added 'search_query: ' prefix to queries, 'search_document: ' prefix to corpus. 2000-char truncation.",
+  "questions_evaluated": 470,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.609,
+      "R@3": 0.753,
+      "R@5": 0.826,
+      "R@10": 0.928
+    },
+    "recall_all": {
+      "R@1": 0.194,
+      "R@3": 0.509,
+      "R@5": 0.611,
+      "R@10": 0.779
+    },
+    "ndcg": {
+      "R@1": 0.609,
+      "R@3": 0.629,
+      "R@5": 0.664,
+      "R@10": 0.714
+    }
+  },
+  "avg_retrieval_time_ms": 924,
+  "total_time_s": 434.4
+}

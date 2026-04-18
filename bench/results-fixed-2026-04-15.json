@@ -1,0 +1,35 @@
+{
+  "benchmark": "LongMemEval",
+  "split": "S",
+  "date": "2026-04-15",
+  "test": "fixed_baseline",
+  "engine": "recall_b (zero-LLM sub-query decomposition + RRF + cosine rerank)",
+  "embed_model": "nomic-embed-text (Ollama)",
+  "changes": "truncation 6000->2000 chars, min_token_len 4->3, retry with backoff, empty text handling",
+  "questions_total": 470,
+  "questions_evaluated": 470,
+  "questions_skipped": 0,
+  "metrics": {
+    "recall_any": {
+      "R@1": 0.560,
+      "R@3": 0.747,
+      "R@5": 0.817,
+      "R@10": 0.923
+    },
+    "recall_all": {
+      "R@1": 0.211,
+      "R@3": 0.487,
+      "R@5": 0.621,
+      "R@10": 0.764
+    },
+    "ndcg": {
+      "R@1": 0.560,
+      "R@3": 0.603,
+      "R@5": 0.648,
+      "R@10": 0.695
+    }
+  },
+  "avg_retrieval_time_ms": 93,
+  "total_time_s": 43.8,
+  "notes": "Zero embed failures (vs 27 in original baseline). Truncation fix + token threshold. R@1 unchanged at 56%, confirming the bottleneck is embedding quality / vocabulary mismatch, not truncation."
+}
