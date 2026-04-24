@@ -1,0 +1,79 @@
+{
+  "experiment_id": "E0",
+  "description": "Baseline lock from existing top1+top5 data. No API spend.",
+  "data_sources": [
+    "bench/qa_eval_v2_runP-v35_gpt-4o-mini_top1.json",
+    "bench/qa_eval_v2_runP-v35_gpt-4o-mini_top5.json"
+  ],
+  "top1_baseline": {
+    "qa_accuracy": 0.5043,
+    "n_correct": 237,
+    "n_total": 470,
+    "95ci": [
+      0.4592,
+      0.5492
+    ]
+  },
+  "top5_baseline": {
+    "qa_accuracy": 0.4532,
+    "n_correct": 213,
+    "n_total": 470
+  },
+  "optimal_blended": {
+    "qa_accuracy": 0.6404,
+    "n_correct": 301,
+    "n_total": 470,
+    "95ci": [
+      0.5961,
+      0.6825
+    ],
+    "k_routing": {
+      "knowledge-update": 1,
+      "multi-session": 5,
+      "single-session-assistant": 1,
+      "single-session-preference": 1,
+      "single-session-user": 1,
+      "temporal-reasoning": 5
+    }
+  },
+  "per_qtype": {
+    "knowledge-update": {
+      "k1_acc": 0.6389,
+      "k5_acc": 0.5833,
+      "optimal_k": 1,
+      "n": 72
+    },
+    "multi-session": {
+      "k1_acc": 0.2479,
+      "k5_acc": 0.6777,
+      "optimal_k": 5,
+      "n": 121
+    },
+    "single-session-assistant": {
+      "k1_acc": 0.9286,
+      "k5_acc": 0.4107,
+      "optimal_k": 1,
+      "n": 56
+    },
+    "single-session-preference": {
+      "k1_acc": 0.4,
+      "k5_acc": 0.0,
+      "optimal_k": 1,
+      "n": 30
+    },
+    "single-session-user": {
+      "k1_acc": 0.9062,
+      "k5_acc": 0.2344,
+      "optimal_k": 1,
+      "n": 64
+    },
+    "temporal-reasoning": {
+      "k1_acc": 0.3071,
+      "k5_acc": 0.4016,
+      "optimal_k": 5,
+      "n": 127
+    }
+  },
+  "cost_usd": 0.0,
+  "api_calls": 0
+}
