@@ -106,7 +106,7 @@ def _build_snapshot(
             "stream": False,
         }).encode()
         req = urllib.request.Request(
-            f"http://localhost:11434/api/chat",
+            "http://localhost:11434/api/chat",
             data=native_payload,
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -184,7 +184,7 @@ def snapshot(
     Writes to snapshot.md unless dry_run=True.
     Skips rebuild if snapshot already exists unless rebuild=True.
     """
-    from cogito.recall import _resolve_filter_endpoint  # avoid circular at module level
+    from fidelis.recall import _resolve_filter_endpoint  # avoid circular at module level
 
     if not rebuild:
         existing = _read_snapshot(cfg)

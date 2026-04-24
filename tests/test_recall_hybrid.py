@@ -16,7 +16,7 @@ import pytest
 
 # Note: cogito.__init__ re-exports recall_hybrid as a function for convenience;
 # use the full module path here so we can reach the internal helpers.
-from cogito import recall_hybrid as rh
+from fidelis import recall_hybrid as rh
 
 
 # ---------------------------------------------------------------------------

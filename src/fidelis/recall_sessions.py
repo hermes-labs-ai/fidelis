@@ -16,7 +16,6 @@ import json
 import math
 import urllib.request
 from dataclasses import dataclass, field
-from typing import Any
 
 OLLAMA_URL = "http://localhost:11434"
 EMBED_MODEL = "nomic-embed-text"

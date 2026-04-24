@@ -21,7 +21,6 @@ Re-run at any time — only changed or new files are seeded.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import urllib.error
@@ -128,7 +127,7 @@ def _curate(text: str, endpoint: str, token: str, model: str, timeout: float) ->
                 parsed = json.loads(m.group(0))
                 if isinstance(parsed, list):
                     all_facts.extend(f for f in parsed if isinstance(f, str) and len(f.strip()) > 5)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError:  # noqa: silent — partial JSON match in regex sweep, skip to next match
                 pass
 
         return all_facts
@@ -164,7 +163,7 @@ def _load_state() -> dict[str, str]:
     if p.exists():
         try:
             return json.loads(p.read_text())
-        except Exception:
+        except Exception:  # noqa: silent — corrupted state file → start fresh
             pass
     return {}
 
@@ -246,15 +245,13 @@ def seed(
     }
 
     # Curation endpoint
-    curation_available = False
     if not use_add:
         endpoint, token, model = _resolve_curation_endpoint(cfg)
         timeout = cfg.get("filter_timeout_ms", 15000) / 1000
         if endpoint:
-            curation_available = True
-            print(f"[cogito seed] Curation model: {model} @ {endpoint}")
+            print(f"[fidelis seed] Curation model: {model} @ {endpoint}")
         else:
-            print("[cogito seed] No curation endpoint — falling back to /add (mem0 extraction)")
+            print("[fidelis seed] No curation endpoint — falling back to /add (mem0 extraction)")
             use_add = True
 
     # Collect files
@@ -363,7 +360,7 @@ def seed(
         try:
             count_after = _check_server(base_url)
             print(f"\n[cogito seed] Done. {count_after} memories in store.")
-        except Exception:
+        except Exception:  # noqa: silent — final count is informational; seed itself succeeded
             pass
 
     print(f"\n  files processed : {stats['files_processed']}")

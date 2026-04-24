@@ -11,16 +11,11 @@ Gates:
 from __future__ import annotations
 
 import json
-import os
 import sys
-import tempfile
-import time
 import uuid
 from pathlib import Path
-from unittest import mock
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
-import pytest
 
 # Ensure the source is importable
 SRC = Path(__file__).parent.parent / "src"
@@ -113,16 +108,16 @@ def _fake_embed(text: str) -> list[float]:
 class TestG3_StoreRetrieve:
     def test_store_and_retrieve_preserves_role_structure(self, tmp_path):
         """G3: Store a 3-turn session, retrieve turns with role structure intact."""
-        from cogito.ingest_claude_sessions import _store_session, _get_collection, _make_ingest_hash
+        from fidelis.ingest_claude_sessions import _store_session, _make_ingest_hash
 
-        with patch("cogito.ingest_claude_sessions._embed", side_effect=_fake_embed):
-            with patch("cogito.ingest_claude_sessions.COGITO_STORE", tmp_path / "store"):
+        with patch("fidelis.ingest_claude_sessions._embed", side_effect=_fake_embed):
+            with patch("fidelis.ingest_claude_sessions.COGITO_STORE", tmp_path / "store"):
                 # Create temp ChromaDB
                 import chromadb
                 client = chromadb.PersistentClient(path=str(tmp_path / "store"))
                 col = client.get_or_create_collection("cogito_main")
 
-                with patch("cogito.ingest_claude_sessions._get_collection", return_value=col):
+                with patch("fidelis.ingest_claude_sessions._get_collection", return_value=col):
                     ingest_hash = _make_ingest_hash("test-session-g3", THREE_TURN_SESSION)
                     chroma_id = _store_session(
                         col,
@@ -155,7 +150,7 @@ class TestG3_StoreRetrieve:
 class TestG4_IngestionFromJSONL:
     def test_ingest_one_session_creates_one_memory(self, tmp_path):
         """G4: Point ingestion at 1-session fixture JSONL → 1 session memory created."""
-        from cogito.ingest_claude_sessions import ingest
+        from fidelis.ingest_claude_sessions import ingest
 
         # Build a fake Claude projects structure
         fake_projects = tmp_path / ".claude" / "projects" / "-test-project"
@@ -168,10 +163,10 @@ class TestG4_IngestionFromJSONL:
         client = chromadb.PersistentClient(path=str(tmp_path / "store"))
         col = client.get_or_create_collection("cogito_main")
 
-        with patch("cogito.ingest_claude_sessions.CLAUDE_PROJECTS", fake_projects.parent):
-            with patch("cogito.ingest_claude_sessions._embed", side_effect=_fake_embed):
-                with patch("cogito.ingest_claude_sessions._get_collection", return_value=col):
-                    with patch("cogito.ingest_claude_sessions.COGITO_SESSIONS_DIR", tmp_path / "sessions"):
+        with patch("fidelis.ingest_claude_sessions.CLAUDE_PROJECTS", fake_projects.parent):
+            with patch("fidelis.ingest_claude_sessions._embed", side_effect=_fake_embed):
+                with patch("fidelis.ingest_claude_sessions._get_collection", return_value=col):
+                    with patch("fidelis.ingest_claude_sessions.COGITO_SESSIONS_DIR", tmp_path / "sessions"):
                         stats = ingest(dry_run=False, verbose=False)
 
         assert stats["stored"] == 1, f"Expected 1 stored, got {stats}"
@@ -189,7 +184,7 @@ class TestG5_QueryRanking:
     def test_query_returns_most_relevant_session_first(self, tmp_path):
         """G5: Store 5 sessions, query → cogito-related session ranked #1."""
         import chromadb
-        from cogito.recall_sessions import query_sessions, _chunk_turns
+        from fidelis.recall_sessions import query_sessions
 
         client = chromadb.PersistentClient(path=str(tmp_path / "store"))
         col = client.get_or_create_collection("cogito_main")
@@ -227,8 +222,8 @@ class TestG5_QueryRanking:
         # Query for the cogito-ergo topic
         query = "cogito-ergo memory retrieval ChromaDB"
 
-        with patch("cogito.recall_sessions._resolve_store", return_value=str(tmp_path / "store")):
-            with patch("cogito.recall_sessions._embed_query", side_effect=_fake_embed):
+        with patch("fidelis.recall_sessions._resolve_store", return_value=str(tmp_path / "store")):
+            with patch("fidelis.recall_sessions._embed_query", side_effect=_fake_embed):
                 results = query_sessions(query, top_k=3)
 
         assert len(results) >= 1, "query_sessions returned nothing"
@@ -245,7 +240,7 @@ class TestG5_QueryRanking:
 class TestG6_Idempotency:
     def test_ingest_twice_does_not_duplicate(self, tmp_path):
         """G6: Run ingestion twice on same input, memory count doesn't double."""
-        from cogito.ingest_claude_sessions import ingest
+        from fidelis.ingest_claude_sessions import ingest
 
         fake_projects = tmp_path / ".claude" / "projects" / "-test-project"
         fake_projects.mkdir(parents=True)
@@ -257,10 +252,10 @@ class TestG6_Idempotency:
         sessions_dir = tmp_path / "sessions"
 
         def _run():
-            with patch("cogito.ingest_claude_sessions.CLAUDE_PROJECTS", fake_projects.parent):
-                with patch("cogito.ingest_claude_sessions._embed", side_effect=_fake_embed):
-                    with patch("cogito.ingest_claude_sessions._get_collection", return_value=col):
-                        with patch("cogito.ingest_claude_sessions.COGITO_SESSIONS_DIR", sessions_dir):
+            with patch("fidelis.ingest_claude_sessions.CLAUDE_PROJECTS", fake_projects.parent):
+                with patch("fidelis.ingest_claude_sessions._embed", side_effect=_fake_embed):
+                    with patch("fidelis.ingest_claude_sessions._get_collection", return_value=col):
+                        with patch("fidelis.ingest_claude_sessions.COGITO_SESSIONS_DIR", sessions_dir):
                             return ingest(dry_run=False)
 
         stats1 = _run()
@@ -280,7 +275,7 @@ class TestG6_Idempotency:
 class TestG7_Privacy:
     def test_no_cloud_api_call_during_ingestion(self, tmp_path):
         """G7: Ingestion calls Ollama (local) for embedding, not any cloud API."""
-        from cogito.ingest_claude_sessions import ingest, _embed
+        from fidelis.ingest_claude_sessions import ingest
 
         fake_projects = tmp_path / ".claude" / "projects" / "-test-project"
         fake_projects.mkdir(parents=True)
@@ -304,10 +299,10 @@ class TestG7_Privacy:
             return original_urlopen(req, *args, **kwargs)
 
         # We patch _embed to use fake embeddings — proving cloud is never hit
-        with patch("cogito.ingest_claude_sessions._embed", side_effect=_fake_embed):
-            with patch("cogito.ingest_claude_sessions.CLAUDE_PROJECTS", fake_projects.parent):
-                with patch("cogito.ingest_claude_sessions._get_collection", return_value=col):
-                    with patch("cogito.ingest_claude_sessions.COGITO_SESSIONS_DIR", sessions_dir):
+        with patch("fidelis.ingest_claude_sessions._embed", side_effect=_fake_embed):
+            with patch("fidelis.ingest_claude_sessions.CLAUDE_PROJECTS", fake_projects.parent):
+                with patch("fidelis.ingest_claude_sessions._get_collection", return_value=col):
+                    with patch("fidelis.ingest_claude_sessions.COGITO_SESSIONS_DIR", sessions_dir):
                         stats = ingest(dry_run=False)
 
         assert not cloud_calls, f"Cloud APIs were called: {cloud_calls}"
@@ -317,14 +312,14 @@ class TestG7_Privacy:
 
     def test_embed_calls_localhost_only(self):
         """G7b: The _embed function targets localhost:11434 (Ollama), never cloud."""
-        from cogito.ingest_claude_sessions import OLLAMA_URL
+        from fidelis.ingest_claude_sessions import OLLAMA_URL
         assert "localhost" in OLLAMA_URL or "127.0.0.1" in OLLAMA_URL, (
             f"OLLAMA_URL must be localhost, got: {OLLAMA_URL!r}"
         )
 
     def test_query_sessions_calls_localhost_only(self):
         """G7c: recall_sessions._embed_query targets localhost only."""
-        from cogito.recall_sessions import OLLAMA_URL
+        from fidelis.recall_sessions import OLLAMA_URL
         assert "localhost" in OLLAMA_URL or "127.0.0.1" in OLLAMA_URL, (
             f"OLLAMA_URL must be localhost, got: {OLLAMA_URL!r}"
         )

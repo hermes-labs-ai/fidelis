@@ -1,9 +1,9 @@
-# cogito-ergo
+# fidelis
 
 Agent memory retrieval with **zero-LLM defaults**. Fully local. No API keys
 required to get a working system.
 
-**Headline numbers (zero-LLM tier, the v0.3.1 default):**
+**Headline numbers (zero-LLM tier, the v0.0.8 default):**
 
 - **83.2% R@1** on LongMemEval_S (470 questions) — pure retrieval, no LLM
 - **$0/query** — BM25 + dense + RRF only, runs on local Ollama
@@ -17,12 +17,12 @@ corrupt, rephrase, or hallucinate into the content returned to your agent.
 See [Hybrid recall](#hybrid-recall) for the tier table and the honest
 ceiling on the benchmark-tuned path.
 
-There is also a separate `/recall` atomic path: 75% R@1 on cogito's
+There is also a separate `/recall` atomic path: 75% R@1 on fidelis's
 internal 31-case atomic-fact eval (85% combined with the snapshot
 layer) — purpose-built for short-fact lookup, not session retrieval.
 
-[![PyPI version](https://img.shields.io/pypi/v/cogito-ergo)](https://pypi.org/project/cogito-ergo/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://pypi.org/project/cogito-ergo/)
+[![PyPI version](https://img.shields.io/pypi/v/fidelis)](https://pypi.org/project/fidelis/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://pypi.org/project/fidelis/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
@@ -30,9 +30,9 @@ layer) — purpose-built for short-fact lookup, not session retrieval.
 
 ## How this is different from mem0 / Zep / Letta
 
-Short version: **they call an LLM during retrieval; cogito doesn't.**
+Short version: **they call an LLM during retrieval; fidelis doesn't.**
 
-| | mem0 / Zep / Letta (typical) | cogito-ergo (zero-LLM default) |
+| | mem0 / Zep / Letta (typical) | fidelis (zero-LLM default) |
 |---|---|---|
 | LLM call on retrieval hot path | yes | **no** |
 | Cost per retrieval | ~$0.001–0.02 | **$0** |
@@ -43,12 +43,12 @@ Short version: **they call an LLM during retrieval; cogito doesn't.**
 | LLM can rephrase / hallucinate into returned content | yes | **no** (integer-pointer contract on optional LLM tier) |
 | Write survives upstream LLM outage | mixed | **yes** (degrade queue) |
 
-Your agent already calls an LLM. cogito feeds that LLM the right memory
+Your agent already calls an LLM. fidelis feeds that LLM the right memory
 without adding a second LLM call to retrieve it.
 
 ### Where this matters (and where it doesn't)
 
-**Use cogito when:**
+**Use fidelis when:**
 - You can't send memory contents to a third-party LLM (compliance, legal, healthcare, defense, regulated finance).
 - You need per-query cost to be zero at scale.
 - You need sub-100 ms retrieval.
@@ -56,7 +56,7 @@ without adding a second LLM call to retrieve it.
 
 **Use mem0 / Zep / Letta when:**
 - You need the highest possible benchmark accuracy and cost isn't a constraint.
-- Temporal reasoning and preference-ranking queries dominate your workload (cogito's weakest categories at 66–67% zero-LLM).
+- Temporal reasoning and preference-ranking queries dominate your workload (fidelis's weakest categories at 66–67% zero-LLM).
 - You're fine with a cloud LLM dependency in the memory layer.
 
 The LLM tier is available (`tier="filter"` / `tier="flagship"`) if you want
@@ -74,7 +74,7 @@ Every retrieval system that uses an LLM to select or rank memories has the same 
 - **LLM-based re-rankers** improve relevance but generate text — they summarize, merge, or hallucinate into the content your agent receives
 - **Full RAG pipelines** add latency and cost without solving the fidelity problem
 
-cogito-ergo fixes this structurally. The filter LLM outputs only integer pointers (`[3, 7, 12]`). The server dereferences them to verbatim stored text. The LLM never sees, generates, or touches memory content. Fidelity is architectural, not a prompting convention.
+fidelis fixes this structurally. The filter LLM outputs only integer pointers (`[3, 7, 12]`). The server dereferences them to verbatim stored text. The LLM never sees, generates, or touches memory content. Fidelity is architectural, not a prompting convention.
 
 | Mode | R@1 | hit@any | Latency |
 |---|---|---|---|
@@ -90,14 +90,14 @@ cogito-ergo fixes this structurally. The filter LLM outputs only integer pointer
 
 ```
                     ┌─────────────────────────────────────────────┐
-                    │              cogito-ergo server              │
+                    │              fidelis server              │
                     │                 :19420                       │
                     └──────────────────┬──────────────────────────┘
                                        │
                     ┌──────────────────▼──────────────────────────┐
                     │             SNAPSHOT LAYER                   │
                     │   Compressed markdown index (~741 tokens)    │
-                    │   Built once from corpus via `cogito snapshot`│
+                    │   Built once from corpus via `fidelis snapshot`│
                     │   Returned with /recall — no vector search   │
                     │   Solves cross-reference queries (0%→50% R@1)│
                     └──────────────────┬──────────────────────────┘
@@ -106,7 +106,7 @@ cogito-ergo fixes this structurally. The filter LLM outputs only integer pointer
                     │         STAGE 1 — recall_b (zero-LLM)       │
                     │   Query decomposition → sub-queries          │
                     │   Stop-word stripping + bigrams + trigrams   │
-                    │   Vocab expansion (cogito calibrate)         │
+                    │   Vocab expansion (fidelis calibrate)         │
                     │   Up to 8 sub-queries, merged with RRF       │
                     │   Latency: ~127ms                            │
                     └──────────────────┬──────────────────────────┘
@@ -148,7 +148,7 @@ Key results:
 **1. Install**
 
 ```bash
-pip install cogito-ergo
+pip install fidelis
 ```
 
 **2. Pull Ollama models**
@@ -185,14 +185,14 @@ Or via `.cogito.json` in your working directory:
 **4. Start the server**
 
 ```bash
-cogito-server
-# or: cogito server
+fidelis-server
+# or: fidelis server
 ```
 
 **5. First recall**
 
 ```bash
-cogito recall "what did we decide about the auth architecture"
+fidelis recall "what did we decide about the auth architecture"
 ```
 
 ```bash
@@ -209,7 +209,7 @@ curl -X POST http://127.0.0.1:19420/recall \
 
 | Tier | Default? | R@1 on LongMemEval_S | Cost/query | Latency |
 |---|---|---|---|---|
-| `zero_llm` | **yes (v0.3.1 default)** | **83.2%** | **$0** | ~90 ms |
+| `zero_llm` | **yes (v0.0.8 default)** | **83.2%** | **$0** | ~90 ms |
 | `filter` | no | ~92% (runO-v34) | ~$0.002–0.003 | ~1.3 s |
 | `flagship` | no | 96.4% (runP-v35, 2026-04-18) | higher, see below | ~3.5 s |
 
@@ -302,7 +302,7 @@ Query
 
 ```bash
 # Optional dependency for best BM25 fusion (zero deps fallback if absent)
-pip install cogito-ergo[hybrid]
+pip install fidelis[hybrid]
 
 # Opt-in: set a filter endpoint (any OpenAI-compatible API)
 export COGITO_FILTER_ENDPOINT=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
@@ -316,7 +316,7 @@ export COGITO_FLAGSHIP_MODEL=qwen-max
 # Or simpler — if DASHSCOPE_API_KEY is set, the flagship tier auto-configures
 export DASHSCOPE_API_KEY=sk-your-key
 
-cogito recall-hybrid "auth architecture decisions" --tier filter
+fidelis recall-hybrid "auth architecture decisions" --tier filter
 ```
 
 HTTP:
@@ -330,8 +330,8 @@ curl -X POST http://127.0.0.1:19420/recall_hybrid \
 Python:
 
 ```python
-from cogito.recall_hybrid import recall_hybrid
-from cogito.config import load, mem0_config
+from fidelis.recall_hybrid import recall_hybrid
+from fidelis.config import load, mem0_config
 from mem0 import Memory
 
 cfg = load()
@@ -353,20 +353,20 @@ keyword-recall over a store of short atomic facts), `/recall_hybrid` scores
 lower on R@1 than the existing `/recall` path — they solve different problems.
 The hybrid path wins on hit@any, semantic-gap queries, and multi-memory
 aggregation; the existing path wins on prefix-style direct lookup. Default
-behavior is unchanged — `/recall` still drives `cogito recall`. Use
-`/recall_hybrid` or `cogito recall-hybrid` when you need the hybrid trait.
+behavior is unchanged — `/recall` still drives `fidelis recall`. Use
+`/recall_hybrid` or `fidelis recall-hybrid` when you need the hybrid trait.
 
 ---
 
 
 ### Claude Code session memory
 
-cogito-ergo v0.3.0 can ingest your Claude Code sessions and query them with the
+fidelis v0.3.0 can ingest your Claude Code sessions and query them with the
 same turn-pair chunking used in the LongMemEval benchmark.
 
 **Why it matters:** The 96.4% R@1 benchmark result requires role-structured session
 data (user+assistant turn pairs). Flat atomic memories don't have this structure.
-Claude Code stores every session as role-structured JSONL — wiring it to cogito
+Claude Code stores every session as role-structured JSONL — wiring it to fidelis
 uses the same retrieval architecture as the benchmark, though Claude Code sessions
 have not been independently evaluated at the same scale.
 
@@ -378,24 +378,24 @@ have not been independently evaluated at the same scale.
 **Ingest:**
 ```bash
 # Preview (dry run)
-python3 -m cogito.ingest_claude_sessions --since 2026-04-11 --dry-run
+python3 -m fidelis.ingest_claude_sessions --since 2026-04-11 --dry-run
 
 # Ingest last 7 days
-python3 -m cogito.ingest_claude_sessions --since 2026-04-11
+python3 -m fidelis.ingest_claude_sessions --since 2026-04-11
 
 # Ingest all sessions (may take a few minutes)
-python3 -m cogito.ingest_claude_sessions
+python3 -m fidelis.ingest_claude_sessions
 ```
 
 **Query:**
 ```python
-from cogito.recall_sessions import query_sessions, query_both
+from fidelis.recall_sessions import query_sessions, query_both
 
 # Session history only
 results = query_sessions("what did we discuss about LPCI last week?", top_k=3)
 
 # Atomic facts + session history side-by-side (no auto-merge)
-both = query_both("cogito architecture decisions")
+both = query_both("fidelis architecture decisions")
 ```
 
 **MCP tools (new in v0.3.0):**
@@ -429,10 +429,10 @@ Fields: `count` = total memories in store; `calibrated` = vocab_map present; `sn
 
 ### `GET /snapshot`
 
-Returns the compressed index markdown built by `cogito snapshot`.
+Returns the compressed index markdown built by `fidelis snapshot`.
 
 ```json
-{"snapshot": "## Projects\n- **cogito-ergo** — ...", "path": "/home/user/.cogito/snapshot.md"}
+{"snapshot": "## Projects\n- **fidelis** — ...", "path": "/home/user/.cogito/snapshot.md"}
 ```
 
 Returns 404 if no snapshot has been built yet.
@@ -560,25 +560,25 @@ All CLI commands talk to the running HTTP server.
 
 | Command | Description |
 |---|---|
-| `cogito recall "query"` | Two-stage recall via running server |
-| `cogito recall "query" --limit 50 --raw` | Raw JSON output |
-| `cogito recall-hybrid "query" --tier filter` | Hybrid BM25+dense+RRF recall (96.4% R@1 arch) |
-| `cogito recall-hybrid "query" --tier flagship --top-k 5` | + flagship escalation on hard queries |
-| `cogito query "query"` | Simple vector query, no filter |
-| `cogito add "text"` | Add a memory via /add (mem0 extraction) |
-| `cogito seed ~/notes/` | Bulk-seed from markdown files via /store |
-| `cogito seed ~/notes/ --add` | Bulk-seed using /add (extraction mode) |
-| `cogito seed ~/notes/ --dry-run` | Preview without writing |
-| `cogito seed ~/notes/ --glob "*.txt"` | Custom file pattern |
-| `cogito snapshot` | Build compressed index layer |
-| `cogito snapshot --rebuild` | Force rebuild of snapshot |
-| `cogito snapshot --dry-run` | Preview snapshot without writing |
-| `cogito calibrate` | Build vocab bridge from corpus (one-time) |
-| `cogito calibrate --dry-run` | Preview vocab mappings |
-| `cogito health` | Check server status |
-| `cogito server` | Start the server (alias for cogito-server) |
-| `cogito-server --port 19420` | Start server directly |
-| `cogito-server --config /path/to.json` | Start with explicit config file |
+| `fidelis recall "query"` | Two-stage recall via running server |
+| `fidelis recall "query" --limit 50 --raw` | Raw JSON output |
+| `fidelis recall-hybrid "query" --tier filter` | Hybrid BM25+dense+RRF recall (96.4% R@1 arch) |
+| `fidelis recall-hybrid "query" --tier flagship --top-k 5` | + flagship escalation on hard queries |
+| `fidelis query "query"` | Simple vector query, no filter |
+| `fidelis add "text"` | Add a memory via /add (mem0 extraction) |
+| `fidelis seed ~/notes/` | Bulk-seed from markdown files via /store |
+| `fidelis seed ~/notes/ --add` | Bulk-seed using /add (extraction mode) |
+| `fidelis seed ~/notes/ --dry-run` | Preview without writing |
+| `fidelis seed ~/notes/ --glob "*.txt"` | Custom file pattern |
+| `fidelis snapshot` | Build compressed index layer |
+| `fidelis snapshot --rebuild` | Force rebuild of snapshot |
+| `fidelis snapshot --dry-run` | Preview snapshot without writing |
+| `fidelis calibrate` | Build vocab bridge from corpus (one-time) |
+| `fidelis calibrate --dry-run` | Preview vocab mappings |
+| `fidelis health` | Check server status |
+| `fidelis server` | Start the server (alias for fidelis-server) |
+| `fidelis-server --port 19420` | Start server directly |
+| `fidelis-server --config /path/to.json` | Start with explicit config file |
 
 ---
 
@@ -614,17 +614,17 @@ Config file is searched at `./.cogito.json` (cwd) then `~/.cogito/config.json`.
 
 `filter_endpoint` accepts any OpenAI-compatible API: Anthropic gateway, LM Studio, Ollama's `/v1` compat layer, OpenClaw, etc.
 
-For Ollama qwen3/qwen3.5 models used as filter, cogito automatically switches to the native Ollama `/api/chat` endpoint with `think: false` to suppress thinking mode.
+For Ollama qwen3/qwen3.5 models used as filter, fidelis automatically switches to the native Ollama `/api/chat` endpoint with `think: false` to suppress thinking mode.
 
 ---
 
 ## Python API
 
 ```python
-from cogito.recall import recall
-from cogito.recall_b import recall_b
-from cogito.recall_hybrid import recall_hybrid
-from cogito.config import load, mem0_config
+from fidelis.recall import recall
+from fidelis.recall_b import recall_b
+from fidelis.recall_hybrid import recall_hybrid
+from fidelis.config import load, mem0_config
 from mem0 import Memory
 
 cfg = load()  # reads .cogito.json + env vars
@@ -674,7 +674,7 @@ The server then picks `candidates[i]` — verbatim stored text — for each vali
 
 **Before benchmarking or deploying — run zer0lint first.**
 
-Ingestion quality directly limits retrieval quality. A poorly formatted memory store will underperform regardless of retrieval method. The technical extraction prompt baked into cogito's default config was validated to produce 0%→100% ingestion improvement via zer0lint diagnostics.
+Ingestion quality directly limits retrieval quality. A poorly formatted memory store will underperform regardless of retrieval method. The technical extraction prompt baked into fidelis's default config was validated to produce 0%→100% ingestion improvement via zer0lint diagnostics.
 
 **Session start pattern (agent integration):**
 
@@ -692,7 +692,7 @@ snapshot = json.loads(resp.read())["snapshot"]
 **Calibrate for domain-specific vocabulary:**
 
 ```bash
-cogito calibrate  # reads your corpus, writes vocab_map to .cogito.json
+fidelis calibrate  # reads your corpus, writes vocab_map to .cogito.json
 # then restart server to pick up new vocab_map
 ```
 
@@ -702,20 +702,20 @@ Calibration builds a plain-English → technical term bridge. Example: "how fast
 
 ## Built by Hermes Labs
 
-cogito-ergo is part of the [Hermes Labs](https://hermes-labs.ai) AI agent tooling suite:
+fidelis is part of the [Hermes Labs](https://hermes-labs.ai) AI agent tooling suite:
 
-- **[zer0lint](https://github.com/roli-lpci/zer0lint)** — Memory extraction diagnostics. Run before benchmarking to verify store quality. The technical extraction prompt in cogito's default config was validated against zer0lint.
-- **[zer0dex](https://github.com/roli-lpci/zer0dex)** — Dual-layer memory architecture pattern that cogito-ergo implements.
+- **[zer0lint](https://github.com/roli-lpci/zer0lint)** — Memory extraction diagnostics. Run before benchmarking to verify store quality. The technical extraction prompt in fidelis's default config was validated against zer0lint.
+- **[zer0dex](https://github.com/roli-lpci/zer0dex)** — Dual-layer memory architecture pattern that fidelis implements.
 - **[lintlang](https://github.com/roli-lpci/lintlang)** — Static linter for AI agent tool descriptions and prompts
 - **[Little Canary](https://github.com/roli-lpci/little-canary)** — Prompt injection detection
 - **[Suy Sideguy](https://github.com/roli-lpci/suy-sideguy)** — Runtime policy enforcement for agents
-- **cogito-ergo** — Two-stage memory retrieval ← you are here
+- **fidelis** — Two-stage memory retrieval ← you are here
 
 ---
 
 ## Operations
 
-`cogito-server` is designed to run under a process supervisor. On macOS the
+`fidelis-server` is designed to run under a process supervisor. On macOS the
 reference deployment is a `launchctl`-managed user daemon; on Linux any
 supervisor (systemd, runit, s6) works.
 
@@ -732,18 +732,18 @@ Non-200 or empty response means the server is down or the handler is wedged.
 
 | Symptom | Remediation |
 |---|---|
-| `/health` returns nothing, `launchctl list` shows no cogito entry | Label is disabled. `launchctl enable gui/$(id -u)/ai.hermeslabs.cogito-server && launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.hermeslabs.cogito-server.plist` |
-| `/health` accepts then resets (HTTP 000 on curl) | Handler wedged. `launchctl kickstart -k gui/$(id -u)/ai.hermeslabs.cogito-server` — `-k` is required; plain `start` is a no-op when a process is running but stuck. |
-| Writes silently failing | Ollama or mem0 dependency down. `safe_add` queues to `~/.cogito/queue/`; drain with `cogito replay` once the dependency is back. |
+| `/health` returns nothing, `launchctl list` shows no cogito entry | Label is disabled. `launchctl enable gui/$(id -u)/ai.hermeslabs.fidelis-server && launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.hermeslabs.fidelis-server.plist` |
+| `/health` accepts then resets (HTTP 000 on curl) | Handler wedged. `launchctl kickstart -k gui/$(id -u)/ai.hermeslabs.fidelis-server` — `-k` is required; plain `start` is a no-op when a process is running but stuck. |
+| Writes silently failing | Ollama or mem0 dependency down. `safe_add` queues to `~/.cogito/queue/`; drain with `fidelis replay` once the dependency is back. |
 
 ### Observability
 
-`cogito.telemetry` logs each escalation decision to
+`fidelis.telemetry` logs each escalation decision to
 `~/.cogito/escalation.log` (JSONL, append-only, crash-safe). Summarise
 with:
 
 ```python
-from cogito.telemetry import rate
+from fidelis.telemetry import rate
 rate(window_n=100)
 # {"n": 100, "escalated": 12, "rate": 0.12, "by_route": {...}}
 ```
@@ -754,12 +754,12 @@ records 0% escalation by construction.
 
 ### Write-path resilience
 
-All writes go through `cogito.degrade.safe_add`:
+All writes go through `fidelis.degrade.safe_add`:
 
 - Dependency up → memory stored + response returned
 - Dependency down → write queued to `~/.cogito/queue/<ts>-<uuid>.json`,
   success returned; no data lost
-- Call `cogito.degrade.replay_queue(memory, user_id)` when the
+- Call `fidelis.degrade.replay_queue(memory, user_id)` when the
   dependency recovers to drain
 
 See `tests/test_graceful_degrade.py` for the state machine and
@@ -773,7 +773,7 @@ branch coverage.
 - [ ] Pluggable vector backends (pgvector, Qdrant, LlamaIndex)
 - [ ] Pluggable extraction backends (non-Ollama)
 - [ ] Session flush utility (end-of-session seeding)
-- [ ] Benchmark harness as public CLI (`cogito bench`)
+- [ ] Benchmark harness as public CLI (`fidelis bench`)
 - [ ] Streaming /recall response
 - [ ] Per-qtype escalation calibration (unblocks filter/flagship graduation to default)
 - [ ] Dispatcher / Path A–B split (`docs/DISPATCHER_DESIGN.md`)

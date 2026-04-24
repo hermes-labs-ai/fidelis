@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-from cogito import degrade
+from fidelis import degrade
 
 
 class _FakeMemory:

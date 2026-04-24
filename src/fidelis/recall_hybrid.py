@@ -49,7 +49,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from cogito.recall_b import (
+from fidelis.recall_b import (
     _build_subqueries,
     _cosine_sim,
     MAX_SUBQUERIES,
@@ -576,8 +576,8 @@ def recall_hybrid(
 
     Example
     -------
-    >>> from cogito.config import load, mem0_config
-    >>> from cogito.recall_hybrid import recall_hybrid
+    >>> from fidelis.config import load, mem0_config
+    >>> from fidelis.recall_hybrid import recall_hybrid
     >>> from mem0 import Memory
     >>> cfg = load()
     >>> mem = Memory.from_config(mem0_config(cfg))

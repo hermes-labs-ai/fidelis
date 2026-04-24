@@ -30,9 +30,9 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from cogito import __version__
-from cogito.config import load
-from cogito.scaffold import (
+from fidelis import __version__
+from fidelis.config import load
+from fidelis.scaffold import (
     SessionState,
     apply_delta,
     extract_state_delta,

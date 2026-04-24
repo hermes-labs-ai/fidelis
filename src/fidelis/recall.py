@@ -13,7 +13,7 @@ Stage 2: cheap LLM receives numbered candidate list, outputs integer indices ONL
 Stage 3: server picks verbatim candidate text by those indices and returns it.
 
 Callable as a library:
-    from cogito.recall import recall
+    from fidelis.recall import recall
     memories, method = recall(memory, "query", user_id="agent", cfg=cfg)
 
 Or hit the HTTP endpoint:
@@ -27,7 +27,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from cogito.recall_b import recall_b as _stage1
+from fidelis.recall_b import recall_b as _stage1
 
 
 def recall(

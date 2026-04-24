@@ -45,13 +45,13 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from cogito import __version__
-from cogito.config import load, mem0_config
-from cogito.degrade import queued_count, safe_add
-from cogito.recall import recall as do_recall
-from cogito.recall_b import recall_b as do_recall_b
-from cogito.recall_hybrid import recall_hybrid as do_recall_hybrid
-from cogito.snapshot import _read_snapshot, _snapshot_path
+from fidelis import __version__
+from fidelis.config import load, mem0_config
+from fidelis.degrade import queued_count, safe_add
+from fidelis.recall import recall as do_recall
+from fidelis.recall_b import recall_b as do_recall_b
+from fidelis.recall_hybrid import recall_hybrid as do_recall_hybrid
+from fidelis.snapshot import _read_snapshot, _snapshot_path
 
 
 def _boot(cfg: dict) -> object:

@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from cogito import telemetry
+from fidelis import telemetry
 
 
 @pytest.fixture

@@ -123,9 +123,9 @@ def cmd_health(args):
 
 def cmd_seed(args):
     from pathlib import Path
-    from cogito.seed import seed
+    from fidelis.seed import seed
 
-    from cogito.config import load
+    from fidelis.config import load
     sources = [Path(s) for s in args.sources]
     cfg = load()
     seed(
@@ -144,8 +144,8 @@ def cmd_seed(args):
 def cmd_snapshot(args):
     import os
     import sys
-    from cogito.config import load, mem0_config
-    from cogito.snapshot import snapshot
+    from fidelis.config import load, mem0_config
+    from fidelis.snapshot import snapshot
 
     cfg = load(args.config)
 
@@ -162,8 +162,8 @@ def cmd_snapshot(args):
 def cmd_calibrate(args):
     import os
     import sys
-    from cogito.config import load, mem0_config
-    from cogito.calibrate import calibrate
+    from fidelis.config import load, mem0_config
+    from fidelis.calibrate import calibrate
 
     cfg = load(args.config)
 
@@ -179,7 +179,7 @@ def cmd_calibrate(args):
 
 def cmd_server(args):
     # Delegate to server.main()
-    from cogito.server import main as server_main
+    from fidelis.server import main as server_main
     server_main()
 
 

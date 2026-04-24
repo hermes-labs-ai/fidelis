@@ -124,7 +124,7 @@ def load(config_path: str | Path | None = None) -> dict[str, Any]:
                 cfg.update(file_cfg)
                 cfg["_config_file"] = str(p)
                 break
-            except Exception:
+            except Exception:  # noqa: silent — best-effort config load; malformed file falls back to defaults
                 pass
 
     # Env vars win
@@ -133,7 +133,7 @@ def load(config_path: str | Path | None = None) -> dict[str, Any]:
         if val is not None:
             try:
                 cfg[cfg_key] = cast(val)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError):  # noqa: silent — bad env var falls back to default
                 pass
 
     return cfg

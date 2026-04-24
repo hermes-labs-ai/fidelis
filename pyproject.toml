@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cogito-ergo"
-version = "0.3.1"
-description = "Agent memory retrieval — zero-LLM default (83.2% R@1, $0/query, fully local on LongMemEval_S), integer-pointer fidelity on the optional LLM tier. By Hermes Labs."
+name = "fidelis"
+version = "0.0.8"
+description = "Faithful agent memory — zero-LLM retrieval default (83.2% R@1 on LongMemEval_S, $0/query, fully local), integer-pointer fidelity on the optional LLM tier. By Hermes Labs."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
@@ -34,19 +34,19 @@ hybrid = ["bm25s>=0.2"]  # BM25 fusion for recall_hybrid; degrades gracefully if
 dev = ["pytest", "pytest-asyncio", "httpx", "ruff"]
 
 [project.scripts]
-cogito = "cogito.cli:main"
-cogito-server = "cogito.server:main"
-cogito-scaffold = "cogito.scaffold_server:main"
+fidelis = "fidelis.cli:main"
+fidelis-server = "fidelis.server:main"
+fidelis-scaffold = "fidelis.scaffold_server:main"
 
 [project.urls]
 Homepage = "https://hermes-labs.ai"
-Repository = "https://github.com/roli-lpci/cogito-ergo"
-Documentation = "https://github.com/roli-lpci/cogito-ergo#readme"
-Issues = "https://github.com/roli-lpci/cogito-ergo/issues"
-Changelog = "https://github.com/roli-lpci/cogito-ergo/blob/main/CHANGELOG.md"
+Repository = "https://github.com/roli-lpci/fidelis"
+Documentation = "https://github.com/roli-lpci/fidelis#readme"
+Issues = "https://github.com/roli-lpci/fidelis/issues"
+Changelog = "https://github.com/roli-lpci/fidelis/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cogito"]
+packages = ["src/fidelis"]
 
 [tool.ruff]
 line-length = 100

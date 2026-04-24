@@ -17,11 +17,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import sys
 import urllib.request
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
@@ -109,7 +108,7 @@ def _parse_jsonl(path: Path) -> list[dict]:
 
                 if len(turns) >= MAX_TURNS_PER_SESSION:
                     break
-    except (OSError, PermissionError):
+    except (OSError, PermissionError):  # noqa: silent — unreadable session file → skip; partial turns are still useful
         pass
     return turns
 
@@ -155,7 +154,7 @@ def _load_ledger() -> dict[str, str]:
     if lp.exists():
         try:
             return json.loads(lp.read_text())
-        except Exception:
+        except Exception:  # noqa: silent — corrupted ledger → start fresh; partial re-ingest is fine
             pass
     return {}
 
@@ -344,7 +343,7 @@ Examples:
 
     stats = ingest(since=since, dry_run=args.dry_run, verbose=args.verbose or args.dry_run)
 
-    print(f"\n[cogito-ingest] Done.")
+    print("\n[cogito-ingest] Done.")
     print(f"  Scanned:       {stats['scanned']}")
     print(f"  Stored:        {stats['stored']}")
     print(f"  Skipped dedup: {stats['skipped_dedup']}")

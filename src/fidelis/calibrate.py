@@ -153,7 +153,7 @@ def _write_vocab_map(vocab_map: dict[str, list[str]], cfg: dict[str, Any]) -> Pa
     if config_path.exists():
         try:
             existing = json.loads(config_path.read_text())
-        except Exception:
+        except Exception:  # noqa: silent — corrupted config → write fresh on save
             pass
 
     existing["vocab_map"] = vocab_map
@@ -177,7 +177,7 @@ def calibrate(
     Writes to config file unless dry_run=True.
     Raises RuntimeError on LLM call failure (does not write partial results).
     """
-    from cogito.recall import _resolve_filter_endpoint  # avoid circular at module level
+    from fidelis.recall import _resolve_filter_endpoint  # avoid circular at module level
 
     endpoint, token = _resolve_filter_endpoint(cfg)
     if not endpoint:

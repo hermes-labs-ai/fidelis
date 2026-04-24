@@ -1,27 +1,40 @@
 # Changelog
 
-## v0.3.1 — 2026-04-24
+## v0.0.8 — 2026-04-24 (renamed from `cogito-ergo`, first release as `fidelis`)
 
-**Headline: zero-LLM is now the default retrieval tier.** The repositioning
+**Package rename: `cogito-ergo` → `fidelis`.** Version reset to 0.0.8 for the
+new PyPI name. The old `cogito-ergo` 0.0.8 and 0.3.0 PyPI entries remain
+published but are now deprecated pointers to this package.
+
+**Headline: zero-LLM is the default retrieval tier.** The repositioning
 reflects what the benchmark numbers actually show — the zero-LLM path is
 the production moat (83.2% R@1 at $0, fully local); the LLM tiers are
 benchmark-tuned and held as experimental until calibration is fixed.
+
+### Rename details
+
+- PyPI package: `cogito-ergo` → `fidelis`
+- Import name: `from cogito` → `from fidelis`
+- CLI: `cogito ...` → `fidelis ...`, `cogito-server` → `fidelis-server`
+- Data paths kept as `~/.cogito/` for backward-compat with existing deployments
+- Env vars kept as `COGITO_*` for backward-compat
+- ChromaDB collection names kept as `cogito_memory` to avoid data loss
 
 ### Default change (breaking for callers relying on default tier)
 
 - `recall_hybrid()` default tier flipped from `filter` to `zero_llm`.
   Callers that relied on the filter default must pass `tier="filter"`
-  explicitly. Affects: `cogito recall-hybrid` CLI, `POST /recall_hybrid`,
+  explicitly. Affects: `fidelis recall-hybrid` CLI, `POST /recall_hybrid`,
   `recall_hybrid(...)` Python API.
 
 ### Features
 
-- New `since` parameter on `/recall` and `cogito recall --since` —
+- New `since` parameter on `/recall` and `fidelis recall --since` —
   ISO-8601 timestamp filter applied after Stage 2.
 
 ### Observability & reliability
 
-- New `cogito.telemetry` module: escalation-rate log + `rate()` summariser.
+- New `fidelis.telemetry` module: escalation-rate log + `rate()` summariser.
   Makes the 80%-vs-10% calibration miss measurable at runtime. Crash-safe.
 - `degrade.replay_queue` corrupt-file branch now covered by tests.
 
@@ -59,7 +72,7 @@ benchmark-tuned and held as experimental until calibration is fixed.
 - New `recall_hybrid` path: BM25 + dense + RRF with tiered LLM escalation.
   Port of the architecture that reached **93.4% R@1 on LongMemEval_S** (up
   from the 56% mem0 baseline). Superseded by v0.3.1 (96.4%).
-- New `POST /recall_hybrid` HTTP endpoint and `cogito recall-hybrid` CLI.
+- New `POST /recall_hybrid` HTTP endpoint and `fidelis recall-hybrid` CLI.
 - New tiers: `zero_llm` (no LLM, fastest), `filter` (cheap rerank, default),
   `flagship` (stronger model, 4x larger snippets).
 - New env vars: `COGITO_FLAGSHIP_ENDPOINT`, `COGITO_FLAGSHIP_TOKEN`,
@@ -89,4 +102,4 @@ benchmark-tuned and held as experimental until calibration is fixed.
 - Initial two-stage integer-pointer recall pipeline
 - mem0 + ChromaDB vector store backend
 - HTTP server with `/recall`, `/add`, `/snapshot` endpoints
-- `cogito calibrate` for vocab map generation
+- `fidelis calibrate` for vocab map generation
