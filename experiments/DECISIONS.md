@@ -80,7 +80,36 @@ python3 bench/qa_eval_v3_routing.py \
 ```
 (No --gpt4o-for-multi → gpt-4o-mini is used for TR by default)
 
-## After E2a — TBD
+## After E2a (2026-04-24)
+
+**E2a result:** TR with gpt-4o-mini + v3 prompts = **47.2%** (60/127), cost $0.30.
+
+**Decomposition of E2 TR gain (+26.7pp total):**
+- Prompt effect (E2a vs E0): +7.0pp (40.2% → 47.2%)
+- Model effect (E2 vs E2a): +19.7pp (47.2% → 66.9%)
+- GPT-4o is 74% of the TR gain. Prompt is 26%.
+
+**Adversarial Flags 1+2 (HIGH) RESOLVED:** GPT-4o is the primary driver. The E2 result is not a prompt artifact.
+
+**Hypothetical gpt-4o-mini + v3 prompts blended:** ~67.7% — below 75% floor. GPT-4o is necessary.
+
+**Decision: PROCEED TO E5 FINAL MEASUREMENT.**
+**Rationale:** All adversarial flags are resolved. E2 config (GPT-4o for MS/TR/KU, gpt-4o-mini for SSU/SSA/Pref) achieves 75.5% and is attributable. E5 will lock in the config and run a single clean process for the paper.
+
+**Budget status:** $10.03 + $0.30 = $10.33 used of $50. ~$39.67 remaining.
+
+**E5 config** (identical to E2, single clean run):
+- GPT-4o reader: MS (K=5), TR (K=5), KU (K=1)
+- gpt-4o-mini reader: SSU (K=1), SSA (K=1), Pref (K=1)
+- Prompts: v3_routing.py defaults (v2 MS, v3 temporal, custom Pref/KU)
+- Single process (no --resume)
+- Commit SHA of bench/qa_eval_v3_routing.py locked before run
+
+## After E3 — TBD
+
+## After E4 — TBD
+
+## After E5 — TBD
 
 ## After E3 — TBD
 

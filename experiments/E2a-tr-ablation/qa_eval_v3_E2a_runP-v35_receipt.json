@@ -1,0 +1,36 @@
+{
+  "experiment_id": "E2a",
+  "run_id": "runP-v35",
+  "timestamp_start": "2026-04-24T02:38:00.349014+00:00",
+  "timestamp_end": "2026-04-24T04:12:46.567993+00:00",
+  "reproduce_command": "OPENAI_API_KEY=sk-... python3 bench/qa_eval_v3_routing.py --run-id runP-v35 --experiment-id E2a --qtypes temporal-reasoning",
+  "data_hash_note": "runP-v35 per_question.json \u2014 SHA256 not pre-computed; verify via git log bench/runs/runP-v35/",
+  "backend": "openai",
+  "reader_models": [
+    "gpt-4o-mini"
+  ],
+  "grader_model": "gpt-4o-mini",
+  "k_routing": {
+    "single-session-user": 1,
+    "single-session-assistant": 1,
+    "single-session-preference": 1,
+    "multi-session": 5,
+    "temporal-reasoning": 5,
+    "knowledge-update": 1
+  },
+  "n_questions_evaluated": 127,
+  "overall_qa_accuracy": 0.4724,
+  "qtype_results": {
+    "temporal-reasoning": {
+      "n": 127,
+      "qa_accuracy": 0.4724,
+      "k_used": 5,
+      "reader": "gpt-4o-mini"
+    }
+  },
+  "cost_usd_total": 0.2963,
+  "tokens_in": 1762838,
+  "tokens_out": 53095,
+  "random_seed": "temperature=0 (deterministic)",
+  "pricing_source": "openai.com/pricing checked Feb 2026; gpt-4o-mini=$0.15/$0.60, gpt-4o=$2.50/$10.00 per 1M"
+}

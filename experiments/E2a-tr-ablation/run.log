@@ -1,0 +1,29 @@
+  [openai error] The read operation timed out
+Loaded 470 questions from /Users/rbr_lpci/Documents/projects/cogito-ergo/bench/runs/runP-v35/per_question.json
+Dataset: 470 questions
+K routing: {'single-session-user': 1, 'single-session-assistant': 1, 'single-session-preference': 1, 'multi-session': 5, 'temporal-reasoning': 5, 'knowledge-update': 1}
+Model routing: {'single-session-user': 'gpt-4o-mini', 'single-session-assistant': 'gpt-4o-mini', 'single-session-preference': 'gpt-4o-mini', 'multi-session': 'gpt-4o-mini', 'temporal-reasoning': 'gpt-4o-mini', 'knowledge-update': 'gpt-4o-mini'}
+Grader: gpt-4o-mini
+Filtering to qtypes: {'temporal-reasoning'}
+After qtype filter: 127 questions
+  [  1/127] gpt4_59149c7 correct=True run_acc=100.0% total_cost=$0.0029
+  [ 20/127] gpt4_1916e0e correct=False run_acc=40.0% total_cost=$0.0461
+  [ 40/127] bcbe585f correct=True run_acc=45.0% total_cost=$0.0933
+  [ 60/127] gpt4_f420262 correct=True run_acc=43.3% total_cost=$0.1418
+  [ 80/127] 2c63a862 correct=False run_acc=43.8% total_cost=$0.1865
+  [100/127] gpt4_2c50253 correct=False run_acc=44.0% total_cost=$0.2336
+  [120/127] gpt4_0a05b49 correct=True run_acc=46.7% total_cost=$0.2785
+  [127/127] 8c18457d correct=True run_acc=47.2% total_cost=$0.2963
+
+============================================================
+  E2a RESULTS — runP-v35
+============================================================
+  n=127  Overall QA: 47.2%
+  Cost: $0.2963  (1,762,838 in / 53,095 out tokens)
+
+  Per-qtype:
+    temporal-reasoning               n=127  acc=47.2%  K=5  model=gpt-4o-mini
+
+  Output:  experiments/E2a-tr-ablation/qa_eval_v3_E2a_runP-v35.json
+  Summary: experiments/E2a-tr-ablation/qa_eval_v3_E2a_runP-v35_summary.json
+  Receipt: experiments/E2a-tr-ablation/qa_eval_v3_E2a_runP-v35_receipt.json
