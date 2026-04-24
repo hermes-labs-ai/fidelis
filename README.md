@@ -675,6 +675,61 @@ cogito-ergo is part of the [Hermes Labs](https://hermes-labs.ai) AI agent toolin
 
 ---
 
+## Operations
+
+`cogito-server` is designed to run under a process supervisor. On macOS the
+reference deployment is a `launchctl`-managed user daemon; on Linux any
+supervisor (systemd, runit, s6) works.
+
+### Health probe
+
+```bash
+curl -s http://127.0.0.1:19420/health
+# {"status":"ok","count":N,"version":"0.3.1","calibrated":true,"snapshot":true}
+```
+
+Non-200 or empty response means the server is down or the handler is wedged.
+
+### Recovery patterns (macOS launchd)
+
+| Symptom | Remediation |
+|---|---|
+| `/health` returns nothing, `launchctl list` shows no cogito entry | Label is disabled. `launchctl enable gui/$(id -u)/ai.hermeslabs.cogito-server && launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.hermeslabs.cogito-server.plist` |
+| `/health` accepts then resets (HTTP 000 on curl) | Handler wedged. `launchctl kickstart -k gui/$(id -u)/ai.hermeslabs.cogito-server` — `-k` is required; plain `start` is a no-op when a process is running but stuck. |
+| Writes silently failing | Ollama or mem0 dependency down. `safe_add` queues to `~/.cogito/queue/`; drain with `cogito replay` once the dependency is back. |
+
+### Observability
+
+`cogito.telemetry` logs each escalation decision to
+`~/.cogito/escalation.log` (JSONL, append-only, crash-safe). Summarise
+with:
+
+```python
+from cogito.telemetry import rate
+rate(window_n=100)
+# {"n": 100, "escalated": 12, "rate": 0.12, "by_route": {...}}
+```
+
+Escalation rate is the leading indicator of the known calibration miss
+(80% actual vs 10% intended on the filter/flagship tiers). Zero-LLM tier
+records 0% escalation by construction.
+
+### Write-path resilience
+
+All writes go through `cogito.degrade.safe_add`:
+
+- Dependency up → memory stored + response returned
+- Dependency down → write queued to `~/.cogito/queue/<ts>-<uuid>.json`,
+  success returned; no data lost
+- Call `cogito.degrade.replay_queue(memory, user_id)` when the
+  dependency recovers to drain
+
+See `tests/test_graceful_degrade.py` for the state machine and
+`tests/test_graceful_degrade_corruption.py` for the corrupt-queue-file
+branch coverage.
+
+---
+
 ## Roadmap
 
 - [ ] Pluggable vector backends (pgvector, Qdrant, LlamaIndex)
@@ -682,6 +737,8 @@ cogito-ergo is part of the [Hermes Labs](https://hermes-labs.ai) AI agent toolin
 - [ ] Session flush utility (end-of-session seeding)
 - [ ] Benchmark harness as public CLI (`cogito bench`)
 - [ ] Streaming /recall response
+- [ ] Per-qtype escalation calibration (unblocks filter/flagship graduation to default)
+- [ ] Dispatcher / Path A–B split (`docs/DISPATCHER_DESIGN.md`)
 
 ---
 
