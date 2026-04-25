@@ -62,9 +62,7 @@ The scaffold is **versioned** (`[FIDELIS-SCAFFOLD-vX.Y.Z]…[/FIDELIS-SCAFFOLD-v
 
 Full 470-question evaluation in progress; smoke evidence + machine-readable summary in [`experiments/zeroLLM-FLAGSHIP-evidence/`](experiments/zeroLLM-FLAGSHIP-evidence/) (see `SUMMARY.json` for per-arm aggregates and per-qtype scaffold lift). Companion technical report lands when the full eval completes. See [`docs/scaffold.md`](docs/scaffold.md) for the full scaffold contract, preflight, and audit chain.
 
-There is also a separate `/recall` atomic path: 75% R@1 on fidelis's
-internal 31-case atomic-fact eval (85% combined with the snapshot
-layer) — purpose-built for short-fact lookup, not session retrieval.
+A separate `/recall` atomic path is purpose-built for short-fact lookup (not session retrieval); it scores 85% R@1 combined with the snapshot layer on a 31-case internal atomic-fact eval. This is a secondary surface; the headline retrieval number above (83.2% R@1 on the full 470-question LongMemEval-S) is the authoritative session-retrieval measurement.
 
 [![PyPI version](https://img.shields.io/pypi/v/fidelis)](https://pypi.org/project/fidelis/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://pypi.org/project/fidelis/)
@@ -121,13 +119,24 @@ Every retrieval system that uses an LLM to select or rank memories has the same 
 
 fidelis fixes this structurally. The filter LLM outputs only integer pointers (`[3, 7, 12]`). The server dereferences them to verbatim stored text. The LLM never sees, generates, or touches memory content. Fidelity is architectural, not a prompting convention.
 
+**Headline retrieval (LongMemEval-S, 470 questions, zero-LLM tier, $0/q, fully local):**
+
+| Metric | Value |
+|---|---|
+| **R@1** | **83.2%** |
+| **R@5** | **98.3%** |
+| **R@10** | **99.1%** |
+| Cost | $0/query |
+| Latency | ~90 ms end-to-end |
+| Per-qtype R@1 | SSA 100% · KU 95.8% · SSU 95.3% · MS 83.5% · SSP 66.7% · TR 66.1% |
+
+**Secondary `/recall` atomic-fact surface** (purpose-built for short-fact lookup, not session retrieval; 31 internal test cases, qwen3.5:2b filter, fully local):
+
 | Mode | R@1 | hit@any | Latency |
 |---|---|---|---|
-| **Combined (snapshot + recall)** | **85%** | **96%** | 1303ms |
-| recall only | 63% | 81% | 1197ms |
-| recall_b (zero-LLM) | 56% | 96% | 127ms |
-
-31 test cases, qwen3.5:2b filter model, fully local. $0/month.
+| Combined (snapshot + recall) | 85% | 96% | 1303 ms |
+| recall only | 63% | 81% | 1197 ms |
+| recall_b (zero-LLM) | 56% | 96% | 127 ms |
 
 ---
 
@@ -172,7 +181,25 @@ The filter LLM never generates memory text. Out-of-range integers are silently i
 
 ## Benchmarks
 
-Measured 2026-03-28. 31 test cases, qwen3.5:2b as filter model (local Ollama).
+### Primary: LongMemEval-S (470 questions, public benchmark)
+
+Measured 2026-04-24. Zero-LLM retrieval pipeline (BM25 + turn-level + prefixes + temporal-boost + escalation), `runP-v35` configuration, fully local on Ollama. $0/query.
+
+| Metric | Value | Notes |
+|---|---|---|
+| **R@1** | **83.2%** | top-1 contains gold |
+| **R@5** | **98.3%** | gold in top-5 across all qtypes |
+| **R@10** | **99.1%** | |
+| Cost | $0/query | no LLM in retrieval path |
+| Wallclock | 101.3 s for 470 questions | ~215 ms/question |
+
+Per-qtype R@1: single-session-assistant 100%, knowledge-update 95.8%, single-session-user 95.3%, multi-session 83.5%, single-session-preference 66.7%, temporal-reasoning 66.1%.
+
+Raw aggregate: [`bench/runs/zeroLLM-full-20260424/aggregate.json`](bench/runs/zeroLLM-full-20260424/aggregate.json).
+
+### Secondary: internal `/recall` atomic-fact eval
+
+Measured 2026-03-28. 31 internal test cases (short-fact lookup, not session retrieval). qwen3.5:2b as filter model, local Ollama. Different surface from LongMemEval — this measures the atomic-fact path, not session retrieval.
 
 | Mode | R@1 | hit@any | MRR | Latency |
 |---|---|---|---|---|
