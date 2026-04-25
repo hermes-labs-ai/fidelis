@@ -1,0 +1,97 @@
+{
+  "F1-scaffold-smoke": {
+    "n": 60,
+    "correct": 45,
+    "accuracy": 0.75,
+    "per_qtype": {
+      "knowledge-update": {
+        "n": 10,
+        "correct": 7,
+        "accuracy": 0.7
+      },
+      "multi-session": {
+        "n": 10,
+        "correct": 7,
+        "accuracy": 0.7
+      },
+      "single-session-assistant": {
+        "n": 10,
+        "correct": 10,
+        "accuracy": 1.0
+      },
+      "single-session-preference": {
+        "n": 10,
+        "correct": 6,
+        "accuracy": 0.6
+      },
+      "single-session-user": {
+        "n": 10,
+        "correct": 10,
+        "accuracy": 1.0
+      },
+      "temporal-reasoning": {
+        "n": 10,
+        "correct": 5,
+        "accuracy": 0.5
+      }
+    },
+    "source_file": "F1-smoke-scaffold.json"
+  },
+  "F1B-baseline-partial": {
+    "n": 41,
+    "correct": 31,
+    "accuracy": 0.7561,
+    "per_qtype": {
+      "knowledge-update": {
+        "n": 4,
+        "correct": 2,
+        "accuracy": 0.5
+      },
+      "multi-session": {
+        "n": 8,
+        "correct": 5,
+        "accuracy": 0.625
+      },
+      "single-session-assistant": {
+        "n": 10,
+        "correct": 10,
+        "accuracy": 1.0
+      },
+      "single-session-preference": {
+        "n": 9,
+        "correct": 4,
+        "accuracy": 0.4444
+      },
+      "single-session-user": {
+        "n": 10,
+        "correct": 10,
+        "accuracy": 1.0
+      }
+    },
+    "source_file": "F1B-smoke-baseline-partial.json"
+  },
+  "F1B-baseline-TR-only": {
+    "n": 10,
+    "correct": 5,
+    "accuracy": 0.5,
+    "per_qtype": {
+      "temporal-reasoning": {
+        "n": 10,
+        "correct": 5,
+        "accuracy": 0.5
+      }
+    },
+    "source_file": "F1B-smoke-baseline-TR-only.json"
+  },
+  "scaffold_lift_over_minimal_baseline_per_qtype_pp": {
+    "knowledge-update": 20.0,
+    "multi-session": 7.5,
+    "single-session-assistant": 0.0,
+    "single-session-preference": 15.6,
+    "single-session-user": 0.0,
+    "temporal-reasoning": 0.0
+  },
+  "_note": "Smoke n=60 stratified across 6 qtypes (10/qtype). F1 = scaffold + Opus reader; F1B = minimal prompt + Opus reader. F1B partial (n=41) was terminated by token-pause before TR; F1B-TR-only fills that gap separately. Grader: Claude Opus 4.7 via Anthropic subscription, zero incremental cost.",
+  "_session": "7721bc7e-d87a-4578-b6d2-9659b3d7a04c",
+  "_date": "2026-04-25"
+}

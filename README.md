@@ -4,7 +4,7 @@
 > drift-safe, hedge-calibrated, qtype-aware system-prompt wrapper that lifts
 > end-to-end QA accuracy on hard question types when paired with any LLM at
 > zero incremental inference cost. Smoke-validated; full 470-Q LongMemEval-S
-> evaluation in progress (paper landing within 24h).
+> evaluation in progress (companion paper landing on full-eval completion).
 
 **Agent memory with zero-LLM retrieval and a $0-incremental-cost QA scaffold.** Fully local retrieval. No API keys required to get a working memory system.
 
@@ -60,7 +60,7 @@ The scaffold is **versioned** (`[FIDELIS-SCAFFOLD-vX.Y.Z]…[/FIDELIS-SCAFFOLD-v
 | Mem0 | ~66–70% | Medium | No |
 | Full GPT-4o (raw context) | 60.2% | High | No |
 
-Full 470-question evaluation in progress; final numbers in `experiments/zeroLLM-FLAGSHIP-evidence/` and the companion paper landing within 24h. See [`docs/scaffold.md`](docs/scaffold.md) for the full scaffold contract, preflight, and audit chain.
+Full 470-question evaluation in progress; smoke evidence + machine-readable summary in [`experiments/zeroLLM-FLAGSHIP-evidence/`](experiments/zeroLLM-FLAGSHIP-evidence/) (see `SUMMARY.json` for per-arm aggregates and per-qtype scaffold lift). Companion technical report lands when the full eval completes. See [`docs/scaffold.md`](docs/scaffold.md) for the full scaffold contract, preflight, and audit chain.
 
 There is also a separate `/recall` atomic path: 75% R@1 on fidelis's
 internal 31-case atomic-fact eval (85% combined with the snapshot
