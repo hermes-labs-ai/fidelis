@@ -14,7 +14,7 @@ Example:
         question="What did I say about Sarah?",
         qtype="single-session-user",
         llm_call=lambda system, user: client.messages.create(
-            model="claude-opus-4-5",  # use any current Claude Messages API model
+            model="claude-opus-4-7",  # use any current Claude Messages API model
             system=system,
             messages=[{"role": "user", "content": user}],
             max_tokens=512,

@@ -1,29 +1,78 @@
 # fidelis
 
-**Fidelity-preserving memory for AI agents. Local. 60 seconds. No API keys.**
+## Agent memory without the retrieval tax.
 
-You store: `auth tokens expire after 3600 seconds`.
-A normal RAG memory hands your agent back: `authentication has a configurable timeout`.
-**fidelis** hands your agent back: `auth tokens expire after 3600 seconds` — the original passage, not a paraphrase.
+**Fidelity-preserving memory for Claude Code and AI agents — local-first, fast, and with no LLM in the default retrieval path.**
 
-Memory doesn't just forget. It mutates. Every retrieval system that uses an LLM to rank or rewrite memories has the same failure mode: the specific fact gets summarized into something general. fidelis solves this structurally — there is no LLM in the default retrieval path.
+Your agent already calls an LLM to think. It should not need another one just to remember.
 
-```bash
-pip install fidelis
-fidelis init                  # background service (launchd / systemd)
-# Requires Ollama with nomic-embed-text — see Requirements below
-fidelis watch ~/notes         # auto-ingests markdown
-fidelis mcp install           # wires Claude Code
-# Restart Claude Code. Memory is on.
-```
+fidelis gives agents persistent memory that is:
 
-v0.0.8 — pre-release. Benchmarked on LongMemEval-S; results below.
+- **fast** — ~90 ms local retrieval
+- **cheap** — $0/query retrieval cost
+- **private** — local memory store by default
+- **faithful** — original stored passages returned, not paraphrases
+- **proven** — 73.0% end-to-end QA on LongMemEval-S, 83.2% R@1 retrieval, with no LLM in the default retrieval path
+- **installable** — Claude Code via MCP in about 60 seconds
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
 ---
+
+## Quickstart
+
+```bash
+pip install fidelis
+fidelis init                  # background service (launchd / systemd)
+fidelis watch ~/notes         # auto-ingests markdown
+fidelis mcp install           # wires Claude Code
+# Restart Claude Code. Memory is on.
+```
+
+Requires Ollama + `nomic-embed-text` for local embeddings. See [Requirements](#requirements).
+
+v0.0.8 — pre-release.
+
+## Memory mutates, it doesn't just forget
+
+Most memory systems rephrase content on the way out. The specific fact gets summarized into something general. fidelis solves this structurally — there is no LLM in the default retrieval path, so the store returns exactly what you put in.
+
+You store:
+
+```text
+auth tokens expire after 3600 seconds.
+The 3600s window is non-configurable in our current contract.
+```
+
+A lossy memory layer may return:
+
+```text
+authentication has a configurable timeout
+```
+
+fidelis returns:
+
+```text
+auth tokens expire after 3600 seconds.
+The 3600s window is non-configurable in our current contract.
+```
+
+The non-configurable qualifier survives. So does every other detail you wrote down.
+
+## What this enables in Claude Code
+
+Once `fidelis mcp install` is run, ask your agent:
+
+- *"What did we decide about auth?"*
+- *"What failed last time we tried this migration?"*
+- *"Which billing constraint was non-configurable?"*
+- *"What did I say about Sarah's onboarding flow?"*
+
+The MCP `fidelis_recall` tool fires before Claude composes its answer. Claude sees the original passages, not paraphrased summaries. The answer is grounded in what you wrote, with the qualifiers intact.
+
+> **fidelis retrieves memory without an LLM. Your agent still uses its normal LLM to answer using the retrieved context.** "Zero-LLM" applies to the memory hot path, not to your agent.
 
 ## How it fits
 
@@ -34,48 +83,12 @@ local memory store      (~/.cogito/, fully local)
        ↓
 fidelis retrieval       (BM25 + dense + RRF, no LLM)
        ↓
-original passages       (verbatim — never rephrased)
+original passages       (verbatim, never rephrased)
        ↓
 Claude Code / your agent
 ```
 
-Claude Code is the easiest place to start. The retrieval engine is agent-agnostic — pair it with any LLM client.
-
-## A quick demo
-
-You drop a note into a watched folder:
-
-```text
-# 2026-04-15 — auth call
-Steve confirmed: auth tokens expire after 3600 seconds.
-Token refresh requires an exchange of the refresh-token JWT against /v2/refresh.
-The 3600s window is non-configurable in our current contract.
-```
-
-Two days later you ask Claude Code: *"how long do auth tokens last?"*
-
-Without fidelis, the agent answers from training: *"OAuth tokens typically last 3600 seconds, though this varies by provider."* Generic, plausible, wrong if your contract differs.
-
-With fidelis, the MCP `fidelis_recall` tool fires before Claude composes its answer. Claude sees:
-
-```text
-Steve confirmed: auth tokens expire after 3600 seconds.
-The 3600s window is non-configurable in our current contract.
-```
-
-The answer comes back grounded in your stored passage, with the *non-configurable* qualifier intact — a detail an LLM-rephrasing memory would have lost.
-
-## Why "fidelity-preserving"
-
-| | typical RAG memory | **fidelis** |
-|---|---|---|
-| LLM in retrieval path | yes | **no** (zero-LLM default) |
-| Returned content | LLM-paraphrased | **original passages** |
-| Cost per query | $0.001–0.02 | **$0** |
-| Works offline / air-gapped | no | **yes** |
-| API keys to start | yes | **no** |
-
-The optional LLM tier (`tier="filter"` / `tier="flagship"`) returns only integer pointers (`[3, 7, 12]`) — the server dereferences them to the original stored text. The LLM is structurally prevented from rephrasing memory content. Fidelity is a property of the architecture, not a prompting convention.
+Claude Code is the fastest path to value. The retrieval engine is agent-agnostic — pair it with any LLM client.
 
 ## Benchmarks
 
@@ -86,12 +99,42 @@ LongMemEval-S, 470 questions, public benchmark.
 | Retrieval R@1 | **83.2%** |
 | Retrieval R@5 | **98.3%** |
 | End-to-end QA accuracy | **73.0%**, Wilson 95% CI [68.7%, 77.0%] |
-| Cost per query | **$0** (local + Claude subscription) |
+| Cost per query (retrieval) | **$0** (local) |
 | Mean retrieval latency | ~90 ms |
+
+For context: published Mem0 results on LongMemEval-S are in the ~66–70% end-to-end QA range; Zep is 71.2%; Supermemory is 81.6%; full GPT-4o on raw context (no memory system) is 60.2%. fidelis reaches 73.0% with no LLM in the default retrieval path.
 
 Raw evidence: [`bench/runs/zeroLLM-full-20260424/aggregate.json`](bench/runs/zeroLLM-full-20260424/aggregate.json) · [`experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json`](experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json)
 
 The QA tier wraps your existing LLM with a 140–180-token system prompt — the Fidelis Scaffold. See [`docs/scaffold.md`](docs/scaffold.md).
+
+## Verify the zero-LLM claim yourself
+
+```bash
+# Unset any LLM API keys for this shell
+unset OPENAI_API_KEY ANTHROPIC_API_KEY DASHSCOPE_API_KEY
+
+# Optional: drop your network. Ollama runs on 127.0.0.1:11434 (loopback).
+
+# `recall-hybrid` is the explicit-tier command. zero_llm is the default.
+fidelis recall-hybrid "what did the user say about Sarah" --tier zero_llm
+tail ~/.fidelis/server.log
+```
+
+The default `zero_llm` tier never makes an outbound LLM call. Optional `--tier filter` and `--tier flagship` modes do call an LLM, but only to select integer pointers — the server dereferences those pointers to the original stored text. The LLM cannot rephrase memory content.
+
+## Requirements
+
+- macOS or Linux (Windows not yet supported)
+- Python 3.10+
+- [Ollama](https://ollama.com) running locally with `nomic-embed-text` pulled (~280 MB):
+
+  ```bash
+  brew install ollama && ollama serve &
+  ollama pull nomic-embed-text   # ~280 MB, one-time
+  ```
+
+The full init-to-first-recall cycle is under 60 seconds once Ollama is up. No memory API keys required.
 
 ## Quick reference
 
@@ -113,7 +156,7 @@ answer = augment(
     question="What did I say about Sarah?",
     qtype="single-session-user",
     llm_call=lambda system, user: client.messages.create(
-        model="claude-opus-4-5",
+        model="claude-opus-4-7",  # use any current Claude Messages API model
         system=system,
         messages=[{"role": "user", "content": user}],
         max_tokens=512,
@@ -126,23 +169,10 @@ answer = augment(
 After `fidelis init`:
 
 - **Service:** `fidelis-server` runs at `http://127.0.0.1:19420` under your OS service manager (launchd on macOS, systemd on Linux). Auto-starts on boot. Logs at `~/.fidelis/server.log`.
-- **Storage:** vector store (Chroma + SQLite) at `~/.cogito/`. Fully local. No data leaves your machine in the default zero-LLM path.
+- **Storage:** Chroma + SQLite at `~/.cogito/`. No data leaves your machine in the default zero-LLM path.
 - **MCP:** if you ran `fidelis mcp install`, Claude Code sees three tools: `fidelis_recall`, `fidelis_query`, `fidelis_health`.
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
-
-## Requirements
-
-- macOS or Linux (Windows not yet supported)
-- Python 3.10+
-- [Ollama](https://ollama.com) running locally with `nomic-embed-text` pulled (~280 MB):
-
-  ```bash
-  brew install ollama && ollama serve &
-  ollama pull nomic-embed-text   # ~280 MB, one-time
-  ```
-
-The full init-to-first-recall cycle is under 60 seconds once Ollama is up.
 
 ## Known limitations (v0.0.8 honest list)
 
@@ -151,6 +181,14 @@ The full init-to-first-recall cycle is under 60 seconds once Ollama is up.
 - **Temporal-reasoning and preference questions are the weakest qtypes** in the QA scaffold (TR ~58%, Pref ~37% on the full eval). Single-session and knowledge-update qtypes are strong (95–100%).
 - **The optional LLM tier ("flagship" mode) currently escalates ~80% of queries instead of the intended ~10%** — an 8× cost miss we're transparent about. The default zero-LLM tier is unaffected.
 - **qwen3.5:9b in thinking mode does not reliably follow the literal hedge instruction** in the Fidelis Scaffold. Use Claude, an OpenAI-format API, or non-thinking-mode local models for reliable hedging.
+
+## What this turns into over time
+
+Day 1: drop notes into `~/notes`, run the four commands.
+Day 2: ask Claude Code about yesterday's decision — the answer cites your original passage.
+Day 7: your agent starts carrying project context across sessions; you stop re-explaining.
+
+Useful for solo builders today; relevant for teams that need memory to stay local tomorrow.
 
 ## Going deeper
 
