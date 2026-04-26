@@ -31,6 +31,17 @@ def _base_url() -> str:
     return f"http://127.0.0.1:{port}"
 
 
+def _server_error(exc: BaseException) -> None:
+    """Print a clean error + exit. Catches the full family of socket-level
+    failures so users never see a Python traceback for server-side issues."""
+    msg = str(exc) or type(exc).__name__
+    print(f"Error: fidelis-server unreachable or unhealthy at {_base_url()}", file=sys.stderr)
+    print(f"  reason: {msg}", file=sys.stderr)
+    print("  • If you haven't installed the service: `fidelis init`", file=sys.stderr)
+    print(f"  • If the service is installed: `tail ~/.fidelis/server.log`", file=sys.stderr)
+    sys.exit(1)
+
+
 def _post(path: str, payload: dict) -> dict:
     data = json.dumps(payload).encode()
     req = urllib.request.Request(
@@ -42,20 +53,16 @@ def _post(path: str, payload: dict) -> dict:
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read())
-    except urllib.error.URLError:
-        print(f"Error: fidelis-server not reachable at {_base_url()}", file=sys.stderr)
-        print("Run `fidelis init` to install + start the service.", file=sys.stderr)
-        sys.exit(1)
+    except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
+        _server_error(e)
 
 
 def _get(path: str) -> dict:
     try:
         with urllib.request.urlopen(f"{_base_url()}{path}", timeout=5) as resp:
             return json.loads(resp.read())
-    except urllib.error.URLError:
-        print(f"Error: fidelis-server not reachable at {_base_url()}", file=sys.stderr)
-        print("Run `fidelis init` to install + start the service.", file=sys.stderr)
-        sys.exit(1)
+    except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
+        _server_error(e)
 
 
 def _print_memories(memories: list, method: str = ""):
