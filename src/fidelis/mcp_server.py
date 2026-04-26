@@ -12,6 +12,8 @@ import sys
 import urllib.error
 import urllib.request
 
+from fidelis import __version__
+
 
 def _server_url() -> str:
     port = os.environ.get("FIDELIS_PORT", os.environ.get("COGITO_PORT", "19420"))
@@ -145,7 +147,7 @@ def _handle(req: dict) -> dict | None:
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "fidelis", "version": "0.1.0"},
+                "serverInfo": {"name": "fidelis", "version": __version__},
             },
         }
     if method == "tools/list":

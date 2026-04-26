@@ -1,14 +1,8 @@
 """Queue-corruption branch coverage for degrade.replay_queue.
 
-degrade.py has a corrupted-file branch:
-
-    try:
-        rec = json.loads(qfile.read_text())
-    except Exception:
-        failed += 1
-        continue
-
-Without a test, the branch can rot silently. These tests pin it.
+Corrupted JSON files in the queue are moved to a dead-letter subdirectory
+so the replay loop cannot stay hot indefinitely re-trying unparseable
+records. The originals are preserved (in dead/) for forensic inspection.
 """
 from __future__ import annotations
 
@@ -33,11 +27,12 @@ class _FakeMemory:
 
 @pytest.fixture
 def temp_queue(tmp_path, monkeypatch):
-    monkeypatch.setattr(degrade, "QUEUE_DIR", tmp_path / "queue")
-    return tmp_path / "queue"
+    qdir = tmp_path / "queue"
+    monkeypatch.setenv("FIDELIS_QUEUE_DIR", str(qdir))
+    return qdir
 
 
-def test_replay_counts_corrupted_queue_file_as_failed(temp_queue):
+def test_replay_dead_letters_corrupted_json(temp_queue):
     temp_queue.mkdir(parents=True, exist_ok=True)
     (temp_queue / "corrupt.json").write_text("{not valid json")
     (temp_queue / "good.json").write_text(
@@ -45,14 +40,18 @@ def test_replay_counts_corrupted_queue_file_as_failed(temp_queue):
     )
     summary = degrade.replay_queue(_FakeMemory(), user_id="u")
     assert summary["replayed"] == 1
-    assert summary["remaining"] == 1  # corrupt file kept on disk, not silently lost
-    assert (temp_queue / "corrupt.json").exists()
+    assert summary["dead_lettered"] == 1
+    assert summary["remaining"] == 0  # corrupt file moved to dead/, not in main queue
+    assert not (temp_queue / "corrupt.json").exists()
+    assert (temp_queue / "dead" / "corrupt.json").exists()
 
 
-def test_replay_corrupt_only_queue_is_noop(temp_queue):
+def test_replay_corrupt_only_queue_drains_to_dead(temp_queue):
     temp_queue.mkdir(parents=True, exist_ok=True)
     (temp_queue / "a.json").write_text("garbage")
     (temp_queue / "b.json").write_text("")
     summary = degrade.replay_queue(_FakeMemory(), user_id="u")
     assert summary["replayed"] == 0
-    assert summary["remaining"] == 2
+    assert summary["dead_lettered"] == 2
+    assert summary["remaining"] == 0
+    assert (temp_queue / "dead").exists()

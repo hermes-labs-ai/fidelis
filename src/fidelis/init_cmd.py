@@ -49,6 +49,19 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <string>{log_path}</string>
     <key>EnvironmentVariables</key>
     <dict>
+        <!--
+            Telemetry kill: chromadb pulls posthog at import, which opens a
+            socket pool per process. In launchd's restart loop this leaks
+            file descriptors and eventually trips EMFILE, killing the
+            service silently. We disable it three ways because each library
+            checks a different flag.
+        -->
+        <key>ANONYMIZED_TELEMETRY</key>
+        <string>False</string>
+        <key>CHROMA_TELEMETRY_DISABLED</key>
+        <string>True</string>
+        <key>POSTHOG_DISABLED</key>
+        <string>1</string>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
@@ -67,6 +80,12 @@ RestartSec=3
 StandardOutput=append:{log_path}
 StandardError=append:{log_path}
 WorkingDirectory={working_dir}
+# Telemetry kill — chromadb's posthog import leaks fds in restart loops.
+# See feedback_disable_chromadb_posthog_telemetry; without this the service
+# eventually trips EMFILE and silently dies.
+Environment=ANONYMIZED_TELEMETRY=False
+Environment=CHROMA_TELEMETRY_DISABLED=True
+Environment=POSTHOG_DISABLED=1
 
 [Install]
 WantedBy=default.target
@@ -103,6 +122,22 @@ def _health_check(timeout_s: float = 10.0) -> bool:
     return False
 
 
+_LEGACY_LABELS = ("ai.hermeslabs.cogito-server", "ai.cogito.server")
+
+
+def _bootout_legacy_macos() -> None:
+    """Migrate from pre-rename launchd labels. Idempotent."""
+    for label in _LEGACY_LABELS:
+        legacy_plist = Path.home() / "Library/LaunchAgents" / f"{label}.plist"
+        if legacy_plist.exists():
+            subprocess.run(["launchctl", "unload", str(legacy_plist)], check=False)
+            try:
+                legacy_plist.unlink()
+                print(f"migrated: removed legacy plist {legacy_plist.name}")
+            except OSError:  # noqa: silent — best-effort migration; if unlink fails, new label still loads cleanly
+                pass
+
+
 def _install_macos(uninstall: bool = False) -> int:
     plist_path = Path.home() / "Library/LaunchAgents" / f"{SERVICE_LABEL}.plist"
 
@@ -113,8 +148,10 @@ def _install_macos(uninstall: bool = False) -> int:
             print(f"removed {plist_path}")
         else:
             print(f"no service installed at {plist_path}")
+        _bootout_legacy_macos()
         return 0
 
+    _bootout_legacy_macos()
     server_bin = _server_bin()
     log_path = Path.home() / ".fidelis" / "server.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -221,6 +258,52 @@ def _install_fallback(uninstall: bool = False) -> int:
     return 0
 
 
+def _ollama_preflight() -> int:
+    """Verify Ollama is reachable and the embed model is pulled.
+
+    Returns 0 on success, non-zero with a one-line user-facing error otherwise.
+    Failing here saves the user from a launchd service that boots, crashes on
+    first /store, and keeps restart-looping silently. The fix is always one
+    shell command; we name it instead of leaving them to debug a daemon.
+    """
+    ollama_url = os.environ.get("COGITO_OLLAMA_URL", "http://localhost:11434")
+    embed_model = os.environ.get("COGITO_EMBED_MODEL", "nomic-embed-text")
+    try:
+        with urllib.request.urlopen(f"{ollama_url}/api/tags", timeout=3) as resp:
+            if resp.status != 200:
+                print(
+                    f"ERROR: Ollama at {ollama_url} returned HTTP {resp.status}. "
+                    f"Start it with `ollama serve &` and retry.",
+                    file=sys.stderr,
+                )
+                return 2
+            payload = resp.read()
+    except (urllib.error.URLError, OSError) as e:
+        print(
+            f"ERROR: Ollama not reachable at {ollama_url} ({e}). "
+            f"Install with `brew install ollama` (macOS) or see https://ollama.com, "
+            f"then `ollama serve &` and retry.",
+            file=sys.stderr,
+        )
+        return 2
+
+    # Confirm the embed model is pulled. Cheap to check, painful to debug otherwise.
+    try:
+        import json as _json
+        models = _json.loads(payload).get("models", [])
+        names = {m.get("name", "").split(":")[0] for m in models}
+        if embed_model.split(":")[0] not in names:
+            print(
+                f"ERROR: Ollama is up but the embed model '{embed_model}' is not pulled. "
+                f"Run `ollama pull {embed_model}` (~280 MB, one-time) and retry.",
+                file=sys.stderr,
+            )
+            return 2
+    except (ValueError, KeyError) as e:  # noqa: silent — best-effort tag parsing; if /api/tags shape changes upstream, fall through and let the server surface the real error
+        print(f"warning: could not parse Ollama /api/tags response ({e}); proceeding", file=sys.stderr)
+    return 0
+
+
 def cmd_init(args) -> int:
     """Install + start fidelis-server as a system service.
 
@@ -235,6 +318,12 @@ def cmd_init(args) -> int:
             return _install_linux(uninstall=True)
         else:
             return _install_fallback(uninstall=True)
+
+    # Preflight: refuse to install a service that we know will crash at first
+    # write because Ollama isn't running or the embed model isn't pulled.
+    rc = _ollama_preflight()
+    if rc != 0:
+        return rc
 
     print(f"installing fidelis-server as a {system} service...")
     if system == "Darwin":

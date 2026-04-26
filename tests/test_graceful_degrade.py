@@ -11,7 +11,7 @@ from fidelis import degrade
 @pytest.fixture(autouse=True)
 def temp_queue(tmp_path, monkeypatch):
     qdir = tmp_path / "queue"
-    monkeypatch.setattr(degrade, "QUEUE_DIR", qdir)
+    monkeypatch.setenv("FIDELIS_QUEUE_DIR", str(qdir))
     yield qdir
 
 

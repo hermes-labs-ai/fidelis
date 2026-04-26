@@ -8,7 +8,7 @@ Stop re-explaining context to your agent. fidelis returns your original notes ve
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
-[![Tests: 375 passing](https://img.shields.io/badge/tests-375%20passing-brightgreen)](tests/)
+[![Tests: 486 passing](https://img.shields.io/badge/tests-486%20passing-brightgreen)](tests/)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
 ```
@@ -25,7 +25,7 @@ Claude Code / your agent
 
 What fidelis is:
 
-- **fast** — ~90 ms local retrieval
+- **fast** — ~216 ms local retrieval (full benchmark mean; vector-only path is faster)
 - **cheap** — $0/query retrieval cost
 - **private** — local memory store by default
 - **faithful** — original stored passages returned, not paraphrases
@@ -37,6 +37,11 @@ What fidelis is:
 ## Quickstart
 
 ```bash
+# 0. one-time: Ollama + the local embedder (~280 MB)
+brew install ollama && ollama serve &
+ollama pull nomic-embed-text
+
+# 1. install + run
 pip install fidelis
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
@@ -44,9 +49,9 @@ fidelis mcp install           # wires Claude Code
 # Restart Claude Code. Memory is on.
 ```
 
-Requires Ollama + `nomic-embed-text` for local embeddings. See [Requirements](#requirements).
+Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). See [Requirements](#requirements).
 
-v0.0.8 — pre-release.
+v0.0.9 — pre-release.
 
 ## What you notice immediately
 
@@ -113,7 +118,7 @@ LongMemEval-S, 470 questions, public benchmark.
 | Retrieval R@5 | **98.3%** |
 | End-to-end QA accuracy | **73.0%**, Wilson 95% CI [68.7%, 77.0%] |
 | Cost per query (retrieval) | **$0** (local) |
-| Mean retrieval latency | ~90 ms |
+| Mean retrieval latency | 216 ms (zero-LLM hybrid: BM25 + dense + RRF) |
 
 For context: published Mem0 results on LongMemEval-S are in the ~66–70% end-to-end QA range; Zep is 71.2%; Supermemory is 81.6%; full GPT-4o on raw context (no memory system) is 60.2%. fidelis reaches 73.0% with no LLM in the default retrieval path.
 
@@ -182,12 +187,12 @@ answer = augment(
 After `fidelis init`:
 
 - **Service:** `fidelis-server` runs at `http://127.0.0.1:19420` under your OS service manager (launchd on macOS, systemd on Linux). Auto-starts on boot. Logs at `~/.fidelis/server.log`.
-- **Storage:** Chroma + SQLite at `~/.cogito/`. No data leaves your machine in the default zero-LLM path.
+- **Storage:** Chroma + SQLite at `~/.cogito/` (the directory name is preserved from the project's pre-rename codename for v0.0.x compatibility — it will move to `~/.fidelis/` in a later major bump). No data leaves your machine in the default zero-LLM path.
 - **MCP:** if you ran `fidelis mcp install`, Claude Code sees three tools: `fidelis_recall`, `fidelis_query`, `fidelis_health`.
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.8 honest list)
+## Known limitations (v0.0.9 honest list)
 
 - **Pre-release.** API may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.

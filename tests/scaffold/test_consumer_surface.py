@@ -255,9 +255,12 @@ def test_watch_skips_oversized_files(tmp_path):
     from fidelis.watch_cmd import _ingest_file, DEFAULT_MAX_FILE_BYTES
     big = tmp_path / "huge.md"
     big.write_text("x" * (DEFAULT_MAX_FILE_BYTES + 100))
-    # _ingest_file should return False without attempting to read full content
-    result = _ingest_file(big, verbose=False)
-    assert result is False
+    # _ingest_file should return (False, 0) without attempting to read full content.
+    # Returns a (success, bytes_pushed) tuple so the watcher can enforce session
+    # byte caps; oversized files contribute zero bytes.
+    ok, bytes_pushed = _ingest_file(big, verbose=False)
+    assert ok is False
+    assert bytes_pushed == 0
 
 
 def test_watch_ledger_atomic_write(tmp_path, monkeypatch):

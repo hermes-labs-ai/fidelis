@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fidelis"
-version = "0.0.8"
+version = "0.0.9"
 description = "Faithful agent memory — zero-LLM retrieval default (83.2% R@1 on LongMemEval_S, $0/query, fully local), integer-pointer fidelity on the optional LLM tier. By Hermes Labs."
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,8 +24,13 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 dependencies = [
-  "mem0ai>=1.0.5",
+  "mem0ai>=2.0.0,<3.0",
   "chromadb>=0.5.0",
+  # mem0's ollama embedder lazy-imports `ollama`. Without it on PYTHONPATH,
+  # mem0 hits an interactive input() prompt at boot, which crashes a
+  # non-tty server context (launchd / systemd / MCP) with EOFError. Bundling
+  # the client makes `pip install fidelis` non-interactive end-to-end.
+  "ollama>=0.4.0",
 ]
 
 [project.optional-dependencies]

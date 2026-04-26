@@ -72,7 +72,7 @@ def _print_memories(memories: list, method: str = ""):
     tag = f" [{method}]" if method else ""
     print(f"{len(memories)} memories{tag}:\n")
     for i, m in enumerate(memories, 1):
-        score = f"  score {m['score']:.0f}" if "score" in m else ""
+        score = f"  score {m['score']:.3f}" if "score" in m else ""
         print(f"  [{i}]{score}")
         print(f"      {m['text']}")
         print()
@@ -190,7 +190,10 @@ def cmd_calibrate(args):
 
 
 def cmd_server(args):
-    # Delegate to server.main()
+    # Delegate to server.main(). Strip the consumed "server" subcommand
+    # (and any remaining argv) so the server's own argparse doesn't see it.
+    import sys as _sys
+    _sys.argv = [_sys.argv[0]]
     from fidelis.server import main as server_main
     server_main()
 

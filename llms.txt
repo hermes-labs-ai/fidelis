@@ -1,32 +1,48 @@
-# cogito-ergo
-> Two-stage memory retrieval for AI agents. Integer-pointer fidelity guarantee. 85% R@1, 96% hit@any (31 test cases, 2026-03-28). Local, $0/month for retrieval. By Hermes Labs.
+# fidelis
+> Zero-LLM memory for AI agents and Claude Code. Integer-pointer fidelity guarantee — original passages returned verbatim, never paraphrased. 73.0% end-to-end QA on LongMemEval-S (470 questions, 2026-04-24); 96.4% R@1 retrieval (runP-v35, 2026-04-18). Local, $0/query, fully private. By Hermes Labs. (Internal codename during development: cogito-ergo.)
 
 ## What it is
 
 HTTP memory server for AI agents. Dual-layer architecture:
-1. Snapshot layer — compressed markdown index (~741 tokens) of the full corpus. Built once via `cogito snapshot`. Returned on demand. Solves cross-reference queries (0%→50% R@1).
-2. Two-stage recall — zero-LLM sub-query decomposition + RRF (Stage 1, 127ms), then cheap LLM integer-pointer filter (Stage 2, +1176ms).
+1. Snapshot layer — compressed markdown index (~741 tokens) of the full corpus. Built once via `fidelis snapshot`. Returned on demand. Solves cross-reference queries (0%→50% R@1).
+2. Two-stage recall — zero-LLM sub-query decomposition + RRF (Stage 1, 127ms), then optional integer-pointer LLM filter (Stage 2, +1176ms).
 
-Fidelity guarantee: filter LLM outputs ONLY integers (e.g. [3, 7, 12]). Server fetches candidates[3], candidates[7], candidates[12] — verbatim stored text. Filter cannot rephrase, summarize, hallucinate into, or corrupt returned content. Structural, not prompting.
+Fidelity guarantee: when the optional filter tier is enabled, the filter LLM outputs ONLY integers (e.g. [3, 7, 12]). Server fetches candidates[3], candidates[7], candidates[12] — verbatim stored text. Filter cannot rephrase, summarize, hallucinate into, or corrupt returned content. Structural, not prompting. The default zero-LLM path has no LLM in the loop at all.
 
-## Benchmarks (31 test cases, 2026-03-28)
+## Benchmarks
+
+### LongMemEval-S end-to-end QA (470 questions, 2026-04-24)
+
+- 73.0% accuracy, Wilson 95% CI [68.7%, 77.0%]
+- $0/query retrieval cost (local)
+- For context: published Mem0 ~66-70%, Zep 71.2%, Supermemory 81.6%, raw GPT-4o on full context 60.2%
+
+### LongMemEval-S retrieval (470 questions, runP-v35, 2026-04-18) — /recall_hybrid
+
+- R@1=96.4%, R@3=98.1%, R@5=98.3%, R@10=99.1%
+- Avg latency: 165ms retrieval + 1436ms filter (filter tier opt-in)
+- Architecture: BM25+dense+RRF → temporal boost → runtime escalation → qwen-turbo filter
+
+### 31-case atomic eval (2026-03-28) — /recall
 
 - Combined (snapshot + recall): R@1=85%, hit@any=96%, MRR=0.878, latency=1303ms
-- recall only: R@1=63%, hit@any=81%, latency=1197ms
-- recall_b (zero-LLM): R@1=56%, hit@any=96%, latency=127ms
+- /recall only: R@1=63%, hit@any=81%, latency=1197ms
+- /recall_b (zero-LLM): R@1=56%, hit@any=96%, latency=127ms
 - snapshot only: R@1=41%
 - Snapshot adds +15% hit@any vs recall-only
 - Cross-reference queries: recall=0% R@1, combined=50% R@1
 
 ## HTTP Endpoints (base: http://127.0.0.1:19420)
 
-GET  /health        → {status, count, version, calibrated, snapshot}
+GET  /health        → {status, count, queued, version, calibrated, snapshot}
 GET  /snapshot      → {snapshot: "<markdown>", path: "..."}  — 404 if not built
 POST /recall        → {memories: [{text, score}], method}    — two-stage, recommended
 POST /recall_b      → {memories: [{text, score}], method}    — zero-LLM only, 127ms
+POST /recall_hybrid → {memories: [{text, score}], method}    — BM25+dense+RRF + tiered LLM
 POST /query         → {memories: [{text, score}]}            — narrow vector search, no LLM
 POST /store         → {id, text}                             — write verbatim, preferred write path
 POST /add           → {count, memories: [...]}               — write via mem0 extraction LLM
+POST /replay        → {replayed, replayed_verbatim, failed, dead_lettered, remaining} — drain graceful-degrade queue
 
 ## Request/Response shapes
 
@@ -36,79 +52,114 @@ POST /query    body: {"text": "query", "limit": 5}
 POST /store    body: {"text": "verbatim text", "id": "<optional uuid>"}
 POST /add      body: {"text": "raw unstructured text"}
 
-method field in /recall: "filter" (clean), "fallback_no_endpoint", "fallback_unreachable", "fallback_parse_error", "fallback_error"
+method field in /recall: "filter" (clean), "fallback_no_endpoint", "fallback_unreachable", "fallback_parse_error", "fallback_error", "vector-only-fallback"
 method field in /recall_b: "decompose_N" or "decompose_N_v" (v = vocab expansion applied)
 
 ## Modules
 
-src/cogito/server.py    — HTTP server, all endpoints, boots mem0 Memory instance
-src/cogito/recall.py    — two-stage recall: calls recall_b for candidates, then _filter() for integer selection
-src/cogito/recall_b.py  — zero-LLM recall: query decomposition, stop-word stripping, bigrams, trigrams, vocab expansion, RRF merge (k=60), up to 8 sub-queries
-src/cogito/snapshot.py  — snapshot build + read/write: samples corpus, single LLM call, structured markdown output
-src/cogito/calibrate.py — vocab bridge extraction (one-time): maps plain-English terms to technical terms in corpus
-src/cogito/config.py    — config load: env vars > .cogito.json > defaults; builds mem0_config dict
-src/cogito/seed.py      — bulk seed from files via /store or /add
-src/cogito/cli.py       — CLI: recall, query, add, store, seed, snapshot, calibrate, health, server
+src/fidelis/server.py     — HTTP server, all endpoints, boots mem0 Memory instance, runs background queue-replay sweep
+src/fidelis/recall.py     — two-stage recall: calls recall_b for candidates, then _filter() for integer selection
+src/fidelis/recall_b.py   — zero-LLM recall: query decomposition, stop-word stripping, bigrams, trigrams, vocab expansion, RRF merge (k=60), up to 8 sub-queries
+src/fidelis/recall_hybrid.py — hybrid retrieval: BM25 + dense + RRF + optional tiered LLM filter
+src/fidelis/snapshot.py   — snapshot build + read/write: samples corpus, single LLM call, structured markdown output
+src/fidelis/calibrate.py  — vocab bridge extraction (one-time): maps plain-English terms to technical terms in corpus
+src/fidelis/config.py     — config load: env vars > .cogito.json > defaults; builds mem0_config dict
+src/fidelis/seed.py       — bulk seed from files via /store or /add
+src/fidelis/cli.py        — CLI: recall, query, add, store, seed, snapshot, calibrate, health, mcp, init, watch, augment
+src/fidelis/degrade.py    — graceful-degradation queue: atomic writes, per-item retry budget, dead-letter at MAX_ATTEMPTS=5
+src/fidelis/init_cmd.py   — `fidelis init`: installs background service (launchd on macOS, systemd on Linux)
+src/fidelis/watch_cmd.py  — `fidelis watch`: file-system watcher that auto-ingests markdown into the store
+src/fidelis/mcp_cmd.py    — `fidelis mcp install`: wires the MCP server into Claude Code's settings
+src/fidelis/augment.py    — Python helper: `augment(question=..., qtype=..., llm_call=...)` for direct integration
 
 ## Key Config Keys
 
-port               default 19420          server port
-user_id            default "agent"        memory namespace
-filter_endpoint    conditional            OpenAI-compat base URL for filter LLM (or set ANTHROPIC_API_KEY)
-filter_token       conditional            bearer token for filter endpoint (or set ANTHROPIC_API_KEY)
-filter_model       default claude-haiku-4-5  filter LLM model
-filter_timeout_ms  default 12000          filter LLM timeout
-anthropic_api_key  optional               direct Anthropic key (alternative to endpoint+token)
+port               default 19420            server port
+user_id            default "agent"          memory namespace
+filter_endpoint    conditional              OpenAI-compat base URL for filter LLM (or set ANTHROPIC_API_KEY)
+filter_token       conditional              bearer token for filter endpoint (or set ANTHROPIC_API_KEY)
+filter_model       default claude-haiku-4-5 filter LLM model
+filter_timeout_ms  default 12000            filter LLM timeout
+anthropic_api_key  optional                 direct Anthropic key (alternative to endpoint+token)
 store_path         default ~/.cogito/store  ChromaDB persistence
-collection         default cogito_memory  ChromaDB collection
+collection         default cogito_memory    ChromaDB collection
 ollama_url         default http://localhost:11434  Ollama base URL
-llm_model          default mistral:7b     extraction LLM (/add)
-embed_model        default nomic-embed-text  embedding model
-recall_limit       default 50             candidate pool size
-recall_threshold   default 400.0          L2 cutoff for recall candidates
-query_threshold    default 250.0          L2 cutoff for /query
-vocab_map          default {}             written by cogito calibrate
+llm_model          default qwen3.5:0.8b     extraction LLM (/add)
+embed_model        default nomic-embed-text embedding model
+recall_limit       default 50               candidate pool size
+recall_threshold   default 400.0            L2 cutoff for recall candidates
+query_threshold    default 250.0            L2 cutoff for /query
+vocab_map          default {}               written by `fidelis calibrate`
 
 ## CLI Commands
 
-cogito-server                        start server
-cogito recall "query"                two-stage recall
-# recall_b is HTTP-only (POST /recall_b), no CLI subcommand
-cogito query "query"                 simple vector query
-cogito add "text"                    add via extraction
-cogito seed <dir>                    bulk seed from files (--add for extraction mode)
-cogito snapshot                      build compressed index
-cogito snapshot --rebuild            force rebuild
-cogito calibrate                     build vocab bridge
-cogito health                        check server status
+fidelis-server                       start server (also reachable as `python -m fidelis.server`)
+fidelis init                         install background service (launchd / systemd)
+fidelis init --uninstall             remove background service
+fidelis watch <dir>                  auto-ingest markdown from a directory
+fidelis mcp install                  wire fidelis MCP tools into Claude Code
+fidelis recall "query"               two-stage recall
+fidelis query "query"                simple vector query
+fidelis recall-hybrid "query"        BM25+dense+RRF retrieval (with --tier zero_llm | filter | flagship)
+fidelis add "text"                   write via extraction (no CLI for verbatim /store yet — use HTTP POST or seed)
+fidelis seed <dir> [<dir>...]        bulk seed from files (--add for extraction mode)
+fidelis snapshot                     build compressed index
+fidelis snapshot --rebuild           force rebuild
+fidelis calibrate                    build vocab bridge
+fidelis health                       check server status (count, queued, version, calibrated, snapshot)
 
 ## Python API
 
-from cogito.recall import recall
-from cogito.recall_b import recall_b
-from cogito.config import load, mem0_config
+```python
+from fidelis.augment import augment
+from anthropic import Anthropic
+
+client = Anthropic()
+answer = augment(
+    question="What did I say about Sarah?",
+    qtype="single-session-user",
+    llm_call=lambda system, user: client.messages.create(
+        model="claude-opus-4-7",
+        system=system,
+        messages=[{"role": "user", "content": user}],
+        max_tokens=512,
+    ).content[0].text,
+)
+```
+
+Lower-level access:
+
+```python
+from fidelis.recall import recall
+from fidelis.config import load, mem0_config
 from mem0 import Memory
+
 cfg = load()
 memory = Memory.from_config(mem0_config(cfg))
 memories, method = recall(memory, "query", user_id=cfg["user_id"], cfg=cfg)
 # memories: list of {"text": str, "score": float}
-# method: "filter" | "fallback_*"
+# method:   "filter" | "fallback_*"
+```
 
 ## Dependencies
 
-mem0ai>=1.0.5   — memory abstraction layer (extraction, storage, search)
-chromadb>=0.5.0 — vector store backend
+mem0ai>=2.0.0,<3.0  — memory abstraction layer (extraction, storage, search)
+chromadb>=0.5.0     — vector store backend
 Ollama (external, local) — embedding + extraction LLM
-Filter LLM (external) — any OpenAI-compatible endpoint or direct ANTHROPIC_API_KEY
+Filter LLM (external, opt-in) — any OpenAI-compatible endpoint or direct ANTHROPIC_API_KEY
 
 ## Related
 
 zer0lint (roli-lpci/zer0lint) — ingestion diagnostics; run before benchmarking
-zer0dex (roli-lpci/zer0dex) — architecture pattern cogito implements (dual-layer retrieval)
+zer0dex (roli-lpci/zer0dex)   — architecture pattern fidelis implements (dual-layer retrieval)
+hermes-seal (hermes-labs-ai/hermes-seal) — cryptographic containment for agents
+
 All by Hermes Labs (https://hermes-labs.ai).
 
 ## Install
 
-pip install cogito-ergo
+pip install fidelis
 Python 3.10+. MIT license.
-Author: Hermes Labs (roli@hermes-labs.ai)
+Repo: https://github.com/hermes-labs-ai/fidelis
+PyPI: https://pypi.org/project/fidelis/
+Author: Hermes Labs (rbosch@lpci.ai)

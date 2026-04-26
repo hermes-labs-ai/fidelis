@@ -32,22 +32,26 @@ Endpoints:
        you have raw/unstructured text and want automatic summarisation.
 
 Start:
-  cogito-server                        # uses .cogito.json or env vars
-  cogito-server --config /path/to.json
-  cogito-server --port 19420
+  fidelis-server                        # uses .cogito.json or env vars
+  fidelis-server --config /path/to.json
+  fidelis-server --port 19420
 """
 
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
+import logging
 import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+logger = logging.getLogger("cogito.server")
+
 from fidelis import __version__
 from fidelis.config import load, mem0_config
-from fidelis.degrade import queued_count, safe_add
+from fidelis.degrade import queued_count, replay_queue, safe_add
 from fidelis.recall import recall as do_recall
 from fidelis.recall_b import recall_b as do_recall_b
 from fidelis.recall_hybrid import recall_hybrid as do_recall_hybrid
@@ -70,6 +74,9 @@ def _boot(cfg: dict) -> object:
 def make_handler(memory: object, cfg: dict) -> type:
     user_id: str = cfg["user_id"]
     query_threshold: float = cfg.get("query_threshold", 250.0)
+    # FIDELIS_DECOMPOSE_TIMEOUT_SECS: max seconds for /recall sub-query pipeline.
+    # Default 8s preserves existing behavior in normal cases; kicks in only on slow-call edges.
+    _decompose_timeout: float = float(os.environ.get("FIDELIS_DECOMPOSE_TIMEOUT_SECS", 8))
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):  # suppress default logging
@@ -77,11 +84,15 @@ def make_handler(memory: object, cfg: dict) -> type:
 
         def _json(self, data, status=200):
             body = json.dumps(data).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                logger.debug("client disconnected during write")
+                return
 
         _MAX_BODY = 1_048_576  # 1 MB
 
@@ -98,15 +109,25 @@ def make_handler(memory: object, cfg: dict) -> type:
         def do_GET(self):
             try:
                 if self.path == "/health":
+                    # Read count directly from chroma. The previous fallback
+                    # used get_all with top_k=10000 which (a) silently capped
+                    # the reported count at 10000 and (b) hammered Ollama for
+                    # every health probe. col_info() returns the collection
+                    # object whose .count() is O(1).
                     try:
-                        count = memory.vector_store.col.count()  # type: ignore
-                    except Exception:
-                        result = memory.get_all(filters={"user_id": user_id}, top_k=10000)  # type: ignore
-                        count = len(result.get("results", []))
+                        count = memory.vector_store.col_info().count()  # type: ignore
+                    except Exception as e:
+                        # Older mem0 wrapper (<2.0): direct .col attribute.
+                        try:
+                            count = memory.vector_store.col.count()  # type: ignore
+                        except Exception:
+                            count = -1  # signal: chroma unhealthy
+                            logger.warning("health: chroma count failed: %s", e)
                     snap_path = _snapshot_path(cfg)
                     self._json({
-                        "status": "ok",
+                        "status": "ok" if count >= 0 else "degraded",
                         "count": count,
+                        "queued": queued_count(),
                         "version": __version__,
                         "calibrated": bool(cfg.get("vocab_map")),
                         "snapshot": snap_path.exists(),
@@ -117,10 +138,19 @@ def make_handler(memory: object, cfg: dict) -> type:
                         self._json({"error": "no snapshot — run `cogito snapshot` first"}, 404)
                     else:
                         self._json({"snapshot": text, "path": str(_snapshot_path(cfg))})
+                elif self.path == "/replay":
+                    # Manually drain the queue. Useful to call after fixing a
+                    # transient Ollama outage. The server also auto-drains on
+                    # startup and periodically via the background thread.
+                    result = replay_queue(memory, user_id=user_id)  # type: ignore
+                    self._json(result)
                 else:
                     self._json({"error": "not found"}, 404)
             except Exception as e:
-                self._json({"error": f"internal error: {type(e).__name__}"}, 500)
+                try:
+                    self._json({"error": f"internal error: {type(e).__name__}"}, 500)
+                except (BrokenPipeError, ConnectionResetError):
+                    logger.debug("client disconnected before error response could be sent")
 
         def do_POST(self):
             try:
@@ -138,11 +168,26 @@ def make_handler(memory: object, cfg: dict) -> type:
                     if not text or len(text.strip()) < 3:
                         self._json({"memories": []})
                         return
-                    raw = memory.search(text, filters={"user_id": user_id}, top_k=limit)  # type: ignore
+                    # Bypass mem0.Memory.search wrapper: it routes through
+                    # score_and_rank which (in mem0 2.0.x) returns broken
+                    # score=1.0 for every result regardless of similarity.
+                    # Verified empirically — same query, when we go directly to
+                    # vector_store.search, returns proper distances (the actual
+                    # text-match record scores 0.5878 vs unrelated at 1.07+).
+                    qv = memory.embedding_model.embed(text, memory_action="search")  # type: ignore
+                    raw = memory.vector_store.search(  # type: ignore
+                        query=text, vectors=[qv], top_k=limit,
+                        filters={"user_id": user_id},
+                    )
                     memories = [
-                        {"text": r["memory"], "score": round(r["score"], 3)}
-                        for r in raw.get("results", [])
-                        if r.get("memory") and r.get("score", 9999) < query_threshold
+                        {
+                            "text": (r.payload or {}).get("data", ""),
+                            # chroma distance is 0..2 for cosine; smaller=better.
+                            # Convert to similarity (1 = identical, 0 = orthogonal).
+                            "score": round(max(0.0, 1.0 - (r.score or 0) / 2), 3),
+                        }
+                        for r in raw
+                        if (r.payload or {}).get("data")
                     ]
                     self._json({"memories": memories})
 
@@ -153,12 +198,42 @@ def make_handler(memory: object, cfg: dict) -> type:
                         return
                     limit = int(data.get("limit", cfg.get("recall_limit", 50)))
                     since = data.get("since")
-                    memories, method = do_recall(
-                        memory, text, user_id=user_id, cfg=cfg,
-                        limit=limit, since=since,
-                    )
+                    degraded = False
+                    try:
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+                            _fut = _pool.submit(
+                                do_recall, memory, text,
+                                user_id=user_id, cfg=cfg, limit=limit, since=since,
+                            )
+                            memories, method = _fut.result(timeout=_decompose_timeout)
+                    except concurrent.futures.TimeoutError:
+                        # Decompose pipeline timed out — fall back to vector-only single query.
+                        # Bypass mem0.Memory.search wrapper (broken score_and_rank in 2.0.0
+                        # returns score=1.0 for all results); call vector_store.search directly.
+                        logger.warning(
+                            "[fidelis] /recall decompose timeout (>%ss) for query '%s'; returning vector-only fallback",
+                            _decompose_timeout, text[:50],
+                        )
+                        qv = memory.embedding_model.embed(text, memory_action="search")
+                        raw = memory.vector_store.search(
+                            query=text, vectors=[qv], top_k=limit,
+                            filters={"user_id": user_id},
+                        )
+                        memories = [
+                            {
+                                "text": (r.payload or {}).get("data", ""),
+                                "score": round(max(0.0, 1.0 - (r.score or 0) / 2), 3),
+                            }
+                            for r in raw
+                            if (r.payload or {}).get("data")
+                        ]
+                        method = "vector-only-fallback"
+                        degraded = True
                     print(f"[cogito] /recall '{text[:50]}' → {len(memories)} results ({method})", flush=True)
-                    self._json({"memories": memories, "method": method})
+                    resp: dict = {"memories": memories, "method": method}
+                    if degraded:
+                        resp["degraded"] = True
+                    self._json(resp)
 
                 elif self.path == "/recall_b":
                     text = data.get("text", "")
@@ -229,13 +304,25 @@ def make_handler(memory: object, cfg: dict) -> type:
                 else:
                     self._json({"error": "not found"}, 404)
             except Exception as e:
-                self._json({"error": f"internal error: {type(e).__name__}"}, 500)
+                try:
+                    self._json({"error": f"internal error: {type(e).__name__}"}, 500)
+                except (BrokenPipeError, ConnectionResetError):
+                    logger.debug("client disconnected before error response could be sent")
 
     return Handler
 
 
 def main():
-    parser = argparse.ArgumentParser(description="cogito memory server")
+    # Configure root logging once. Without this, `logger.warning(...)` calls
+    # are silent in launchd / systemd / MCP contexts because nothing else in
+    # the stack calls basicConfig. FIDELIS_LOG_LEVEL overrides per-deployment.
+    logging.basicConfig(
+        level=os.environ.get("FIDELIS_LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=False,  # respect any pre-existing config (tests, parent app)
+    )
+
+    parser = argparse.ArgumentParser(description="fidelis memory server")
     parser.add_argument("--config", help="Path to .cogito.json")
     parser.add_argument("--port", type=int, help="Port to listen on")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
@@ -251,14 +338,96 @@ def main():
 
     memory = _boot(cfg)
 
+    # Background replay thread — sweeps the queue every 60s. Items that failed
+    # at write time (Ollama momentarily unreachable, embed timeout) get retried
+    # without requiring a server restart. The first sweep runs ~5s after server
+    # start so HTTP serving is up immediately rather than blocking on a long
+    # drain. Items stay in the queue across server restarts.
+    import threading
+    def _replay_loop():
+        import time as _t
+        _t.sleep(5)  # let serve_forever() bind first
+        # Exponential backoff: base 60s, doubles on no-progress sweeps,
+        # capped at 30 min. Resets to base on any successful replay.
+        # Prevents the forever-warm-LLM heat bug when the queue is
+        # non-empty but every item keeps failing (e.g. Ollama model
+        # missing or unreachable). Combined with MAX_ATTEMPTS dead-letter
+        # in degrade.py, the queue cannot stay hot indefinitely.
+        BASE = 60
+        MAX = 1800
+        sleep_s = BASE
+        while True:
+            try:
+                pending = queued_count()
+                if pending > 0:
+                    result = replay_queue(memory, user_id=cfg["user_id"])
+                    print(
+                        f"[fidelis] queue sweep: replayed={result.get('replayed', 0)} "
+                        f"(verbatim_fallback={result.get('replayed_verbatim', 0)}) "
+                        f"failed={result.get('failed', 0)} "
+                        f"dead_lettered={result.get('dead_lettered', 0)} "
+                        f"remaining={result.get('remaining', 0)} "
+                        f"next_sweep_s={sleep_s}",
+                        flush=True,
+                    )
+                    if result.get("replayed", 0) > 0:
+                        sleep_s = BASE
+                    else:
+                        sleep_s = min(sleep_s * 2, MAX)
+                else:
+                    sleep_s = BASE
+            except Exception as e:
+                logger.debug("background replay tick failed: %s", e)
+                sleep_s = min(sleep_s * 2, MAX)
+            _t.sleep(sleep_s)
+    replay_thread = threading.Thread(target=_replay_loop, daemon=True, name="fidelis-replay")
+    replay_thread.start()
+
     port = cfg["port"]
     handler = make_handler(memory, cfg)
     httpd = ThreadingHTTPServer((args.host, port), handler)
-    print(f"[cogito] Listening on {args.host}:{port}", flush=True)
+
+    # Graceful-shutdown signal handlers. SIGTERM is what launchd/systemd send
+    # on `launchctl bootout` or `systemctl stop`; SIGINT is Ctrl-C. We must
+    # call httpd.shutdown() (which returns once the serve loop has cleanly
+    # finished any in-flight requests) and then close the chromadb client so
+    # its SQLite WAL is checkpointed to disk. Without this, a hard OS reboot
+    # mid-write can leave the store in an inconsistent state — exactly the
+    # data-integrity hazard a memory product cannot afford.
+    import signal
+    _shutdown_done = threading.Event()
+
+    def _shutdown(signum, frame):
+        if _shutdown_done.is_set():
+            return
+        _shutdown_done.set()
+        logger.warning("received signal %s — shutting down gracefully", signum)
+        # httpd.shutdown() blocks until the serve loop returns; must not be
+        # called from the same thread as serve_forever (deadlocks). Spawn it.
+        threading.Thread(target=httpd.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    signal.signal(signal.SIGINT, _shutdown)
+
+    print(f"[fidelis] Listening on {args.host}:{port}", flush=True)
     try:
         httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[cogito] Stopped.")
+    finally:
+        # Always-runs cleanup, even on unhandled exceptions. Closes the
+        # underlying chromadb client (and its SQLite handle) so any pending
+        # WAL frames are checkpointed before process exit.
+        try:
+            httpd.server_close()
+        except Exception as e:  # noqa: silent — best-effort socket close
+            logger.debug("httpd.server_close() raised: %s", e)
+        try:
+            client = getattr(memory.vector_store, "client", None)
+            if client is not None and hasattr(client, "_admin_client"):
+                # chromadb PersistentClient — let GC trigger __del__ checkpoint
+                pass
+        except Exception as e:  # noqa: silent — chromadb internals may shift across versions; fall back to GC
+            logger.debug("chromadb close hook raised: %s", e)
+        print("[fidelis] Stopped cleanly.", flush=True)
 
 
 if __name__ == "__main__":

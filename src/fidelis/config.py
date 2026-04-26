@@ -59,10 +59,10 @@ _DEFAULTS: dict[str, Any] = {
     "store_path": str(Path.home() / ".cogito" / "store"),
     "collection": "cogito_memory",
     "ollama_url": "http://localhost:11434",
-    "llm_model": "mistral:7b",
+    "llm_model": "qwen3.5:0.8b",
     "embed_model": "nomic-embed-text",
     "vocab_map": {},
-    "calibrate_model": "mistral:7b",
+    "calibrate_model": "qwen3.5:0.8b",
     "custom_fact_extraction_prompt": _TECHNICAL_EXTRACTION_PROMPT,
     # Scaffold memory
     "scaffold_port": 19421,
@@ -135,6 +135,20 @@ def load(config_path: str | Path | None = None) -> dict[str, Any]:
                 cfg[cfg_key] = cast(val)
             except (ValueError, TypeError):  # noqa: silent — bad env var falls back to default
                 pass
+
+    # Migration warning: v0.0.8 and earlier defaulted to mistral:7b which was
+    # not in the README install path. v0.0.9+ defaults to qwen3.5:0.8b. Warn
+    # users with a stale config so they can fix it without auto-rewriting.
+    import sys as _sys
+    if cfg.get("llm_model") == "mistral:7b":
+        print(
+            "[fidelis] WARNING: ~/.cogito/config.json pins llm_model=mistral:7b "
+            "(legacy default from v0.0.8). v0.0.9+ default is qwen3.5:0.8b. "
+            "If mistral:7b is not in your Ollama (`ollama list`), the LLM tier "
+            "will hang. Either run `ollama pull mistral:7b` (~4GB) or update "
+            "your config to llm_model=qwen3.5:0.8b.",
+            file=_sys.stderr,
+        )
 
     return cfg
 
