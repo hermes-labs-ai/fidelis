@@ -1,0 +1,55 @@
+# Fidelis docker-compose stack — fidelis-server + (optional) Ollama for local embeddings.
+#
+# Usage:
+#   docker compose up -d
+#   curl localhost:19420/health
+#
+# Ollama service is included so this is fully self-contained on a fresh host.
+# If you already run Ollama on the host, you can omit the ollama service and set
+# OLLAMA_URL=http://host.docker.internal:11434 in fidelis-server's environment.
+
+services:
+  fidelis-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fidelis:0.1.0
+    container_name: fidelis-server
+    ports:
+      - "19420:19420"
+    volumes:
+      - fidelis-data:/data
+    environment:
+      FIDELIS_PORT: "19420"
+      OLLAMA_URL: "http://ollama:11434"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:19420/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: fidelis-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  fidelis-data:
+    driver: local
+  ollama-data:
+    driver: local
