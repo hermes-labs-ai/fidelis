@@ -11,7 +11,6 @@ Contract (Option A — clamp):
 
 from __future__ import annotations
 
-import math
 import pytest
 
 from fidelis.scaffold import is_scaffolded, preflight, wrap_system_prompt

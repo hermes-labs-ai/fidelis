@@ -7,7 +7,6 @@ unbounded work on the embedding queue and OOM the user's machine.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import patch
 

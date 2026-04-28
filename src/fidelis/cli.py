@@ -38,7 +38,7 @@ def _server_error(exc: BaseException) -> None:
     print(f"Error: fidelis-server unreachable or unhealthy at {_base_url()}", file=sys.stderr)
     print(f"  reason: {msg}", file=sys.stderr)
     print("  • If you haven't installed the service: `fidelis init`", file=sys.stderr)
-    print(f"  • If the service is installed: `tail ~/.fidelis/server.log`", file=sys.stderr)
+    print("  • If the service is installed: `tail ~/.fidelis/server.log`", file=sys.stderr)
     sys.exit(1)
 
 

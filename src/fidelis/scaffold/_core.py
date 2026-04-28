@@ -17,6 +17,8 @@ scaffold contributions when measuring drift on subsequent turns.
 
 from __future__ import annotations
 
+import math as _math
+
 # Version banner — used as scaffold-presence marker for drift measurement.
 SCAFFOLD_VERSION = "v0.1.0"
 SCAFFOLD_OPEN = f"[FIDELIS-SCAFFOLD-{SCAFFOLD_VERSION}]"
@@ -33,8 +35,6 @@ _HEDGE = (
 
 # Confidence signal — inline meta-information about retrieval quality.
 # Helps the LLM calibrate its confidence to actual retrieval quality.
-
-import math as _math
 
 
 def _sanitize_top_score(top_score: float | None) -> float | None:

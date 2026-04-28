@@ -47,8 +47,6 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-logger = logging.getLogger("cogito.server")
-
 from fidelis import __version__
 from fidelis.config import load, mem0_config
 from fidelis.degrade import queued_count, replay_queue, safe_add
@@ -56,6 +54,8 @@ from fidelis.recall import recall as do_recall
 from fidelis.recall_b import recall_b as do_recall_b
 from fidelis.recall_hybrid import recall_hybrid as do_recall_hybrid
 from fidelis.snapshot import _read_snapshot, _snapshot_path
+
+logger = logging.getLogger("cogito.server")
 
 
 def _boot(cfg: dict) -> object:
@@ -73,7 +73,6 @@ def _boot(cfg: dict) -> object:
 
 def make_handler(memory: object, cfg: dict) -> type:
     user_id: str = cfg["user_id"]
-    query_threshold: float = cfg.get("query_threshold", 250.0)
     # FIDELIS_DECOMPOSE_TIMEOUT_SECS: max seconds for /recall sub-query pipeline.
     # Default 8s preserves existing behavior in normal cases; kicks in only on slow-call edges.
     _decompose_timeout: float = float(os.environ.get("FIDELIS_DECOMPOSE_TIMEOUT_SECS", 8))

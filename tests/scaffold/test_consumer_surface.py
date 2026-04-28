@@ -8,7 +8,6 @@ gates in PUBLISH-PLAN-20260425.md.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -149,10 +148,13 @@ def test_mcp_uninstall_removes_entry(tmp_path):
     settings_path = tmp_path / "settings.local.json"
     settings_path.write_text(json.dumps({"mcpServers": {}}))
 
-    args_install = MagicMock(); args_install.settings = str(settings_path); args_install.force = False
+    args_install = MagicMock()
+    args_install.settings = str(settings_path)
+    args_install.force = False
     cmd_mcp_install(args_install)
 
-    args_uninstall = MagicMock(); args_uninstall.settings = str(settings_path)
+    args_uninstall = MagicMock()
+    args_uninstall.settings = str(settings_path)
     rc = cmd_mcp_uninstall(args_uninstall)
     assert rc == 0
 
@@ -163,7 +165,8 @@ def test_mcp_uninstall_removes_entry(tmp_path):
 def test_mcp_uninstall_handles_missing_settings(tmp_path):
     from fidelis.mcp_cmd import cmd_mcp_uninstall
     settings_path = tmp_path / "no-such-file.json"
-    args = MagicMock(); args.settings = str(settings_path)
+    args = MagicMock()
+    args.settings = str(settings_path)
     rc = cmd_mcp_uninstall(args)
     assert rc == 0  # graceful no-op
 

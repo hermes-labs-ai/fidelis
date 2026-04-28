@@ -19,10 +19,8 @@ MockTransport limitation (honest):
 from __future__ import annotations
 
 import json
-from typing import Iterator
 
 import httpx
-import pytest
 
 import anthropic
 
@@ -236,7 +234,7 @@ class TestInputSideSystemIntegrity:
             f"Got: {wire_system[:120]!r}"
         )
         assert SCAFFOLD_CLOSE in wire_system, (
-            f"SCAFFOLD_CLOSE marker missing from wire body."
+            "SCAFFOLD_CLOSE marker missing from wire body."
         )
 
     def test_scaffold_open_marker_at_wire_body_start(self):

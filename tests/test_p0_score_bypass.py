@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import io
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from fidelis.server import make_handler
 

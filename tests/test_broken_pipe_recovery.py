@@ -15,11 +15,8 @@ from __future__ import annotations
 import io
 import json
 import threading
-import time
-from http.server import ThreadingHTTPServer
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from fidelis.server import make_handler
 
