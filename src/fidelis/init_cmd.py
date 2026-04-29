@@ -342,11 +342,11 @@ def cmd_init(args) -> int:
         print(f"  log: {Path.home() / '.fidelis' / 'server.log'}")
         print()
         print("next steps:")
-        print(f"  fidelis health                  # confirm")
-        print(f"  fidelis watch ~/notes           # auto-ingest a directory")
-        print(f"  fidelis mcp install             # wire up Claude Code")
+        print("  fidelis health                  # confirm")
+        print("  fidelis watch ~/notes           # auto-ingest a directory")
+        print("  fidelis mcp install             # wire up Claude Code")
         return 0
     else:
-        print(f"✗ service installed but /health did not respond within 10s")
+        print("✗ service installed but /health did not respond within 10s")
         print(f"  check log: {Path.home() / '.fidelis' / 'server.log'}")
         return 2

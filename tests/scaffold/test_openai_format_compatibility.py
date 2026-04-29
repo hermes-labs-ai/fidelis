@@ -140,8 +140,8 @@ class TestWireFormat:
         serialized = json.dumps(payload)
         # JSON-encode the markers to see what they look like inside the string
         # The markers contain only ASCII, so they should appear literally
-        assert SCAFFOLD_OPEN in serialized, f"SCAFFOLD_OPEN not found in serialized payload"
-        assert SCAFFOLD_CLOSE in serialized, f"SCAFFOLD_CLOSE not found in serialized payload"
+        assert SCAFFOLD_OPEN in serialized, "SCAFFOLD_OPEN not found in serialized payload"
+        assert SCAFFOLD_CLOSE in serialized, "SCAFFOLD_CLOSE not found in serialized payload"
 
     def test_scaffold_content_roundtrips_through_json(self):
         """Scaffold content must survive a JSON round-trip without corruption."""
@@ -322,7 +322,7 @@ class TestLiveSmokeGptOss20b:
     def test_full_classification_summary(self, capsys):
         """Run all 10 questions, print per-question classification for the report."""
         print(f"\n{'='*60}")
-        print(f"gpt-oss:20b — OpenAI wire format smoke test")
+        print("gpt-oss:20b — OpenAI wire format smoke test")
         print(f"{'='*60}")
 
         all_results = []
@@ -330,7 +330,6 @@ class TestLiveSmokeGptOss20b:
             messages = self._build_messages(q)
             response = _call_openai_chat(messages)
             classification = _classify_response(response)
-            expected = "HEDGED" if q.should_hedge else "ANSWERED/OTHER"
             correct = (
                 (q.should_hedge and classification == "HEDGED")
                 or (not q.should_hedge and classification != "HEDGED")

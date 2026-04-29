@@ -15,11 +15,8 @@ from __future__ import annotations
 import io
 import json
 import threading
-import time
-from http.server import ThreadingHTTPServer
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from fidelis.server import make_handler
 
@@ -215,32 +212,42 @@ def test_server_handles_subsequent_requests_after_broken_pipe():
 # 2. Decompose timeout → degraded:true + vector-only results
 # ---------------------------------------------------------------------------
 
+def _slow_do_recall(*args, **kwargs):
+    """Stub do_recall that sleeps long enough to deterministically exceed the
+    test timeout. Race-immune across slow/fast CPUs (was flaky on fast CI
+    runners with the prior 0.001s timing-only approach)."""
+    import time
+    time.sleep(1.0)
+    return [], "should-have-timed-out"
+
+
 def test_decompose_timeout_returns_degraded_flag():
     """When do_recall times out, the response must contain degraded:true and fallback method."""
     fallback_results = [{"memory": "fallback memory text", "score": 100.0}]
     mem = _fake_memory(results=fallback_results)
-    # Set an impossibly short timeout to force the fallback
     cfg = _make_cfg()
 
-    with patch.dict("os.environ", {"FIDELIS_DECOMPOSE_TIMEOUT_SECS": "0.001"}):
-        HandlerCls = make_handler(mem, cfg)
+    # 10x margin: do_recall sleeps 1.0s, timeout is 0.1s → deterministic timeout
+    with patch.dict("os.environ", {"FIDELIS_DECOMPOSE_TIMEOUT_SECS": "0.1"}):
+        with patch("fidelis.server.do_recall", side_effect=_slow_do_recall):
+            HandlerCls = make_handler(mem, cfg)
 
-    body = json.dumps({"text": "what is the recall score"}).encode()
-    wfile = _BrokenWriteFile()
+            body = json.dumps({"text": "what is the recall score"}).encode()
+            wfile = _BrokenWriteFile()
 
-    handler = HandlerCls.__new__(HandlerCls)
-    handler.wfile = wfile
-    handler.rfile = io.BytesIO(body)
-    handler.headers = {"Content-Length": str(len(body)), "Content-Type": "application/json"}
-    handler.path = "/recall"
-    handler.requestline = "POST /recall HTTP/1.1"
-    handler.server = MagicMock()
-    handler.client_address = ("127.0.0.1", 12345)
-    handler.command = "POST"
-    handler.send_response = lambda *a, **kw: None
-    handler.send_header = lambda *a, **kw: None
-    handler.end_headers = lambda: None
-    handler.do_POST()
+            handler = HandlerCls.__new__(HandlerCls)
+            handler.wfile = wfile
+            handler.rfile = io.BytesIO(body)
+            handler.headers = {"Content-Length": str(len(body)), "Content-Type": "application/json"}
+            handler.path = "/recall"
+            handler.requestline = "POST /recall HTTP/1.1"
+            handler.server = MagicMock()
+            handler.client_address = ("127.0.0.1", 12345)
+            handler.command = "POST"
+            handler.send_response = lambda *a, **kw: None
+            handler.send_header = lambda *a, **kw: None
+            handler.end_headers = lambda: None
+            handler.do_POST()
 
     assert len(wfile.written) > 0
     response = json.loads(b"".join(wfile.written))
@@ -258,25 +265,26 @@ def test_decompose_timeout_vector_only_results_returned():
     mem = _fake_memory(results=fallback_results)
     cfg = _make_cfg()
 
-    with patch.dict("os.environ", {"FIDELIS_DECOMPOSE_TIMEOUT_SECS": "0.001"}):
+    with patch.dict("os.environ", {"FIDELIS_DECOMPOSE_TIMEOUT_SECS": "0.1"}), \
+         patch("fidelis.server.do_recall", side_effect=_slow_do_recall):
         HandlerCls = make_handler(mem, cfg)
 
-    body = json.dumps({"text": "deployment facts"}).encode()
-    wfile = _BrokenWriteFile()
+        body = json.dumps({"text": "deployment facts"}).encode()
+        wfile = _BrokenWriteFile()
 
-    handler = HandlerCls.__new__(HandlerCls)
-    handler.wfile = wfile
-    handler.rfile = io.BytesIO(body)
-    handler.headers = {"Content-Length": str(len(body)), "Content-Type": "application/json"}
-    handler.path = "/recall"
-    handler.requestline = "POST /recall HTTP/1.1"
-    handler.server = MagicMock()
-    handler.client_address = ("127.0.0.1", 12345)
-    handler.command = "POST"
-    handler.send_response = lambda *a, **kw: None
-    handler.send_header = lambda *a, **kw: None
-    handler.end_headers = lambda: None
-    handler.do_POST()
+        handler = HandlerCls.__new__(HandlerCls)
+        handler.wfile = wfile
+        handler.rfile = io.BytesIO(body)
+        handler.headers = {"Content-Length": str(len(body)), "Content-Type": "application/json"}
+        handler.path = "/recall"
+        handler.requestline = "POST /recall HTTP/1.1"
+        handler.server = MagicMock()
+        handler.client_address = ("127.0.0.1", 12345)
+        handler.command = "POST"
+        handler.send_response = lambda *a, **kw: None
+        handler.send_header = lambda *a, **kw: None
+        handler.end_headers = lambda: None
+        handler.do_POST()
 
     response = json.loads(b"".join(wfile.written))
     assert len(response["memories"]) == 2

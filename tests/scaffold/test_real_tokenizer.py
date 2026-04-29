@@ -14,9 +14,10 @@ actually over-budget on some tokenizers.
 from __future__ import annotations
 
 import pytest
-import tiktoken
 
-from fidelis.scaffold._core import wrap_system_prompt, _QTYPE_PROC
+tiktoken = pytest.importorskip("tiktoken")
+
+from fidelis.scaffold._core import wrap_system_prompt, _QTYPE_PROC  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Fixtures / helpers

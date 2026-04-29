@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import time
 import urllib.error
 import urllib.request
 from typing import NamedTuple
@@ -397,7 +396,7 @@ def test_claude_cli_backend_portability():
     hedge_rate  = results["hedge_compliance_rate"]
     answer_rate = results["answer_compliance_rate"]
 
-    print(f"\n=== claude-cli ===")
+    print("\n=== claude-cli ===")
     print(f"Hedge compliance : {hedge_rate:.0%} ({sum(r['compliant'] for r in results['hedge_results'])}/{len(results['hedge_results'])})")
     print(f"Answer compliance: {answer_rate:.0%} ({sum(r['compliant'] for r in results['answer_results'])}/{len(results['answer_results'])})")
     print("\nHedge questions:")
