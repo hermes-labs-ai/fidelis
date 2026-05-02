@@ -108,20 +108,17 @@ def make_handler(memory: object, cfg: dict) -> type:
         def do_GET(self):
             try:
                 if self.path == "/health":
-                    # Read count directly from chroma. The previous fallback
-                    # used get_all with top_k=10000 which (a) silently capped
-                    # the reported count at 10000 and (b) hammered Ollama for
-                    # every health probe. col_info() returns the collection
-                    # object whose .count() is O(1).
+                    # Read count directly from chroma. Previous code used
+                    # get_all with top_k=10000 which (a) silently capped the
+                    # reported count at 10000 and (b) hammered Ollama on
+                    # every probe. mem0 2.0's ChromaDB wrapper exposes the
+                    # underlying chromadb.Collection as `.collection`; its
+                    # `.count()` is O(1).
                     try:
-                        count = memory.vector_store.col_info().count()  # type: ignore
+                        count = memory.vector_store.collection.count()  # type: ignore
                     except Exception as e:
-                        # Older mem0 wrapper (<2.0): direct .col attribute.
-                        try:
-                            count = memory.vector_store.col.count()  # type: ignore
-                        except Exception:
-                            count = -1  # signal: chroma unhealthy
-                            logger.warning("health: chroma count failed: %s", e)
+                        count = -1  # signal: chroma unhealthy
+                        logger.warning("health: chroma count failed: %s", e)
                     snap_path = _snapshot_path(cfg)
                     self._json({
                         "status": "ok" if count >= 0 else "degraded",
