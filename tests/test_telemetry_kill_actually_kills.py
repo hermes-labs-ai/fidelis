@@ -25,8 +25,6 @@ import importlib
 import os
 import sys
 
-import pytest
-
 
 def test_mem0_telemetry_false_disables_posthog(monkeypatch):
     """When MEM0_TELEMETRY=False is in the env, mem0/memory/telemetry.py
