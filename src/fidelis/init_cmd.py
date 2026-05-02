@@ -50,18 +50,30 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <key>EnvironmentVariables</key>
     <dict>
         <!--
-            Telemetry kill: chromadb pulls posthog at import, which opens a
-            socket pool per process. In launchd's restart loop this leaks
-            file descriptors and eventually trips EMFILE, killing the
-            service silently. We disable it three ways because each library
-            checks a different flag.
+            Telemetry kill. mem0 fires a posthog.capture on every memory
+            operation; posthog calls platform.mac_ver() per event, which
+            opens /System/Library/CoreServices/SystemVersion.plist. Under
+            transient fd pressure (Ollama slowness → request pileup) every
+            capture spams an EMFILE error against the plist. Disabling
+            mem0's telemetry stops the calls.
+
+            MEM0_TELEMETRY=False   → mem0 (the actual offender; sets
+                                      self.posthog = None at import time).
+            ANONYMIZED_TELEMETRY=False / CHROMA_TELEMETRY_DISABLED=True
+                                   → chromadb (current version's posthog
+                                      adapter is a no-op, but kept for
+                                      forward compat; cheap).
+
+            Note: there is no POSTHOG_DISABLED env var in the posthog
+            Python SDK. Earlier versions of this template set it, but it
+            was inert — see git history for the removal commit.
         -->
+        <key>MEM0_TELEMETRY</key>
+        <string>False</string>
         <key>ANONYMIZED_TELEMETRY</key>
         <string>False</string>
         <key>CHROMA_TELEMETRY_DISABLED</key>
         <string>True</string>
-        <key>POSTHOG_DISABLED</key>
-        <string>1</string>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
@@ -80,12 +92,13 @@ RestartSec=3
 StandardOutput=append:{log_path}
 StandardError=append:{log_path}
 WorkingDirectory={working_dir}
-# Telemetry kill — chromadb's posthog import leaks fds in restart loops.
-# See feedback_disable_chromadb_posthog_telemetry; without this the service
-# eventually trips EMFILE and silently dies.
+# Telemetry kill — mem0's per-operation posthog.capture opens
+# SystemVersion.plist on every event, spamming EMFILE under fd pressure.
+# MEM0_TELEMETRY=False is the only flag mem0 honors; the chromadb flags
+# are belt-and-suspenders for forward compat.
+Environment=MEM0_TELEMETRY=False
 Environment=ANONYMIZED_TELEMETRY=False
 Environment=CHROMA_TELEMETRY_DISABLED=True
-Environment=POSTHOG_DISABLED=1
 
 [Install]
 WantedBy=default.target

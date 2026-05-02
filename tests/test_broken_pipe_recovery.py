@@ -41,9 +41,12 @@ def _fake_memory(results=None):
     mem = MagicMock()
     search_results = results if results is not None else []
     mem.search.return_value = {"results": search_results}
-    # mem0 2.x vector store: col_info() returns the collection; .count() is O(1).
+    # mem0 2.x ChromaDB wrapper exposes the chromadb.Collection as `.collection`;
+    # the /health endpoint reads count via `.collection.count()`.
+    mem.vector_store.collection.count.return_value = 42
+    # Legacy attribute names that earlier server.py revisions tried; kept for
+    # any test that still asserts on them. Newer server.py only reads .collection.
     mem.vector_store.col_info.return_value.count.return_value = 42
-    # Pre-2.x compat path the health endpoint also tries.
     mem.vector_store.col.count.return_value = 42
 
     # /recall fallback now bypasses mem0.search and calls vector_store.search
@@ -316,6 +319,8 @@ def test_concurrent_requests_handled_independently():
 
     mem = MagicMock()
     mem.search.side_effect = _smart_search
+    mem.vector_store.collection.count.return_value = 99
+    # Legacy attribute names; current /health code only reads .collection.
     mem.vector_store.col.count.return_value = 99
 
     cfg = _make_cfg()

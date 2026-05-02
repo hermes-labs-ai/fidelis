@@ -3,15 +3,20 @@
 These tests prevent silent regressions of two specific production-tested
 requirements:
 
-1. **Telemetry kill** — chromadb pulls posthog at import. In a launchd /
-   systemd restart loop, posthog leaks file descriptors until the service
-   trips EMFILE and dies silently. The kill flags must be present.
+1. **Telemetry kill** — mem0 fires a posthog.capture on every memory
+   operation. Posthog's capture path calls platform.mac_ver(), which
+   opens /System/Library/CoreServices/SystemVersion.plist per event.
+   Under transient fd pressure (Ollama slowness → request pileup) every
+   capture spams an EMFILE against the plist. The kill flags must be
+   present and must include `MEM0_TELEMETRY=False` — that is the only
+   flag mem0 actually honors. (`POSTHOG_DISABLED` is not a real env var
+   in the posthog SDK; earlier templates set it but it was inert.)
 2. **Server binary path** — the unit must point to the `fidelis-server`
    console script that pip installs, not a hardcoded source path.
 
 If either of these regresses, friends running `fidelis init` get a
-service that either silently crashes or never starts. The tests are
-text-level — no real launchctl / systemctl invocations.
+service that either silently spams EMFILE or never starts. The tests
+are text-level — no real launchctl / systemctl invocations.
 """
 from __future__ import annotations
 
@@ -32,10 +37,17 @@ def fake_home(monkeypatch):
 
 
 def test_macos_plist_includes_telemetry_kill(fake_home):
-    """ANONYMIZED_TELEMETRY=False, CHROMA_TELEMETRY_DISABLED=True, POSTHOG_DISABLED=1
-    must all be in the launchd plist EnvironmentVariables block. Otherwise
-    chromadb's posthog import will leak fds across launchd's restart loop and
-    eventually EMFILE-crash the user's service silently."""
+    """MEM0_TELEMETRY=False must be in the launchd plist EnvironmentVariables
+    block. Without it, mem0 fires posthog.capture on every operation; posthog
+    opens SystemVersion.plist per event; under fd pressure each capture spams
+    an EMFILE.
+
+    ANONYMIZED_TELEMETRY=False and CHROMA_TELEMETRY_DISABLED=True are kept as
+    chromadb belt-and-suspenders for forward compat, but mem0's flag is the
+    one that actually stops the EMFILE storm.
+
+    POSTHOG_DISABLED is intentionally NOT asserted here — it was in earlier
+    templates but is not a real posthog env var, so it has been removed."""
     from fidelis.init_cmd import _install_macos
 
     with patch("subprocess.run") as fake_run:
@@ -51,21 +63,30 @@ def test_macos_plist_includes_telemetry_kill(fake_home):
     assert plist_path.exists(), f"plist not written at {plist_path}"
     content = plist_path.read_text()
 
-    # Each of the three flags must be present. If any drops out of the
-    # template, chromadb/posthog will leak fds and crash on restart.
     for required in (
+        "<key>MEM0_TELEMETRY</key>",
         "<key>ANONYMIZED_TELEMETRY</key>",
-        "<string>False</string>",
         "<key>CHROMA_TELEMETRY_DISABLED</key>",
-        "<string>True</string>",
-        "<key>POSTHOG_DISABLED</key>",
-        "<string>1</string>",
     ):
         assert required in content, (
             f"plist missing telemetry-kill marker {required!r}; "
-            f"chromadb posthog import will EMFILE-crash launchd restarts. "
-            f"See feedback_disable_chromadb_posthog_telemetry.md."
+            f"mem0 posthog.capture will spam EMFILE under fd pressure."
         )
+
+    # Specifically pin MEM0_TELEMETRY=False — case matters, mem0 lowercases
+    # before checking against ('true', '1', 'yes').
+    assert "<key>MEM0_TELEMETRY</key>\n        <string>False</string>" in content, (
+        "MEM0_TELEMETRY value not set to False; mem0/memory/telemetry.py "
+        "treats anything outside ('true','1','yes') as disabled, but pin "
+        "the canonical value to avoid drift."
+    )
+
+    # Inert legacy flag must not return: POSTHOG_DISABLED is not honored by
+    # any version of the posthog Python SDK.
+    assert "<key>POSTHOG_DISABLED</key>" not in content, (
+        "POSTHOG_DISABLED is not a real posthog env var; do not set it "
+        "in the plist — gives a false sense of telemetry-disable."
+    )
 
 
 def test_macos_plist_uses_console_script(fake_home):
@@ -107,14 +128,19 @@ def test_systemd_unit_includes_telemetry_kill(fake_home):
     )
 
     for required in (
+        "Environment=MEM0_TELEMETRY=False",
         "Environment=ANONYMIZED_TELEMETRY=False",
         "Environment=CHROMA_TELEMETRY_DISABLED=True",
-        "Environment=POSTHOG_DISABLED=1",
     ):
         assert required in rendered, (
             f"systemd unit missing telemetry-kill {required!r}; "
-            f"chromadb posthog import will EMFILE-crash on restarts."
+            f"mem0 posthog.capture will spam EMFILE under fd pressure."
         )
+
+    assert "Environment=POSTHOG_DISABLED=1" not in rendered, (
+        "POSTHOG_DISABLED is not a real posthog env var; do not set it "
+        "in the systemd unit — gives a false sense of telemetry-disable."
+    )
 
 
 def test_legacy_label_bootout_is_idempotent(fake_home):
