@@ -240,7 +240,7 @@ The technical thesis: language sets the capability and intelligence; the model i
 
 Public technical receipts. The first public open-source release is [fidelis](https://github.com/hermes-labs-ai/fidelis) - zero-LLM agent memory with integer-pointer fidelity. 73.0% end-to-end QA on LongMemEval-S, Wilson 95% CI [68.7%, 77.0%], at $0 per query, fully local. Other Hermes Labs OSS is listed at [github.com/hermes-labs-ai](https://github.com/hermes-labs-ai). Published research at [zenodo.org](https://zenodo.org). The OSS surface is the proof; the commercial work is deployment engagements.
 
-For enterprise deployments and AI-reliability engagements: [rbosch@lpci.ai](mailto:rbosch@lpci.ai) · [lpci.ai](https://lpci.ai)
+For enterprise deployments and AI-reliability engagements: [roli@hermes-labs.ai](mailto:roli@hermes-labs.ai) · [lpci.ai](https://lpci.ai)
 
 On naming. Hermes Labs is named for Hermes, the Greek messenger god - patron of communication and interpretation, the herald who carries meaning between worlds. The thread to the work: hermeneutics, the theory of interpretation that takes its name from Hermes, is the philosophical anchor for an AI infrastructure company whose substrate is linguistic. Not affiliated with NousResearch's Hermes LLM line or their hermes-agent framework - different companies, different work.
 

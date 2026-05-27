@@ -187,7 +187,7 @@ gates:
   - benchmark: longmemeval_s
     metric: recall_at_1
     path: hybrid_flagship
-    floor: 0.91          # current 93.4%, allow 2pp measurement noise
+    floor: 0.944         # current 96.4%, allow 2pp measurement noise
     block_pr_if_below: true
 
   - benchmark: cogito_31case
@@ -208,7 +208,7 @@ WORKLOAD COVERAGE MATRIX
                           /recall (Path A)   /recall_hybrid (Path B)
 cogito 31-case R@1            75%                  54%
 cogito 31-case hit@any        96%                  96%
-LongMemEval_S R@1             [not measured]       93.4%
+LongMemEval_S R@1             [not measured]       96.4% (runP-v35)
 LOCOMO R@1                    [pending]            [pending]
 MemoryBench R@1               [pending]            [pending]
 ```
@@ -222,7 +222,7 @@ PRs that only update one cell must still report all measured cells. If a benchma
 | Atomic paraphrase (direct_recall) | **75% R@1** | 54% R@1 |
 | Semantic gap (vocab mismatch) | measured in eval | measured in eval |
 | Adversarial negative | measured in eval | measured in eval |
-| Multi-turn session retrieval | [not measured] | **93.4% R@1** |
+| Multi-turn session retrieval | [not measured] | **96.4% R@1** (runP-v35) |
 | Temporal ordering queries | [not measured] | tested via regex router |
 | Counting/aggregation queries | [not measured] | tested via regex router |
 
@@ -240,7 +240,7 @@ Most retrieval libraries publish one benchmark on one workload and present it as
 COGITO RETRIEVAL SCORECARD
                         R@1     hit@any   Latency   Workload
 /recall                 75%     96%       1197ms    atomic paraphrase
-/recall_hybrid          93.4%   —         3500ms    session multi-turn
+/recall_hybrid          96.4%   —         3500ms    session multi-turn (runP-v35)
 /recall_hybrid (filter) 90%+    —         1300ms    session multi-turn
 /recall_b               56%     96%       127ms     atomic (zero-LLM)
 

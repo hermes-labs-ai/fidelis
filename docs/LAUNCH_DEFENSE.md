@@ -1,8 +1,10 @@
-# LAUNCH DEFENSE — cogito-ergo LongMemEval_S SOTA Claim
+# LAUNCH DEFENSE — cogito-ergo LongMemEval_S Benchmark Claims
 
-**Date:** 2026-04-16  
-**Claim:** 93.4% R@1 on LongMemEval_S — beats Mastra 94.87% if verify-guard run closes above it.  
-**Status:** 93.4% confirmed (runB-flagship, n=470). Verify-guard (runC) tracking 92.6% at 339/470 — projected final ~93.2%, not 95.8%. See "Verify-Guard Status" below.
+**Date:** 2026-04-16 (INTERNAL DOC — updated header 2026-04-23)  
+**SUPERSEDED:** The 93.4% claim (runB-flagship) is superseded by runP-v35: **96.4% R@1** (453/470, 2026-04-18). No hardset required — runtime confidence escalation only. This document is now an internal reference for the runB/runC defense history.  
+**DO NOT publish this document.** Use PUBLISH-20260423/paper/ for public-facing claims.
+
+**Original claim (archived):** 93.4% R@1 on LongMemEval_S (runB-flagship, n=470).
 
 ---
 

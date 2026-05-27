@@ -199,7 +199,7 @@ Example: "what tools are being built" → "which projects are under development"
 
 **Answer: The 31-case eval regression (54% R@1) is not being treated as a blocker.**
 
-Path B is the new hotness — 93.4% on LongMemEval, published in the README, deployed to `/recall_hybrid`. But on the only *production eval you actually have*, it's **21 points worse than Path A**. 
+Path B is the new hotness — 96.4% on LongMemEval, published in the README, deployed to `/recall_hybrid`. But on the only *production eval you actually have*, it's **21 points worse than Path A**. 
 
 The plan to ship a "workload-aware dispatcher" glosses over this: "use Path B when you need the hybrid trait" is a shrug, not a solution. You're asking users to decide which path to call, which means users have to benchmark both on their own workload.
 
@@ -210,7 +210,7 @@ The plan to ship a "workload-aware dispatcher" glosses over this: "use Path B wh
 
 **Fix (or admit loss)**:
 - Either: Re-validate Path B on production-like data before claiming 93.4% applies to /recall_hybrid in production.
-- Or: Admit that both paths are research artifacts, publish the numbers honestly ("Path A: 75% on production, Path B: 54% on production; 93.4% on LongMemEval_S with novel chunking scheme not ported to production").
+- Or: Admit that both paths are research artifacts, publish the numbers honestly ("Path A: 75% on production, Path B: 54% on production; 96.4% on LongMemEval_S with novel chunking scheme not ported to production").
 - Or: Build a third path that fixes the 21pp regression on production data, then validate both paths on both benchmarks.
 
 ---
@@ -235,4 +235,4 @@ The plan is not wrong; it's incomplete. Both paths solve real problems (atomic k
 
 Treat the 95% target as a **benchmark milestone**, not a product claim. For product, measure on production data first. Once you have 500+ production test cases and pass the five falsifier tests, then the generalizability claim becomes credible.
 
-Until then: publish 93.4% on LongMemEval_S and 75% on the 31-case eval separately, with full honesty about what each benchmark measures.
+Until then: publish 96.4% on LongMemEval_S and 75% on the 31-case eval separately, with full honesty about what each benchmark measures.

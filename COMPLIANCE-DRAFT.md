@@ -6,7 +6,7 @@ Review and sign off before distribution.
 
 **System:** cogito-ergo — semantic memory retrieval for AI agents. Retrieves
 prior conversations via integer-pointer filter (LLM returns only integers,
-structurally cannot corrupt returned content). Hybrid R@1 = 93.4% on
+structurally cannot corrupt returned content). Hybrid R@1 = 96.4% on
 LongMemEval_S.
 
 **Risk classification under EU AI Act:** Not a high-risk AI system per Annex III
@@ -29,7 +29,7 @@ be high-risk — compliance documentation written to meet the strictest case.
   (qwen3.5:2b / 4b). See `README.md` for the full calibration.
 
 **Risk identified:**
-1. Retrieval may miss critical context (false negative). R@1 = 93.4%; 6.6%
+1. Retrieval may miss critical context (false negative). R@1 = 96.4%; 3.6%
    failure mode is a missed retrieval.
 2. Retrieval may surface stale or contradicted content (staleness). Mitigation:
    caller must version memories or pass a freshness filter.
@@ -59,7 +59,7 @@ retrieval.
 
 ## Article 15 — Accuracy, robustness, cybersecurity
 
-- **Accuracy:** benchmarked at R@1 = 93.4% on LongMemEval_S. Measurement
+- **Accuracy:** benchmarked at R@1 = 96.4% on LongMemEval_S (runP-v35, 2026-04-18). Measurement
   methodology in `bench/`.
 - **Robustness:** TODO — adversarial inputs (prompt injection in memory content)
   have not been systematically fuzzed. Flagged as gap. See `little-canary` tool
