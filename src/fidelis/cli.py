@@ -314,7 +314,21 @@ def main():
     p_sessions = sub.add_parser("sessions", help="Search/manage your Claude Code session history")
     sess_sub = p_sessions.add_subparsers(dest="sessions_command", required=True)
 
-    s_ingest = sess_sub.add_parser("ingest", help="Index sessions (default: last 7 days)")
+    s_ingest = sess_sub.add_parser(
+        "ingest",
+        help="Index sessions (default: last 7 days)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Privacy lever:\n"
+            "  FIDELIS_SESSIONS_EXCLUDE  comma-separated substring deny-list. Any\n"
+            "                            project whose path contains one of these\n"
+            "                            substrings is never indexed (pre-ingest).\n"
+            "\n"
+            "  Example:\n"
+            '    export FIDELIS_SESSIONS_EXCLUDE="client-acme,secrets"\n'
+            "    fidelis sessions ingest --all\n"
+        ),
+    )
     g = s_ingest.add_mutually_exclusive_group()
     g.add_argument("--since", help="Index sessions since YYYY-MM-DD")
     g.add_argument("--all", action="store_true", help="Index all sessions")

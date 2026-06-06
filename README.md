@@ -200,6 +200,15 @@ export FIDELIS_SESSIONS_EXCLUDE="client-acme,secrets"
 fidelis sessions ingest
 ```
 
+### Privacy & storage
+
+- **What is stored, where:** `ingest` writes a copy of your session conversation text into a local ChromaDB store at `~/.cogito/store`. The full per-turn conversation text is retained in metadata (`turns_json`). Embeddings are produced locally by Ollama; nothing is uploaded.
+- **How it's protected:** the stored text is **not application-encrypted.** `ingest` sets `chmod 700` on `~/.cogito` (readable only by your OS user); pair that with full-disk encryption (FileVault) for at-rest protection.
+- **Deletion stops at the index:** `purge` removes the index records (text, embeddings, metadata) for matched sessions. It never touches your source files in `~/.claude/projects` or backups in `~/Backups/claude-sessions`.
+- **Keep sensitive projects out:** use `FIDELIS_SESSIONS_EXCLUDE` (above) to never index them in the first place.
+
+See [SECURITY.md](SECURITY.md) for full detail.
+
 Python helper for direct integration:
 
 ```python

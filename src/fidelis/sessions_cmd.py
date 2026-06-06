@@ -140,10 +140,21 @@ def cmd_purge(args) -> int:
 
 # ── ingest / search / list / stats (thin wrappers over existing code) ─────────
 
+def _is_first_run() -> bool:
+    """First-run = no dedup ledger yet (nothing has ever been ingested).
+    Reads the on-disk ledger, so it works without a live ChromaDB/Ollama."""
+    from fidelis.ingest_claude_sessions import _load_ledger
+    try:
+        return not _load_ledger()
+    except Exception:  # noqa: best-effort; a missing/corrupt ledger means first run
+        return True
+
+
 def cmd_ingest(args) -> int:
     from fidelis.ingest_claude_sessions import ingest
     from datetime import datetime as _dt, timezone as _tz
     since = None
+    default_window = False
     if not args.all:
         # default: last 7 days (spec) unless --since given
         if args.since:
@@ -151,6 +162,19 @@ def cmd_ingest(args) -> int:
         else:
             from datetime import timedelta
             since = _dt.now(_tz.utc) - timedelta(days=7)
+            default_window = True
+
+    # B3: the pitch is "keep & search your sessions", but the default sweep is only
+    # 7 days. On a first run that silently leaves all older history un-indexed. Nudge
+    # (don't silently change the default): tell the user older sessions exist and how
+    # to get them, without over-engineering a full-history scan into the default path.
+    if default_window and _is_first_run():
+        print(
+            "First run: indexing only the last 7 days. Your older Claude Code "
+            "sessions are NOT indexed yet — run `fidelis sessions ingest --all` "
+            "to index your full history."
+        )
+
     stats = ingest(since=since, dry_run=args.dry_run, verbose=args.verbose)
     print(f"scanned={stats['scanned']} stored={stats['stored']} "
           f"skipped_dedup={stats['skipped_dedup']} skipped_empty={stats['skipped_empty']} "

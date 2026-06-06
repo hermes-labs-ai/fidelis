@@ -91,3 +91,72 @@ def test_no_benchmark_numbers_in_product_strings():
 def test_privacy_notice_mentions_local_and_purge():
     assert "~/.cogito" in S.PRIVACY_NOTICE
     assert "purge" in S.PRIVACY_NOTICE
+
+
+# ── B2: ingest progress signal (no silent multi-minute "hang") ────────────────
+
+class _IngestArgs:
+    def __init__(self, all=False, since=None, dry_run=True, verbose=False):
+        self.all = all
+        self.since = since
+        self.dry_run = dry_run
+        self.verbose = verbose
+
+
+def test_ingest_prints_candidate_count_up_front(capsys, monkeypatch):
+    # B2: before the loop, ingest() must announce how many sessions it will index
+    # so a long run doesn't read as a freeze.
+    monkeypatch.setattr(I, "_iter_sessions",
+                        lambda since=None, exclude=None: iter([
+                            ("s1", I.Path("/x/s1.jsonl"), "-Users-rbr-proj"),
+                            ("s2", I.Path("/x/s2.jsonl"), "-Users-rbr-proj"),
+                        ]))
+    monkeypatch.setattr(I, "_parse_jsonl", lambda path: [])  # all skipped_empty; no DB touch
+    monkeypatch.setattr(I, "_load_ledger", lambda: {"existing": "id"})  # not first run
+    I.ingest(dry_run=True)
+    out = capsys.readouterr().out
+    assert "2 sessions" in out
+    assert "may take a few minutes" in out
+
+
+# ── B3: first-run nudge about the 7-day default window ────────────────────────
+
+def test_first_run_true_when_ledger_empty(monkeypatch):
+    monkeypatch.setattr(I, "_load_ledger", lambda: {})
+    assert S._is_first_run() is True
+
+
+def test_first_run_false_when_ledger_has_entries(monkeypatch):
+    monkeypatch.setattr(I, "_load_ledger", lambda: {"h1": "id1"})
+    assert S._is_first_run() is False
+
+
+def test_nudge_prints_on_first_run_default_window(capsys, monkeypatch):
+    monkeypatch.setattr(S, "_is_first_run", lambda: True)
+    monkeypatch.setattr("fidelis.ingest_claude_sessions.ingest",
+                        lambda **kw: dict(scanned=0, stored=0, skipped_dedup=0,
+                                          skipped_empty=0, errors=0))
+    S.cmd_ingest(_IngestArgs(all=False, since=None, dry_run=True))
+    out = capsys.readouterr().out
+    assert "--all" in out and "full history" in out
+
+
+def test_nudge_suppressed_when_not_first_run(capsys, monkeypatch):
+    monkeypatch.setattr(S, "_is_first_run", lambda: False)
+    monkeypatch.setattr("fidelis.ingest_claude_sessions.ingest",
+                        lambda **kw: dict(scanned=0, stored=0, skipped_dedup=0,
+                                          skipped_empty=0, errors=0))
+    S.cmd_ingest(_IngestArgs(all=False, since=None, dry_run=True))
+    out = capsys.readouterr().out
+    assert "full history" not in out
+
+
+def test_nudge_suppressed_when_all_flag(capsys, monkeypatch):
+    # --all is not the default window, so the nudge must not fire even on first run.
+    monkeypatch.setattr(S, "_is_first_run", lambda: True)
+    monkeypatch.setattr("fidelis.ingest_claude_sessions.ingest",
+                        lambda **kw: dict(scanned=0, stored=0, skipped_dedup=0,
+                                          skipped_empty=0, errors=0))
+    S.cmd_ingest(_IngestArgs(all=True, since=None, dry_run=True))
+    out = capsys.readouterr().out
+    assert "full history" not in out

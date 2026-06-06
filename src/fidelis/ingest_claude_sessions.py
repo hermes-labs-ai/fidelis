@@ -280,7 +280,14 @@ def ingest(
 
     stats = {"scanned": 0, "skipped_dedup": 0, "skipped_empty": 0, "stored": 0, "errors": 0}
 
-    for session_id, jsonl_path, project_path in _iter_sessions(since=since, exclude=exclude):
+    # B2: progress signal. Counting candidates up front turns a silent multi-minute
+    # run (which reads like a freeze) into "Indexing N sessions …". Materialise the
+    # generator once so we can both count and iterate without re-walking the tree.
+    candidates = list(_iter_sessions(since=since, exclude=exclude))
+    label = "would index" if dry_run else "Indexing"
+    print(f"{label} {len(candidates)} sessions (this may take a few minutes)…")
+
+    for session_id, jsonl_path, project_path in candidates:
         stats["scanned"] += 1
 
         turns = _parse_jsonl(jsonl_path)
