@@ -310,6 +310,41 @@ def main():
     p_mcp_uninstall.add_argument("--settings", help="Path to settings.local.json")
     p_mcp_uninstall.set_defaults(func=lambda a: sys.exit(_cmd_mcp_uninstall(a)))
 
+    # sessions — searchable, purge-able Claude Code session memory (MVP-A)
+    p_sessions = sub.add_parser("sessions", help="Search/manage your Claude Code session history")
+    sess_sub = p_sessions.add_subparsers(dest="sessions_command", required=True)
+
+    s_ingest = sess_sub.add_parser("ingest", help="Index sessions (default: last 7 days)")
+    g = s_ingest.add_mutually_exclusive_group()
+    g.add_argument("--since", help="Index sessions since YYYY-MM-DD")
+    g.add_argument("--all", action="store_true", help="Index all sessions")
+    s_ingest.add_argument("--dry-run", action="store_true", help="Preview, write nothing")
+    s_ingest.add_argument("--verbose", "-v", action="store_true")
+    s_ingest.set_defaults(func=lambda a: sys.exit(_cmd_sessions_ingest(a)))
+
+    s_search = sess_sub.add_parser("search", help="Search session history")
+    s_search.add_argument("query", help="Natural-language query")
+    s_search.add_argument("--limit", type=int, default=5)
+    s_search.add_argument("--raw", action="store_true", help="JSON output (no turns)")
+    s_search.set_defaults(func=lambda a: sys.exit(_cmd_sessions_search(a)))
+
+    s_list = sess_sub.add_parser("list", help="List indexed sessions")
+    s_list.add_argument("--since", help="Only since YYYY-MM-DD")
+    s_list.add_argument("--limit", type=int, default=50)
+    s_list.set_defaults(func=lambda a: sys.exit(_cmd_sessions_list(a)))
+
+    s_purge = sess_sub.add_parser("purge", help="Delete sessions from the index (NOT source/backups)")
+    pg = s_purge.add_mutually_exclusive_group(required=True)
+    pg.add_argument("--all", action="store_true", help="Purge every indexed session")
+    pg.add_argument("--before", help="Purge sessions older than YYYY-MM-DD")
+    s_purge.add_argument("--dry-run", action="store_true", help="Preview, write nothing")
+    s_purge.add_argument("--yes", action="store_true", help="Skip confirmation prompt")
+    s_purge.set_defaults(func=lambda a: sys.exit(_cmd_sessions_purge(a)))
+
+    s_stats = sess_sub.add_parser("stats", help="Corpus stats for indexed sessions")
+    s_stats.add_argument("--since", help="Only since YYYY-MM-DD")
+    s_stats.set_defaults(func=lambda a: sys.exit(_cmd_sessions_stats(a)))
+
     args = parser.parse_args()
     args.func(args)
 
@@ -335,6 +370,31 @@ def _cmd_mcp_install(args):
 def _cmd_mcp_uninstall(args):
     from fidelis.mcp_cmd import cmd_mcp_uninstall
     return cmd_mcp_uninstall(args)
+
+
+def _cmd_sessions_ingest(args):
+    from fidelis.sessions_cmd import cmd_ingest
+    return cmd_ingest(args)
+
+
+def _cmd_sessions_search(args):
+    from fidelis.sessions_cmd import cmd_search
+    return cmd_search(args)
+
+
+def _cmd_sessions_list(args):
+    from fidelis.sessions_cmd import cmd_list
+    return cmd_list(args)
+
+
+def _cmd_sessions_purge(args):
+    from fidelis.sessions_cmd import cmd_purge
+    return cmd_purge(args)
+
+
+def _cmd_sessions_stats(args):
+    from fidelis.sessions_cmd import cmd_stats
+    return cmd_stats(args)
 
 
 if __name__ == "__main__":

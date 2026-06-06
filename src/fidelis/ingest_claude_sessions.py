@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 import urllib.request
 import uuid
@@ -115,10 +116,28 @@ def _parse_jsonl(path: Path) -> list[dict]:
 
 # ── Session Discovery ─────────────────────────────────────────────────────────
 
-def _iter_sessions(since: datetime | None = None) -> Iterator[tuple[str, Path, str]]:
+def _excluded(project_path: str, exclude: list[str] | None) -> bool:
+    """Project-level deny-list: skip any project whose name contains an excluded
+    substring. The only honest *pre-ingest* privacy lever — excluded projects
+    are never indexed at all. Pure function so it is testable without services."""
+    if not exclude:
+        return False
+    return any(token and token in project_path for token in exclude)
+
+
+def _load_exclude() -> list[str]:
+    """Deny-list from FIDELIS_SESSIONS_EXCLUDE (comma-separated) env var."""
+    raw = os.environ.get("FIDELIS_SESSIONS_EXCLUDE", "")
+    return [t.strip() for t in raw.split(",") if t.strip()]
+
+
+def _iter_sessions(
+    since: datetime | None = None,
+    exclude: list[str] | None = None,
+) -> Iterator[tuple[str, Path, str]]:
     """
     Yield (session_id, jsonl_path, project_path) for all Claude Code sessions.
-    Filters by since if given.
+    Filters by since if given; skips projects matching the deny-list (exclude).
     """
     if not CLAUDE_PROJECTS.exists():
         return
@@ -127,6 +146,9 @@ def _iter_sessions(since: datetime | None = None) -> Iterator[tuple[str, Path, s
         if not project_dir.is_dir():
             continue
         project_path = project_dir.name  # e.g. '-Users-rbr-lpci'
+
+        if _excluded(project_path, exclude):
+            continue
 
         for jsonl_file in project_dir.glob("*.jsonl"):
             session_id = jsonl_file.stem
@@ -235,18 +257,30 @@ def ingest(
     since: datetime | None = None,
     dry_run: bool = False,
     verbose: bool = False,
+    exclude: list[str] | None = None,
 ) -> dict:
     """
     Ingest Claude Code sessions into cogito.
 
+    exclude: project-name substrings to skip (deny-list). Falls back to the
+    FIDELIS_SESSIONS_EXCLUDE env var when not passed.
+
     Returns stats dict: {scanned, skipped_dedup, skipped_empty, stored, errors}
     """
+    if exclude is None:
+        exclude = _load_exclude()
     ledger = _load_ledger()
     col = None if dry_run else _get_collection()
+    if not dry_run:
+        # Defensive: make the local store OS-user-private even if `init` was skipped.
+        try:
+            os.chmod(Path.home() / ".cogito", 0o700)
+        except OSError:  # noqa: best-effort; store may not exist yet on first run
+            pass
 
     stats = {"scanned": 0, "skipped_dedup": 0, "skipped_empty": 0, "stored": 0, "errors": 0}
 
-    for session_id, jsonl_path, project_path in _iter_sessions(since=since):
+    for session_id, jsonl_path, project_path in _iter_sessions(since=since, exclude=exclude):
         stats["scanned"] += 1
 
         turns = _parse_jsonl(jsonl_path)
