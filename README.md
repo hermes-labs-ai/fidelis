@@ -171,6 +171,35 @@ fidelis health
 fidelis seed   ~/memory/   ~/notes/
 ```
 
+## Search your Claude Code session history
+
+`fidelis sessions` indexes your past Claude Code conversations (the JSONL files Claude Code writes under `~/.claude/projects/`) so you can search what you actually said and decided across sessions. Same zero-LLM retrieval path - searchable, best on multi-turn queries.
+
+```bash
+fidelis sessions ingest                 # index the last 7 days
+fidelis sessions ingest --since 2026-05-01
+fidelis sessions ingest --all           # index everything
+fidelis sessions ingest --dry-run       # preview, write nothing
+
+fidelis sessions search "what did we decide about auth"
+fidelis sessions search "auth" --limit 5 --raw   # JSON output
+
+fidelis sessions list                   # indexed sessions
+fidelis sessions stats                  # corpus stats
+
+fidelis sessions purge --before 2026-04-01   # remove old sessions from the index
+fidelis sessions purge --all --dry-run       # preview what would be removed
+```
+
+**Deletion stops at the index.** `purge` removes sessions from fidelis's search index only. It never touches your source files in `~/.claude/projects` or backups in `~/Backups/claude-sessions` - those are left alone by design. `purge` prompts before deleting unless you pass `--yes`.
+
+**Keep sensitive projects out entirely.** The honest pre-ingest privacy lever is the deny-list: set `FIDELIS_SESSIONS_EXCLUDE` to a comma-separated list of substrings, and any project whose path contains one is never indexed.
+
+```bash
+export FIDELIS_SESSIONS_EXCLUDE="client-acme,secrets"
+fidelis sessions ingest
+```
+
 Python helper for direct integration:
 
 ```python
