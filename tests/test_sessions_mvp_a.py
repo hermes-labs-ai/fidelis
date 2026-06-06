@@ -2,7 +2,6 @@
 These are the acceptance criteria AS TESTS (the contact-gate): the build is not
 done until these pass.
 """
-import json
 import importlib
 
 from fidelis import sessions_cmd as S
