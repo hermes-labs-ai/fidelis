@@ -131,13 +131,62 @@ def _load_exclude() -> list[str]:
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
+def _included(project_path: str, include: list[str] | None) -> bool:
+    """Project-level allow-list (opt-in mode): a project is indexed only if its
+    name contains an included substring. Mirror image of _excluded(). Pure
+    function so it is testable without services. With an empty/None allow-list
+    nothing matches — opt-in indexes nothing until the user names projects."""
+    if not include:
+        return False
+    return any(token and token in project_path for token in include)
+
+
+def _load_include() -> list[str]:
+    """Allow-list from FIDELIS_SESSIONS_INCLUDE (comma-separated) env var."""
+    raw = os.environ.get("FIDELIS_SESSIONS_INCLUDE", "")
+    return [t.strip() for t in raw.split(",") if t.strip()]
+
+
+def _load_mode() -> str:
+    """Ingest privacy posture: 'opt-out' (default) indexes everything except the
+    deny-list; 'opt-in' indexes nothing except the allow-list. Read from the
+    FIDELIS_SESSIONS_MODE env var, else the 'sessions_mode' key in
+    ~/.cogito/config.json, else 'opt-out'. Env wins over file (matches config.py).
+    Unrecognised values fall back to 'opt-out' (the safe, behaviour-preserving
+    default)."""
+    valid = ("opt-in", "opt-out")
+
+    env = os.environ.get("FIDELIS_SESSIONS_MODE", "").strip().lower()
+    if env in valid:
+        return env
+
+    config_path = Path.home() / ".cogito" / "config.json"
+    if config_path.exists():
+        try:
+            file_cfg = json.loads(config_path.read_text())
+            file_mode = str(file_cfg.get("sessions_mode", "")).strip().lower()
+            if file_mode in valid:
+                return file_mode
+        except Exception:  # noqa: silent — malformed config falls back to default
+            pass
+
+    return "opt-out"
+
+
 def _iter_sessions(
     since: datetime | None = None,
     exclude: list[str] | None = None,
+    mode: str = "opt-out",
+    include: list[str] | None = None,
 ) -> Iterator[tuple[str, Path, str]]:
     """
     Yield (session_id, jsonl_path, project_path) for all Claude Code sessions.
-    Filters by since if given; skips projects matching the deny-list (exclude).
+    Filters by since if given.
+
+    Privacy posture:
+      • opt-out (default): skip projects matching the deny-list (exclude).
+      • opt-in: yield ONLY projects matching the allow-list (include); with an
+        empty allow-list nothing is yielded.
     """
     if not CLAUDE_PROJECTS.exists():
         return
@@ -147,8 +196,12 @@ def _iter_sessions(
             continue
         project_path = project_dir.name  # e.g. '-Users-rbr-lpci'
 
-        if _excluded(project_path, exclude):
-            continue
+        if mode == "opt-in":
+            if not _included(project_path, include):
+                continue
+        else:
+            if _excluded(project_path, exclude):
+                continue
 
         for jsonl_file in project_dir.glob("*.jsonl"):
             session_id = jsonl_file.stem
@@ -258,17 +311,37 @@ def ingest(
     dry_run: bool = False,
     verbose: bool = False,
     exclude: list[str] | None = None,
+    mode: str | None = None,
+    include: list[str] | None = None,
 ) -> dict:
     """
     Ingest Claude Code sessions into cogito.
 
-    exclude: project-name substrings to skip (deny-list). Falls back to the
-    FIDELIS_SESSIONS_EXCLUDE env var when not passed.
+    mode: privacy posture, 'opt-out' (default) or 'opt-in'. Falls back to
+    _load_mode() (FIDELIS_SESSIONS_MODE env / config.json) when not passed.
+    exclude: project-name substrings to skip (deny-list), used in opt-out mode.
+    Falls back to the FIDELIS_SESSIONS_EXCLUDE env var when not passed.
+    include: project-name substrings to allow (allow-list), used in opt-in mode.
+    Falls back to the FIDELIS_SESSIONS_INCLUDE env var when not passed.
 
     Returns stats dict: {scanned, skipped_dedup, skipped_empty, stored, errors}
     """
+    if mode is None:
+        mode = _load_mode()
     if exclude is None:
         exclude = _load_exclude()
+    if include is None:
+        include = _load_include()
+
+    # Opt-in onboarding: an empty allow-list would silently index nothing, which
+    # reads like a broken run during setup. Say so explicitly and stop early.
+    if mode == "opt-in" and not include:
+        print(
+            "opt-in mode: no projects included yet — set FIDELIS_SESSIONS_INCLUDE=... "
+            "to choose what to index"
+        )
+        return {"scanned": 0, "skipped_dedup": 0, "skipped_empty": 0, "stored": 0, "errors": 0}
+
     ledger = _load_ledger()
     col = None if dry_run else _get_collection()
     if not dry_run:
@@ -283,7 +356,7 @@ def ingest(
     # B2: progress signal. Counting candidates up front turns a silent multi-minute
     # run (which reads like a freeze) into "Indexing N sessions …". Materialise the
     # generator once so we can both count and iterate without re-walking the tree.
-    candidates = list(_iter_sessions(since=since, exclude=exclude))
+    candidates = list(_iter_sessions(since=since, exclude=exclude, mode=mode, include=include))
     label = "would index" if dry_run else "Indexing"
     print(f"{label} {len(candidates)} sessions (this may take a few minutes)…")
 

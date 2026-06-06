@@ -46,11 +46,28 @@ encryption, treat the contents of `~/.cogito` as readable plain text.
 ## Keeping sensitive projects out (pre-ingest lever)
 
 The honest privacy lever is to **not index** sensitive projects in the first
-place. Set `FIDELIS_SESSIONS_EXCLUDE` to a comma-separated list of substrings;
-any project whose path contains one of them is never read or indexed:
+place. You pick the posture once with `FIDELIS_SESSIONS_MODE` (read from the env
+var, or the `sessions_mode` key in `~/.cogito/config.json`; the env var wins).
+The default is `opt-out`.
+
+**opt-out (default) — deny-list.** Index everything *except* named projects.
+Set `FIDELIS_SESSIONS_EXCLUDE` to a comma-separated list of substrings; any
+project whose path contains one of them is never read or indexed:
 
 ```bash
 export FIDELIS_SESSIONS_EXCLUDE="client-acme,secrets"
+fidelis sessions ingest --all
+```
+
+**opt-in — allow-list.** Index *nothing except* named projects. Set
+`FIDELIS_SESSIONS_MODE=opt-in` and name what to index with
+`FIDELIS_SESSIONS_INCLUDE` (same comma-separated substring mechanism); only
+matching projects are read. With an empty allow-list nothing is indexed and
+`ingest` prints a message telling you to set it (it never silently does nothing):
+
+```bash
+export FIDELIS_SESSIONS_MODE=opt-in
+export FIDELIS_SESSIONS_INCLUDE="hermes,langquant"
 fidelis sessions ingest --all
 ```
 

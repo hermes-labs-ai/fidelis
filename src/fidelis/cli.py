@@ -319,13 +319,27 @@ def main():
         help="Index sessions (default: last 7 days)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Privacy lever:\n"
-            "  FIDELIS_SESSIONS_EXCLUDE  comma-separated substring deny-list. Any\n"
-            "                            project whose path contains one of these\n"
-            "                            substrings is never indexed (pre-ingest).\n"
+            "Privacy posture (pick once):\n"
+            "  FIDELIS_SESSIONS_MODE     opt-out (default) | opt-in. Also read from\n"
+            "                            ~/.cogito/config.json key 'sessions_mode';\n"
+            "                            the env var wins. opt-out indexes everything\n"
+            "                            except the deny-list; opt-in indexes nothing\n"
+            "                            except the allow-list.\n"
             "\n"
-            "  Example:\n"
+            "Privacy levers:\n"
+            "  FIDELIS_SESSIONS_EXCLUDE  comma-separated substring deny-list (opt-out\n"
+            "                            mode). Any project whose path contains one of\n"
+            "                            these substrings is never indexed (pre-ingest).\n"
+            "  FIDELIS_SESSIONS_INCLUDE  comma-separated substring allow-list (opt-in\n"
+            "                            mode). ONLY projects whose path contains one of\n"
+            "                            these substrings are indexed; empty = nothing.\n"
+            "\n"
+            "  Examples:\n"
             '    export FIDELIS_SESSIONS_EXCLUDE="client-acme,secrets"\n'
+            "    fidelis sessions ingest --all\n"
+            "\n"
+            '    export FIDELIS_SESSIONS_MODE=opt-in\n'
+            '    export FIDELIS_SESSIONS_INCLUDE="hermes,langquant"\n'
             "    fidelis sessions ingest --all\n"
         ),
     )

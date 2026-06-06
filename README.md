@@ -193,10 +193,19 @@ fidelis sessions purge --all --dry-run       # preview what would be removed
 
 **Deletion stops at the index.** `purge` removes sessions from fidelis's search index only. It never touches your source files in `~/.claude/projects` or backups in `~/Backups/claude-sessions` - those are left alone by design. `purge` prompts before deleting unless you pass `--yes`.
 
-**Keep sensitive projects out entirely.** The honest pre-ingest privacy lever is the deny-list: set `FIDELIS_SESSIONS_EXCLUDE` to a comma-separated list of substrings, and any project whose path contains one is never indexed.
+**Pick your privacy posture once.** `FIDELIS_SESSIONS_MODE` chooses how `ingest` decides what to read (set it via the env var, or the `sessions_mode` key in `~/.cogito/config.json` — the env var wins):
+
+- `opt-out` (default): index everything **except** the deny-list. Use `FIDELIS_SESSIONS_EXCLUDE`, a comma-separated list of substrings; any project whose path contains one is never indexed.
+- `opt-in`: index **nothing except** the allow-list. Use `FIDELIS_SESSIONS_INCLUDE`, a comma-separated list of substrings; only projects whose path contains one are indexed. With an empty allow-list nothing is indexed and `ingest` tells you to set it.
 
 ```bash
+# opt-out (default): index all but the named projects
 export FIDELIS_SESSIONS_EXCLUDE="client-acme,secrets"
+fidelis sessions ingest
+
+# opt-in: index only the named projects
+export FIDELIS_SESSIONS_MODE=opt-in
+export FIDELIS_SESSIONS_INCLUDE="hermes,langquant"
 fidelis sessions ingest
 ```
 
@@ -205,7 +214,7 @@ fidelis sessions ingest
 - **What is stored, where:** `ingest` writes a copy of your session conversation text into a local ChromaDB store at `~/.cogito/store`. The full per-turn conversation text is retained in metadata (`turns_json`). Embeddings are produced locally by Ollama; nothing is uploaded.
 - **How it's protected:** the stored text is **not application-encrypted.** `ingest` sets `chmod 700` on `~/.cogito` (readable only by your OS user); pair that with full-disk encryption (FileVault) for at-rest protection.
 - **Deletion stops at the index:** `purge` removes the index records (text, embeddings, metadata) for matched sessions. It never touches your source files in `~/.claude/projects` or backups in `~/Backups/claude-sessions`.
-- **Keep sensitive projects out:** use `FIDELIS_SESSIONS_EXCLUDE` (above) to never index them in the first place.
+- **Keep sensitive projects out:** in opt-out mode use `FIDELIS_SESSIONS_EXCLUDE` (above) to never index them; or set `FIDELIS_SESSIONS_MODE=opt-in` and name only what you want via `FIDELIS_SESSIONS_INCLUDE` so nothing else is ever read.
 
 See [SECURITY.md](SECURITY.md) for full detail.
 
