@@ -55,6 +55,19 @@ def test_collect_before_none_matches_nothing_when_future():
     tids, _ = S._collect_purge_targets(metas, ["c2"], "before", "2026-04-30")
     assert tids == []
 
+def test_purge_span_reflects_matched_set_not_whole_corpus():
+    # honesty/polish: the summary span must describe what WILL be deleted,
+    # not the entire corpus. Regression guard for the 2026-06-06 fix.
+    metas = [_meta("2026-04-01T00:00:00Z", "h1"),   # matched (before 04-30)
+             _meta("2026-05-30T00:00:00Z", "h2")]   # NOT matched
+    ids = ["c1", "c2"]
+    target_ids, _ = S._collect_purge_targets(metas, ids, "before", "2026-04-30")
+    target_set = set(target_ids)
+    ends = sorted(m.get("end_ts", "") for cid, m in zip(ids, metas)
+                  if cid in target_set and m.get("end_ts"))
+    span = f"{ends[0][:10]}..{ends[-1][:10]}" if ends else "unknown"
+    assert span == "2026-04-01..2026-04-01"   # NOT ..2026-05-30
+
 
 # ── honesty invariants (these protect the brand) ─────────────────────────────
 

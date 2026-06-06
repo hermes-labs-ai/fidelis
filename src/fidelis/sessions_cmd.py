@@ -91,8 +91,13 @@ def cmd_purge(args) -> int:
         print("No matching sessions to purge.")
         return 0
 
-    # oldest/newest for the confirmation summary
-    ends = sorted(m.get("end_ts", "") for m in metas if m.get("end_ts"))
+    # oldest/newest of the MATCHED set (not the whole corpus) for an honest summary
+    target_set = set(target_ids)
+    ends = sorted(
+        m.get("end_ts", "")
+        for cid, m in zip(ids, metas)
+        if cid in target_set and m.get("end_ts")
+    )
     span = f"{ends[0][:10]}..{ends[-1][:10]}" if ends else "unknown"
 
     if args.dry_run:
