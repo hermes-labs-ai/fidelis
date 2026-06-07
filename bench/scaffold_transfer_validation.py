@@ -23,7 +23,7 @@ from datetime import datetime
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "sk-723d1e2f969c456ba3ffe315c0673e9b")
+DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", os.environ.get("DASHSCOPE_API_KEY", ""))
 QWEN_MODEL = "qwen-turbo"
 QWEN_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 
