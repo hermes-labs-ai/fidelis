@@ -1,3 +1,4 @@
+import os
 """
 Qwen-Native Scaffold Arena — test 15 new scaffolds on qwen-turbo.
 
@@ -24,7 +25,7 @@ from collections import defaultdict
 # ---------------------------------------------------------------------------
 QWEN_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 QWEN_MODEL = "qwen-turbo"
-QWEN_API_KEY = "sk-723d1e2f969c456ba3ffe315c0673e9b"
+QWEN_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
 
 DATA_PATH = Path.home() / "Documents/projects/LongMemEval/data/longmemeval_s_cleaned.json"
 PER_QUESTION_PATH = Path(__file__).parent / "runs/runC-guard/per_question.json"

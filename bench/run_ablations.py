@@ -110,7 +110,7 @@ def run_ablation(ablation: dict, resume: bool, data_dir: str | None) -> dict | N
     env = os.environ.copy()
     if not env.get("DASHSCOPE_API_KEY"):
         # Try hardcoded key from task spec as fallback
-        env["DASHSCOPE_API_KEY"] = "sk-723d1e2f969c456ba3ffe315c0673e9b"
+        env["DASHSCOPE_API_KEY"] = os.environ.get("DASHSCOPE_API_KEY", "")
 
     t_start = time.time()
     try:
