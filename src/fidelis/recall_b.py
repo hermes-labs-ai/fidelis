@@ -11,7 +11,7 @@ Strategy:
   7. Cosine-rerank merged candidates against original query embedding.
   8. Apply score floor — return empty if top result below threshold.
 
-No LLM at runtime. vocab_map written once by `cogito calibrate`. Target latency: <200ms.
+No LLM at runtime. vocab_map written once by `fidelis calibrate`. Target latency: <200ms.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ _COSINE_WEIGHT = 0.7
 # Score floor — if top result cosine is below this AND the gap between
 # top score and mean score is below _SCORE_GAP_MIN, return empty.
 # calibrated: 0.25 floor + 0.1 gap derived from nomic-embed-text cosine distributions
-# on cogito-ergo dev set; fires <5% of queries in normal operation.
+# on fidelis dev set; fires <5% of queries in normal operation.
 _COSINE_FLOOR = 0.25
 _SCORE_GAP_MIN = 0.1
 

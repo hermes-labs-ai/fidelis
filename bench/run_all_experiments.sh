@@ -1,11 +1,12 @@
 #!/bin/bash
 # Run all 3 experiments sequentially. Just run:
-#   bash ~/Documents/projects/cogito-ergo/bench/run_all_experiments.sh
+#   bash bench/run_all_experiments.sh   (from repo root)
+# LongMemEval dataset must be cloned alongside this repo, or set DATA= manually.
 #
 # Total time: ~5-10 minutes
 
-cd /Users/rbr_lpci/Documents/projects/cogito-ergo
-DATA=/Users/rbr_lpci/Documents/projects/LongMemEval/data
+cd "$(dirname "$0")/.."
+DATA="${DATA:-$(dirname "$0")/../../LongMemEval/data}"
 
 echo "=========================================="
 echo "  TASK 1: Nomic prefix fix"

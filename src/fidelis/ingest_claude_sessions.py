@@ -1,11 +1,11 @@
 """
-cogito.ingest_claude_sessions — Claude Code session ingestion for cogito-ergo.
+fidelis.ingest_claude_sessions — Claude Code session ingestion for fidelis.
 
 Reads ~/.claude/projects/*/SESSION_ID.jsonl, extracts role-structured user+assistant
-turn pairs, and stores each session as ONE session-typed memory in cogito's ChromaDB.
+turn pairs, and stores each session as ONE session-typed memory in fidelis's ChromaDB.
 
 Usage:
-    python3 -m cogito.ingest_claude_sessions [--since YYYY-MM-DD] [--dry-run]
+    python3 -m fidelis.ingest_claude_sessions [--since YYYY-MM-DD] [--dry-run]
 
 Privacy note:
     Claude Code sessions contain full conversation history. This script is EXPLICIT
@@ -31,7 +31,7 @@ OLLAMA_URL = "http://localhost:11434"
 EMBED_MODEL = "nomic-embed-text"
 EMBED_PREFIX = "search_document: "
 USER_ID = "agent"
-MAX_TEXT_CHARS = 2000          # matches cogito's safe truncation limit
+MAX_TEXT_CHARS = 2000          # matches fidelis's safe truncation limit
 MAX_TURNS_PER_SESSION = 100    # prevent runaway sessions dominating the index
 
 
@@ -237,7 +237,7 @@ def ingest(
     verbose: bool = False,
 ) -> dict:
     """
-    Ingest Claude Code sessions into cogito.
+    Ingest Claude Code sessions into fidelis.
 
     Returns stats dict: {scanned, skipped_dedup, skipped_empty, stored, errors}
     """
@@ -294,7 +294,7 @@ def ingest(
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Ingest Claude Code sessions into cogito-ergo memory.",
+        description="Ingest Claude Code sessions into fidelis memory.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Privacy: sessions contain full conversation history. Data stays local (ChromaDB +
@@ -302,13 +302,13 @@ Ollama). No cloud calls unless you enable flagship tier explicitly.
 
 Examples:
     # Preview what would be ingested (last 7 days)
-    python3 -m cogito.ingest_claude_sessions --since 2026-04-11 --dry-run
+    python3 -m fidelis.ingest_claude_sessions --since 2026-04-11 --dry-run
 
     # Actually ingest all sessions from last 7 days
-    python3 -m cogito.ingest_claude_sessions --since 2026-04-11
+    python3 -m fidelis.ingest_claude_sessions --since 2026-04-11
 
     # Ingest everything (may take a while)
-    python3 -m cogito.ingest_claude_sessions
+    python3 -m fidelis.ingest_claude_sessions
 """,
     )
     parser.add_argument(
@@ -337,13 +337,13 @@ Examples:
             sys.exit(1)
 
     mode = "DRY RUN" if args.dry_run else "LIVE"
-    print(f"[cogito-ingest] {mode} — scanning {CLAUDE_PROJECTS}")
+    print(f"[fidelis-ingest] {mode} — scanning {CLAUDE_PROJECTS}")
     if since:
-        print(f"[cogito-ingest] Since: {args.since}")
+        print(f"[fidelis-ingest] Since: {args.since}")
 
     stats = ingest(since=since, dry_run=args.dry_run, verbose=args.verbose or args.dry_run)
 
-    print("\n[cogito-ingest] Done.")
+    print("\n[fidelis-ingest] Done.")
     print(f"  Scanned:       {stats['scanned']}")
     print(f"  Stored:        {stats['stored']}")
     print(f"  Skipped dedup: {stats['skipped_dedup']}")

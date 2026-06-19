@@ -5,7 +5,7 @@ Synthesizes 5 queries from ingested session titles/content and measures
 top-1 hit rate against the known session.
 
 Usage:
-    cd /Users/rbr_lpci/Documents/projects/cogito-ergo
+    cd /path/to/fidelis
     python3 bench/claude_code_session_eval.py
 
 Requires: cogito-ergo installed (pip install -e .), Ollama running with nomic-embed-text.

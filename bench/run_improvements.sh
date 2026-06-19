@@ -4,7 +4,7 @@
 
 set -e
 cd "$(dirname "$0")/.."
-DATA=/Users/rbr_lpci/Documents/projects/LongMemEval/data
+DATA="${DATA:-$(dirname "$0")/../../../LongMemEval/data}"
 
 echo "=== TEST 1: Two-pass reranking ==="
 python3 bench/longmemeval_rerank.py --split s --data_dir "$DATA" 2>&1

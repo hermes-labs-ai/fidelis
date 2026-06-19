@@ -1,5 +1,5 @@
 """
-cogito.recall_sessions — session-aware retrieval for cogito-ergo.
+fidelis.recall_sessions — session-aware retrieval for fidelis.
 
 Queries session-typed memories (mem_type="session") with turn-pair chunking.
 The chunking logic is ported from bench/longmemeval_combined_pipeline_flagship.py

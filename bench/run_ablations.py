@@ -28,10 +28,9 @@ ABLATE_SCRIPT = BENCH_DIR / "longmemeval_combined_pipeline_v33_ablate.py"
 # Default data dir: check sibling LongMemEval project
 _DEFAULT_DATA_DIR = Path(__file__).parent.parent.parent / "LongMemEval" / "data"
 if not _DEFAULT_DATA_DIR.exists():
-    # Try same parent as cogito-ergo
-    _DEFAULT_DATA_DIR = Path(__file__).parent.parent.parent / "LongMemEval" / "data"
-if not _DEFAULT_DATA_DIR.exists():
-    _DEFAULT_DATA_DIR = Path("/Users/rbr_lpci/Documents/projects/LongMemEval/data")
+    # LongMemEval dataset must be cloned alongside this repo; pass --data_dir if
+    # your layout differs: e.g. python3 bench/run_ablations.py --data_dir /path/to/LongMemEval/data
+    _DEFAULT_DATA_DIR = Path.home() / "LongMemEval" / "data"
 
 # Full v33 reference
 FULL_V33 = {

@@ -17,3 +17,7 @@ snapshot.md
 .pytest_cache/
 PENDING-PAPER*.md
 TODO.md
+
+# Benchmark run-log artifacts (outputs, not source)
+*.log
+bench/runs/

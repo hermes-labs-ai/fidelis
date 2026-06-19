@@ -8,8 +8,9 @@ import json
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
-sys.path.insert(0, "/Users/rbr_lpci/Documents/projects/cogito-ergo/src")
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from cogito.recall_sessions import query_sessions
 
@@ -99,7 +100,7 @@ def run_eval():
         print(f"  Preview: {r['top_preview'][:200]}...")
         print(f"  Alt sids: [{r['alt_2']}, {r['alt_3']}]")
 
-    out_path = "/Users/rbr_lpci/Documents/projects/cogito-ergo/bench/runs/claude_code_user_eval.json"
+    out_path = str(Path(__file__).parent / "runs" / "claude_code_user_eval.json")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)

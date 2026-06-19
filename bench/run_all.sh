@@ -1,9 +1,10 @@
 #!/bin/bash
 # Run fixed baseline + multiquery benchmarks.
-# Usage: bash ~/Documents/projects/cogito-ergo/bench/run_all.sh
+# Usage: bash bench/run_all.sh   (from repo root)
+# LongMemEval dataset must be cloned alongside this repo, or set DATA= manually.
 set -e
-cd /Users/rbr_lpci/Documents/projects/cogito-ergo
-DATA=/Users/rbr_lpci/Documents/projects/LongMemEval/data
+cd "$(dirname "$0")/.."
+DATA="${DATA:-$(dirname "$0")/../../LongMemEval/data}"
 
 echo "=== FIXED BASELINE (4000-char truncation) ==="
 python3 bench/longmemeval_retrieval.py --data_dir="$DATA" 2>&1

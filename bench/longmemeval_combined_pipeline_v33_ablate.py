@@ -645,7 +645,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", choices=["s", "m"], default="s")
     parser.add_argument("--limit", type=int, default=0)
-    parser.add_argument("--data_dir", default="/Users/rbr_lpci/Documents/projects/LongMemEval/data")
+    parser.add_argument("--data_dir", default=str(Path(__file__).parent.parent.parent / "LongMemEval" / "data"))
     parser.add_argument("--no-filter", action="store_true", help="Skip LLM filter (Stage 1 only)")
     parser.add_argument("--run-id", default=None, help="Run ID for per-question logging")
     parser.add_argument("--resume", action="store_true", help="Resume from existing per_question.json")

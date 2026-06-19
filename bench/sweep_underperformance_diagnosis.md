@@ -289,9 +289,9 @@ Scaffold hits hardest when system instruction is weak (generic "rank by keyword 
 
 ## Files
 
-- **Baseline:** `/Users/rbr_lpci/Documents/projects/cogito-ergo/bench/runs/runC-guard/per_question.json` (470 qids, 94.0% R@1)
-- **Regression:** `/Users/rbr_lpci/Documents/projects/cogito-ergo/bench/runs/runD-temporal/per_question.json` (276 qids, 92.5% R@1)
+- **Baseline:** `bench/runs/runC-guard/per_question.json` (470 qids, 94.0% R@1)
+- **Regression:** `bench/runs/runD-temporal/per_question.json` (276 qids, 92.5% R@1)
 - **Pipeline (baseline):** `bench/longmemeval_combined_pipeline_guard.py` (LLM filter with temporal scaffold option)
 - **Scaffold code:** `bench/phase-4/temporal_scaffold.py` (build_temporal_scaffold, is_temporal_query)
-- **Evaluation data:** `/Users/rbr_lpci/Documents/projects/LongMemEval/data/longmemeval_s_cleaned.json`
+- **Evaluation data:** `<LongMemEval_repo>/data/longmemeval_s_cleaned.json`
 
