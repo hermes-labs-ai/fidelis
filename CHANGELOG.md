@@ -1,6 +1,10 @@
 # Changelog
 
 # fidelis era
+## v0.0.91 — 2026-06-18 (public release)
+- Public open-source release on GitHub + Zenodo DOI.
+- Repo hygiene only: relativized benchmark paths, removed run-log artifacts, refreshed module naming, added Zenodo metadata. No API changes vs v0.0.9.
+
 
 ## v0.0.5 — 2026-04-24 (first release as `fidelis`, renamed from `cogito-ergo`)
 

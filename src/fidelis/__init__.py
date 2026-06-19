@@ -14,7 +14,7 @@ Data paths and env var names retain the ``cogito`` prefix for continuity
 with existing deployments.
 """
 
-__version__ = "0.0.9"
+__version__ = "0.0.91"
 
 from fidelis.recall import recall  # noqa: F401
 
