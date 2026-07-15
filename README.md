@@ -137,7 +137,8 @@ LongMemEval-S, 470 questions, public benchmark.
 
 For context: published Mem0 results on LongMemEval-S are in the ~66–70% end-to-end QA range; Zep is 71.2%; Supermemory is 81.6%; full GPT-4o on raw context (no memory system) is 60.2%. fidelis reaches 73.0% with no LLM in the default retrieval path.
 
-Raw evidence: [`experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json`](experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json)
+Raw evidence: [retrieval aggregate](bench/runs/runP-v35/aggregate.json) ·
+[end-to-end QA summary](experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json)
 
 The QA tier wraps your existing LLM with a 140–180-token system prompt - the Fidelis Scaffold. See [`docs/scaffold.md`](docs/scaffold.md).
 

@@ -233,7 +233,7 @@ Measured 2026-04-24. Zero-LLM retrieval pipeline (BM25 + turn-level + prefixes +
 
 Per-qtype R@1: single-session-assistant 100%, knowledge-update 95.8%, single-session-user 95.3%, multi-session 83.5%, single-session-preference 66.7%, temporal-reasoning 66.1%.
 
-Raw aggregate: [`../experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json`](../experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json).
+Raw retrieval aggregate: [`../bench/runs/runP-v35/aggregate.json`](../bench/runs/runP-v35/aggregate.json).
 
 ### Secondary: internal `/recall` atomic-fact eval
 
