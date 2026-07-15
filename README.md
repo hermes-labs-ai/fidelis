@@ -4,7 +4,7 @@
 
 **73.0% end-to-end QA on LongMemEval-S. 83.2% R@1 retrieval. $0/query. No LLM in the default retrieval path.**
 
-Stop re-explaining context to your agent. fidelis returns your original notes verbatim, local-first, fast, about 60 seconds to install. Your agent already calls an LLM to think; it should not need another one just to remember. Designed for developers. Default zero-LLM retrieval path runs fully local with no outbound network calls, which simplifies SOC2 / HIPAA scoping for the memory layer.
+Stop re-explaining context to your agent. fidelis returns your original notes verbatim, local-first, fast, about 60 seconds to install. Your agent already calls an LLM to think; it should not need another one just to remember. Designed for developers. The default zero-LLM retrieval path does not send memory content to an LLM. The documented `fidelis init` service configuration also disables mem0 and Chroma telemetry. That can reduce third-party data exposure, but deployments still own their security and compliance assessment.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
@@ -41,17 +41,24 @@ What fidelis is:
 brew install ollama && ollama serve &
 ollama pull nomic-embed-text
 
-# 1. install + run
-pip install fidelis
+# 1. install the v0.0.91 GitHub source release (not the unrelated PyPI project)
+git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
+cd fidelis
+python3 -m pip install .
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
 fidelis mcp install           # wires Claude Code
 # Restart Claude Code. Memory is on.
 ```
 
+> **Package-name warning:** `fidelis` on PyPI belongs to the unrelated
+> [NGdust/fidelis](https://github.com/NGdust/fidelis) tabular-data project.
+> Hermes Labs Fidelis is not published on PyPI. Install this project only from
+> its tagged GitHub source as shown above.
+
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
-v0.0.9 - pre-release.
+v0.0.91 - GitHub source release; not published on PyPI.
 
 ## What you notice immediately
 
@@ -109,7 +116,7 @@ The MCP `fidelis_recall` tool fires before Claude composes its answer. Claude se
 Three concrete reasons teams pick fidelis over hosted memory:
 
 - **Cost reduction.** Stop paying for redundant context-window tokens on every turn. Memory lives on disk; the agent pulls only what's relevant per query. At a few thousand calls/day the math against per-query memory APIs adds up fast.
-- **Security & compliance.** Zero data egress in the default zero-LLM path simplifies SOC2 / HIPAA scoping for the agent-memory layer - your notes never leave the box, so the memory store falls outside any third-party data-processor agreement.
+- **Local data boundary.** The default zero-LLM path keeps notes and retrieval on the local machine, reducing third-party processor exposure. This architecture does not by itself confer SOC 2 or HIPAA compliance.
 - **Team context.** Agents that remember historical decisions, naming conventions, failed migrations, and the *qualifiers* on those decisions. The non-configurable detail you wrote down two months ago surfaces when relevant, in the founder's voice, not paraphrased.
 
 ## How it fits
@@ -130,7 +137,7 @@ LongMemEval-S, 470 questions, public benchmark.
 
 For context: published Mem0 results on LongMemEval-S are in the ~66–70% end-to-end QA range; Zep is 71.2%; Supermemory is 81.6%; full GPT-4o on raw context (no memory system) is 60.2%. fidelis reaches 73.0% with no LLM in the default retrieval path.
 
-Raw evidence: [`bench/runs/zeroLLM-full-20260424/aggregate.json`](bench/runs/zeroLLM-full-20260424/aggregate.json) · [`experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json`](experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json)
+Raw evidence: [`experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json`](experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json)
 
 The QA tier wraps your existing LLM with a 140–180-token system prompt - the Fidelis Scaffold. See [`docs/scaffold.md`](docs/scaffold.md).
 
@@ -200,10 +207,15 @@ After `fidelis init`:
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.9 honest list)
+## Known limitations (v0.0.91)
 
 - **Pre-release.** Python function names and CLI commands may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.
+- **Direct server launches need explicit telemetry settings.** `fidelis init`
+  installs a service with mem0 and Chroma telemetry disabled. If you run
+  `fidelis-server` directly, set `MEM0_TELEMETRY=False`,
+  `ANONYMIZED_TELEMETRY=False`, and `CHROMA_TELEMETRY_DISABLED=True` before
+  startup to get the same boundary.
 - **Temporal-reasoning and preference questions are the weakest qtypes** in the QA scaffold (TR ~58%, Pref ~37% on the full eval). Single-session and knowledge-update qtypes are strong (95–100%).
 - **The optional LLM tier ("flagship" mode) currently escalates ~80% of queries instead of the intended ~10%** - an 8× cost miss we're transparent about. The default zero-LLM tier is unaffected.
 - **qwen3.5:9b in thinking mode does not reliably follow the literal hedge instruction** in the Fidelis Scaffold. Use Claude, an OpenAI-format API, or non-thinking-mode local models for reliable hedging.
@@ -234,11 +246,11 @@ MIT. Built by Hermes Labs (Roli Bosch). Issues + PRs welcome.
 
 ## About Hermes Labs
 
-Hermes Labs is building reliability infrastructure for autonomous AI agents - memory, evaluation, observability, and containment. Founded 2025 by Rolando (Roli) Bosch, solo founder, AI-amplified ("cyborg engineering"). Based in the San Francisco Bay Area.
-
-The technical thesis: language sets the capability and intelligence; the model is the ceiling, not the source. Reliability is a question of linguistic infrastructure, not model tuning. Formalized as LPCI (Linguistically Persistent Cognitive Interface) - transfer entropy ≈ 0 in embedding-space proxy, Markov property holds, the substrate is linguistic. The engineering follow-on: when language is the substrate, the engineering is interpretive - recovering meaning across the boundaries between model and user, session and session, training and runtime.
-
-Public technical receipts. The first public open-source release is [fidelis](https://github.com/hermes-labs-ai/fidelis) - zero-LLM agent memory with integer-pointer fidelity. 73.0% end-to-end QA on LongMemEval-S, Wilson 95% CI [68.7%, 77.0%], at $0 per query, fully local. Other Hermes Labs OSS is listed at [github.com/hermes-labs-ai](https://github.com/hermes-labs-ai). Published research at [zenodo.org](https://zenodo.org). The OSS surface is the proof; the commercial work is deployment engagements.
+Hermes Labs develops open-source reliability, evaluation, memory, and
+containment tools for AI agents. Fidelis is its local-first memory project.
+Other public software is listed at
+[github.com/hermes-labs-ai](https://github.com/hermes-labs-ai), with research
+artifacts published separately on [Zenodo](https://zenodo.org).
 
 For enterprise deployments and AI-reliability engagements: [roli@hermes-labs.ai](mailto:roli@hermes-labs.ai) · [hermes-labs.ai](https://hermes-labs.ai)
 
@@ -248,7 +260,7 @@ Founder: Rolando (Roli) Bosch.
 Site: [hermes-labs.ai](https://hermes-labs.ai)
 Citation: Bosch, R. (2026). Hermes Labs: AI reliability infrastructure for autonomous agents. https://hermes-labs.ai
 
-Quantitative sources for claims above:
-- fidelis 73.0% / Wilson 95% CI [68.7%, 77.0%]: see fidelis/README.md "End-to-end QA accuracy" + experiments/zeroLLM-FLAGSHIP-evidence/, 470 questions, eval date 2026-04-24
-- LPCI thesis (TE ≈ 0 embedding-space proxy): langquant repo, commit dd918cc (2026-03-28) "LPCI PROVED" + lpci_rigorous.py:507-571
-- 24-failure taxonomy: hermes-rubric/calibration/failure-mode-taxonomy.md
+Quantitative source for the Fidelis claims above: the 470-question
+LongMemEval-S aggregate and Wilson interval in
+[`experiments/zeroLLM-FLAGSHIP-evidence/`](experiments/zeroLLM-FLAGSHIP-evidence/),
+evaluated 2026-04-24.

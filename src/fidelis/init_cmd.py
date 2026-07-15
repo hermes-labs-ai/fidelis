@@ -116,8 +116,8 @@ def _server_bin() -> str:
         return str(candidate)
     raise RuntimeError(
         "fidelis-server entry point not found on PATH. "
-        "Did you `pip install fidelis`? If running from source, "
-        "`pip install -e .` to register the console script."
+        "Reinstall Hermes Labs Fidelis from its tagged GitHub source; "
+        "see the README installation instructions."
     )
 
 

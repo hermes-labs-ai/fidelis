@@ -1,15 +1,16 @@
 # fidelis
 
-> **v0.1.0 (2026-04-27).** Agent memory that's on by default. One command
-> starts the service, one command auto-ingests your notes, one command wires
-> Claude Code. 73% QA on LongMemEval-S, $0/q via Claude subscription, fully
-> local retrieval. **Validated on Claude + OpenAI-format APIs at 100/100
-> hedge + answer compliance. 383 tests passing.**
+> **Package release v0.0.91 (2026-06-18).** The separately versioned Fidelis
+> Scaffold protocol remains v0.1.0 in the API and examples below. Hermes Labs
+> Fidelis is distributed from tagged GitHub source and is not the unrelated
+> PyPI project named `fidelis`.
 
 ## 60-second quickstart
 
 ```bash
-pip install fidelis
+git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
+cd fidelis
+python3 -m pip install .
 fidelis init                  # installs + starts the service (launchd/systemd)
 fidelis watch ~/notes         # auto-ingests markdown/text, polls for new files
 fidelis mcp install           # wires Claude Code MCP integration
@@ -102,8 +103,7 @@ Full 470-question evaluation in progress; smoke evidence + machine-readable summ
 
 A separate `/recall` atomic path is purpose-built for short-fact lookup (not session retrieval); it scores 85% R@1 combined with the snapshot layer on a 31-case internal atomic-fact eval. This is a secondary surface; the headline retrieval number above (83.2% R@1 on the full 470-question LongMemEval-S) is the authoritative session-retrieval measurement.
 
-[![PyPI version](https://img.shields.io/pypi/v/fidelis)](https://pypi.org/project/fidelis/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://pypi.org/project/fidelis/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
@@ -233,7 +233,7 @@ Measured 2026-04-24. Zero-LLM retrieval pipeline (BM25 + turn-level + prefixes +
 
 Per-qtype R@1: single-session-assistant 100%, knowledge-update 95.8%, single-session-user 95.3%, multi-session 83.5%, single-session-preference 66.7%, temporal-reasoning 66.1%.
 
-Raw aggregate: [`bench/runs/zeroLLM-full-20260424/aggregate.json`](bench/runs/zeroLLM-full-20260424/aggregate.json).
+Raw aggregate: [`../experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json`](../experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json).
 
 ### Secondary: internal `/recall` atomic-fact eval
 
@@ -258,7 +258,9 @@ Key results:
 **1. Install**
 
 ```bash
-pip install fidelis
+git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
+cd fidelis
+python3 -m pip install .
 ```
 
 **2. Pull Ollama models**
@@ -412,7 +414,7 @@ Query
 
 ```bash
 # Optional dependency for best BM25 fusion (zero deps fallback if absent)
-pip install fidelis[hybrid]
+python3 -m pip install '.[hybrid]'
 
 # Opt-in: set a filter endpoint (any OpenAI-compatible API)
 export COGITO_FILTER_ENDPOINT=https://dashscope-intl.aliyuncs.com/compatible-mode/v1

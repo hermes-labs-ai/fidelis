@@ -82,7 +82,7 @@ Query: "what did we discuss about LPCI proof last week?"
 **`cogito_recall_both`** — atomic facts + session history side-by-side
 ```
 === ATOMIC (facts) ===
-  [1] LPCI PROVED 2026-03-28: stateless LLM holds state via language scaffold, TE≈0
+  [1] LPCI 2026-03-28: one 20-turn A/B run tested language-scaffold state; single observation, not proof
   ...
 
 === SESSIONS (Claude Code history) ===

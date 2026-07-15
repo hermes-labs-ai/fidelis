@@ -39,7 +39,8 @@ def cmd_mcp_install(args) -> int:
     if not MCP_SERVER_FILE.exists():
         print(
             f"error: bundled MCP server not found at {MCP_SERVER_FILE}\n"
-            f"  this fidelis install appears incomplete; reinstall with `pip install fidelis`",
+            "  this install appears incomplete; reinstall Hermes Labs Fidelis "
+            "from its tagged GitHub source (see README)",
             file=sys.stderr,
         )
         return 1
