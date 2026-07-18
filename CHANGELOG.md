@@ -1,5 +1,16 @@
 # Changelog
 
+# Unreleased
+
+- Correct every current install surface to use tagged GitHub source; the PyPI
+  project named `fidelis` is unrelated to Hermes Labs Fidelis.
+- Align public package status with v0.0.91 and remove a dead benchmark link.
+- Narrow local-data and compliance wording to the demonstrated boundary.
+- Document that direct server launches need the telemetry environment settings
+  which `fidelis init` installs automatically.
+- Remove cross-project proof language from current Fidelis presentation.
+- Add a regression test for the public installation contract.
+
 # fidelis era
 ## v0.0.91 — 2026-06-18 (public release)
 - Public open-source release on GitHub + Zenodo DOI.

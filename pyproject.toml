@@ -29,7 +29,7 @@ dependencies = [
   # mem0's ollama embedder lazy-imports `ollama`. Without it on PYTHONPATH,
   # mem0 hits an interactive input() prompt at boot, which crashes a
   # non-tty server context (launchd / systemd / MCP) with EOFError. Bundling
-  # the client makes `pip install fidelis` non-interactive end-to-end.
+  # the client makes a source install non-interactive end-to-end.
   "ollama>=0.4.0",
 ]
 

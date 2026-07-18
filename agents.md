@@ -203,5 +203,5 @@ Env-var aliases of note (set without touching config files):
 ## Source
 
 https://github.com/hermes-labs-ai/fidelis
-PyPI: https://pypi.org/project/fidelis/
+Distribution: tagged GitHub source only. The PyPI project named `fidelis` is unrelated.
 Part of the Hermes Labs suite: https://hermes-labs.ai

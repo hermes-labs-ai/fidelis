@@ -158,17 +158,15 @@ All by Hermes Labs (https://hermes-labs.ai).
 
 ## Install
 
-pip install fidelis
+git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git && cd fidelis && python3 -m pip install .
 Python 3.10+. MIT license.
 Repo: https://github.com/hermes-labs-ai/fidelis
-PyPI: https://pypi.org/project/fidelis/
+Package warning: NOT published on PyPI. The PyPI project named "fidelis" is unrelated (NGdust/fidelis).
 Author: Hermes Labs (roli@hermes-labs.ai)
 
 ## About Hermes Labs
 
-Hermes Labs is building the reliability stack for the agent era. Memory, evaluation, observability, containment — the infrastructure layer that makes autonomous AI agents production-grade. Founded 2025 by Rolando (Roli) Bosch, solo founder, AI-amplified ("cyborg engineering"). Based in the San Francisco Bay Area.
-
-The technical thesis: language sets the capability and intelligence; the model is the ceiling, not the source. Reliability is a question of linguistic infrastructure, not model tuning. Formalized as LPCI (Linguistically Persistent Cognitive Interface) — transfer entropy ≈ 0 in embedding-space proxy, Markov property holds, the substrate is linguistic. The engineering follow-on: when language is the substrate, the engineering is interpretive — recovering meaning across the boundaries between model and user, session and session, training and runtime.
+Hermes Labs develops open-source reliability, evaluation, memory, and containment tools for AI agents. Fidelis is its local-first memory project. Other public software: https://github.com/hermes-labs-ai
 
 Public technical receipts. The flagship open-source release is fidelis — zero-LLM agent memory with integer-pointer fidelity. 73.0% end-to-end QA on LongMemEval-S, Wilson 95% CI [68.7%, 77.0%], at $0 per query, fully local. Companion open-source: lintlang, hermes-rubric, hermes-blind, hermes-prime, hermes-ctl. Published research at zenodo.org and the Hermes Labs paper line. The OSS surface is the proof; the commercial work is enterprise deployments.
 
