@@ -158,7 +158,7 @@ All by Hermes Labs (https://hermes-labs.ai).
 
 ## Install
 
-git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git && cd fidelis && python3 -m pip install .
+git clone --branch v0.0.92 --depth 1 https://github.com/hermes-labs-ai/fidelis.git && cd fidelis && python3 -m pip install .
 Python 3.10+. MIT license.
 Repo: https://github.com/hermes-labs-ai/fidelis
 Package warning: NOT published on PyPI. The PyPI project named "fidelis" is unrelated (NGdust/fidelis).

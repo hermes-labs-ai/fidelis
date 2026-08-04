@@ -13,10 +13,13 @@ import socket
 import subprocess
 import sys
 import time
+import types
 import urllib.request
 from pathlib import Path
 
 import pytest
+
+from fidelis import server
 
 
 def _free_port() -> int:
@@ -81,7 +84,11 @@ def test_sigterm_triggers_clean_shutdown(tmp_path: Path):
             return_code = proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
-            pytest.fail("SIGTERM did not stop the server within 5s — graceful shutdown regressed")
+            output, _ = proc.communicate(timeout=5)
+            pytest.fail(
+                "SIGTERM did not stop the server within 5s — graceful shutdown regressed.\n"
+                f"output tail:\n{output[-2000:]}"
+            )
 
         # Process must have exited with 0 (clean) — anything else means an
         # unhandled exception killed it instead of the signal handler.
@@ -108,3 +115,35 @@ def test_signal_handlers_registered_in_main():
     assert "signal.SIGINT" in src, "SIGINT handler missing from server.main()"
     assert "httpd.shutdown" in src, "graceful httpd.shutdown call missing"
     assert "Stopped cleanly" in src, "clean-stop marker missing — friend will not see exit signal"
+
+
+@pytest.mark.parametrize(
+    ("configured", "expected"),
+    [(None, "False"), ("True", "True")],
+)
+def test_boot_defaults_mem0_telemetry_off_but_preserves_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+    configured: str | None,
+    expected: str,
+):
+    """Direct launches use the service's telemetry-off default without
+    overriding an operator's explicit choice."""
+    if configured is None:
+        monkeypatch.delenv("MEM0_TELEMETRY", raising=False)
+    else:
+        monkeypatch.setenv("MEM0_TELEMETRY", configured)
+
+    seen: dict[str, object] = {}
+
+    class FakeMemory:
+        @staticmethod
+        def from_config(config):
+            seen["config"] = config
+            return "memory"
+
+    monkeypatch.setitem(sys.modules, "mem0", types.SimpleNamespace(Memory=FakeMemory))
+    monkeypatch.setattr(server, "mem0_config", lambda cfg: cfg)
+
+    assert server._boot({"test": True}) == "memory"
+    assert seen["config"] == {"test": True}
+    assert server.os.environ["MEM0_TELEMETRY"] == expected

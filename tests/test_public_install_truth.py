@@ -23,7 +23,7 @@ def test_public_surfaces_do_not_install_unrelated_pypi_project():
 def test_primary_surfaces_pin_current_github_source_release():
     for path in (ROOT / "README.md", ROOT / "llms.txt", ROOT / "docs" / "full-reference.md"):
         text = path.read_text()
-        assert "--branch v0.0.91 --depth 1" in text, path
+        assert "--branch v0.0.92 --depth 1" in text, path
         assert "python3 -m pip install ." in text, path
 
 
@@ -41,8 +41,10 @@ def test_current_readme_links_shipped_benchmark_receipts():
     assert recall["R@5"] == 0.983
 
 
-def test_readme_scopes_no_telemetry_claim_to_documented_service_path():
+def test_readme_scopes_no_telemetry_claim_to_documented_defaults():
     readme = (ROOT / "README.md").read_text()
     assert "no outbound network calls" not in readme
-    assert "Direct server launches need explicit telemetry settings" in readme
-    assert "MEM0_TELEMETRY=False" in readme
+    assert "Direct server launches disable mem0 telemetry by default" in readme
+    assert "MEM0_TELEMETRY=True" in readme
+    assert "ANONYMIZED_TELEMETRY=False" in readme
+    assert "CHROMA_TELEMETRY_DISABLED=True" in readme
