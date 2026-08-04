@@ -1,16 +1,16 @@
 name: CI
 
-# Hermetic CI for v0.0.91: runs on fresh Ubuntu and macOS runners. Proves the
+# Hermetic CI for v0.0.92: runs on fresh Ubuntu and macOS runners. Proves the
 # fidelis package installs cleanly from source on a box that has never seen it
 # before — the equivalent of a beta tester installing the tagged source. Tests
 # that require a live Ollama or LLM endpoint are excluded by directory; the
-# rest (~470) must pass on every commit.
+# rest (~370) must pass on every commit.
 #
 # What this catches:
 #   - missing dependencies (e.g. the `ollama` python lib that crashed our
 #     fresh-venv smoke test before we added it to pyproject)
 #   - macOS-only or Linux-only path bugs
-#   - Python-version regressions across 3.10/3.11/3.12
+#   - Python-version regressions across 3.10 through 3.14
 #   - lint regressions
 #   - silent test-collection failures
 #
@@ -38,7 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - name: Checkout

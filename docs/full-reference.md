@@ -1,6 +1,6 @@
 # fidelis
 
-> **Package release v0.0.91 (2026-06-18).** The separately versioned Fidelis
+> **Package release v0.0.92 (2026-08-04).** The separately versioned Fidelis
 > Scaffold protocol remains v0.1.0 in the API and examples below. Hermes Labs
 > Fidelis is distributed from tagged GitHub source and is not the unrelated
 > PyPI project named `fidelis`.
@@ -8,7 +8,7 @@
 ## 60-second quickstart
 
 ```bash
-git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
+git clone --branch v0.0.92 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
 cd fidelis
 python3 -m pip install .
 fidelis init                  # installs + starts the service (launchd/systemd)
@@ -104,6 +104,11 @@ Full 470-question evaluation in progress; smoke evidence + machine-readable summ
 A separate `/recall` atomic path is purpose-built for short-fact lookup (not session retrieval); it scores 85% R@1 combined with the snapshot layer on a 31-case internal atomic-fact eval. This is a secondary surface; the headline retrieval number above (83.2% R@1 on the full 470-question LongMemEval-S) is the authoritative session-retrieval measurement.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+
+CI exercises Python 3.10 through 3.14 on Linux and macOS. Direct
+`fidelis-server` launches default `MEM0_TELEMETRY` to `False`, matching the
+generated service configuration and preventing telemetry cleanup from delaying
+graceful process shutdown. Set `MEM0_TELEMETRY=True` explicitly to opt in.
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
@@ -258,7 +263,7 @@ Key results:
 **1. Install**
 
 ```bash
-git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
+git clone --branch v0.0.92 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
 cd fidelis
 python3 -m pip install .
 ```

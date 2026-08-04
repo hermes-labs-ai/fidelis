@@ -8,7 +8,7 @@ Stop re-explaining context to your agent. fidelis returns your original notes ve
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
-[![Tests: 486 passing](https://img.shields.io/badge/tests-486%20passing-brightgreen)](tests/)
+[![CI tests: 368 passing](https://img.shields.io/badge/CI%20tests-368%20passing-brightgreen)](tests/)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
 ```
@@ -41,8 +41,8 @@ What fidelis is:
 brew install ollama && ollama serve &
 ollama pull nomic-embed-text
 
-# 1. install the v0.0.91 GitHub source release (not the unrelated PyPI project)
-git clone --branch v0.0.91 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
+# 1. install the v0.0.92 GitHub source release (not the unrelated PyPI project)
+git clone --branch v0.0.92 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
 cd fidelis
 python3 -m pip install .
 fidelis init                  # background service (launchd / systemd)
@@ -58,7 +58,7 @@ fidelis mcp install           # wires Claude Code
 
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
-v0.0.91 - GitHub source release; not published on PyPI.
+v0.0.92 - GitHub source release; not published on PyPI.
 
 ## What you notice immediately
 
@@ -223,15 +223,16 @@ After `fidelis init`:
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.91)
+## Known limitations (v0.0.92)
 
 - **Pre-release.** Python function names and CLI commands may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.
-- **Direct server launches need explicit telemetry settings.** `fidelis init`
-  installs a service with mem0 and Chroma telemetry disabled. If you run
-  `fidelis-server` directly, set `MEM0_TELEMETRY=False`,
-  `ANONYMIZED_TELEMETRY=False`, and `CHROMA_TELEMETRY_DISABLED=True` before
-  startup to get the same boundary.
+- **Direct server launches disable mem0 telemetry by default.** This matches
+  the service installed by `fidelis init` and avoids telemetry exit handlers
+  delaying graceful shutdown. An explicit `MEM0_TELEMETRY=True` still opts in.
+  For the same boundary across Chroma, set `ANONYMIZED_TELEMETRY=False` and
+  `CHROMA_TELEMETRY_DISABLED=True` before a direct launch; `fidelis init`
+  includes all three settings automatically.
 - **Temporal-reasoning and preference questions are the weakest qtypes** in the QA scaffold (TR ~58%, Pref ~37% on the full eval). Single-session and knowledge-update qtypes are strong (95–100%).
 - **The optional LLM tier ("flagship" mode) currently escalates ~80% of queries instead of the intended ~10%** - an 8× cost miss we're transparent about. The default zero-LLM tier is unaffected.
 - **qwen3.5:9b in thinking mode does not reliably follow the literal hedge instruction** in the Fidelis Scaffold. Use Claude, an OpenAI-format API, or non-thinking-mode local models for reliable hedging.

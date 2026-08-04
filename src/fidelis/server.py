@@ -65,6 +65,12 @@ def _boot(cfg: dict) -> object:
     if site and site not in sys.path:
         sys.path.insert(0, site)
 
+    # Match the service installed by `fidelis init`: keep mem0 telemetry off
+    # unless an operator explicitly opts in. Besides preserving the documented
+    # local-first boundary for direct launches, this prevents posthog's exit
+    # handlers from delaying process termination after a graceful SIGTERM.
+    os.environ.setdefault("MEM0_TELEMETRY", "False")
+
     from mem0 import Memory  # type: ignore
 
     m = Memory.from_config(mem0_config(cfg))

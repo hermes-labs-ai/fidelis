@@ -2,6 +2,8 @@
 
 # Unreleased
 
+## v0.0.92 — 2026-08-04
+
 - Preserve `/add` input verbatim when the extraction model returns no facts,
   expose the degraded fallback through HTTP and CLI, and apply the same
   no-silent-loss rule during queued-write replay.
@@ -9,8 +11,9 @@
   project named `fidelis` is unrelated to Hermes Labs Fidelis.
 - Align public package status with v0.0.91 and remove a dead benchmark link.
 - Narrow local-data and compliance wording to the demonstrated boundary.
-- Document that direct server launches need the telemetry environment settings
-  which `fidelis init` installs automatically.
+- Default mem0 telemetry off for direct server launches so SIGTERM completes
+  cleanly, while preserving explicit opt-in; document the remaining Chroma
+  settings and extend CI coverage through Python 3.14.
 - Remove cross-project proof language from current Fidelis presentation.
 - Add a regression test for the public installation contract.
 

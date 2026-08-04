@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fidelis"
-version = "0.0.91"
+version = "0.0.92"
 description = "Faithful agent memory — zero-LLM retrieval default (83.2% R@1 on LongMemEval_S, $0/query, fully local), integer-pointer fidelity on the optional LLM tier. By Hermes Labs."
 readme = "README.md"
 license = { text = "MIT" }
@@ -22,6 +22,11 @@ classifiers = [
   "Intended Audience :: Developers",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
   "mem0ai>=2.0.0,<3.0",
