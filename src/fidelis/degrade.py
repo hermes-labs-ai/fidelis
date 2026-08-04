@@ -16,6 +16,8 @@ import time
 import uuid
 from pathlib import Path
 
+from chromadb.errors import DuplicateIDError
+
 MAX_ATTEMPTS = 5
 
 
@@ -93,6 +95,20 @@ def dead_count() -> int:
     return len(list(ddir.glob("*.json")))
 
 
+def _usable_extracted_memories(result) -> list[str]:
+    """Return only non-blank facts from mem0's optional result envelope."""
+    if not isinstance(result, dict):
+        return []
+    extracted = []
+    for item in result.get("results") or []:
+        if not isinstance(item, dict):
+            continue
+        value = item.get("memory")
+        if isinstance(value, str) and value.strip():
+            extracted.append(value)
+    return extracted
+
+
 def safe_add(memory, text: str, user_id: str, kind: str = "add") -> dict:
     """Try to write through mem0; on dependency failure, queue locally.
 
@@ -111,7 +127,24 @@ def safe_add(memory, text: str, user_id: str, kind: str = "add") -> dict:
             )
             return {"status": "stored", "id": mid, "extracted": [text]}
         result = memory.add(text, user_id=user_id)
-        extracted = [m.get("memory", "") for m in result.get("results", [])]
+        extracted = _usable_extracted_memories(result)
+        if not extracted:
+            # mem0 can swallow an extraction-model failure and return no facts.
+            # Preserve the caller's input through the same verbatim path used
+            # by queued-write replay, but mark that extraction did not succeed.
+            mid = str(uuid.uuid4())
+            _replay_verbatim(memory, {
+                "id": mid,
+                "text": text,
+                "user_id": user_id,
+                "kind": "add",
+            })
+            return {
+                "status": "stored",
+                "id": mid,
+                "extracted": [text],
+                "degraded": "verbatim-fallback-empty-extraction",
+            }
         return {"status": "stored", "extracted": extracted}
     except Exception as e:
         mid = queue_write(text, user_id, kind=kind)
@@ -152,9 +185,12 @@ def replay_queue(memory, user_id: str) -> dict:
             if rec.get("kind") == "store":
                 _replay_verbatim(memory, rec)
             else:
+                add_result = None
                 try:
-                    memory.add(rec["text"], user_id=rec["user_id"])
+                    add_result = memory.add(rec["text"], user_id=rec["user_id"])
                 except Exception:
+                    add_result = None
+                if not _usable_extracted_memories(add_result):
                     _replay_verbatim(memory, rec)
                     replayed_verbatim += 1
             qfile.unlink()
@@ -213,6 +249,15 @@ def _replay_verbatim(memory, rec: dict) -> None:
     except Exception as e:
         # chromadb raises on duplicate ids — that's a successful prior insert.
         # Any other error propagates so the caller can count it as a failure.
-        if "exist" in str(e).lower() or "duplicate" in str(e).lower():
+        if isinstance(e, DuplicateIDError):
+            return
+        message = str(e).lower()
+        duplicate_markers = (
+            "existing embedding id",
+            "duplicate embedding id",
+            "duplicate id",
+            "id already exists",
+        )
+        if any(marker in message for marker in duplicate_markers):
             return
         raise

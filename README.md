@@ -175,9 +175,24 @@ The full init-to-first-recall cycle is under 60 seconds once Ollama is up. No me
 ```bash
 fidelis recall "what did the user say about Sarah"
 fidelis query  "Sarah" --limit 5
+fidelis add    "raw text to extract into memories"
 fidelis health
 fidelis seed   ~/memory/   ~/notes/
 ```
+
+`fidelis add` normally stores facts produced by the configured extraction
+model. If extraction returns no facts, Fidelis preserves the original input
+verbatim instead of silently losing it. The command still exits 0 because the
+write succeeded, but stdout reports a stable degraded status:
+
+```text
+status=stored degraded=verbatim-fallback-empty-extraction id=<uuid> count=1
+```
+
+Automation that requires successful extraction must inspect `degraded`; exit 0
+means the memory was stored, not necessarily that extraction succeeded. Because
+mem0 does not distinguish a swallowed extractor failure from a legitimate
+zero-fact result, the fallback intentionally favors durability.
 
 Python helper for direct integration:
 

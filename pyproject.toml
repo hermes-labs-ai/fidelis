@@ -36,7 +36,7 @@ dependencies = [
 [project.optional-dependencies]
 ollama = []  # no extra deps — Ollama runs locally
 hybrid = ["bm25s>=0.2"]  # BM25 fusion for recall_hybrid; degrades gracefully if absent
-dev = ["pytest", "pytest-asyncio", "httpx", "ruff"]
+dev = ["pytest", "pytest-asyncio", "httpx", "ruff==0.15.22"]
 
 [project.scripts]
 fidelis = "fidelis.cli:main"

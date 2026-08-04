@@ -661,8 +661,22 @@ Request:
 
 Response:
 ```json
-{"count": 3, "memories": ["extracted fact 1", "extracted fact 2", "extracted fact 3"]}
+{"status": "stored", "count": 3, "memories": ["extracted fact 1", "extracted fact 2", "extracted fact 3"]}
 ```
+
+If extraction returns no facts, Fidelis stores the original input verbatim so
+the write is not silently lost. The response remains HTTP 200 because storage
+succeeded, and adds an explicit degraded marker and record ID:
+
+```json
+{"status": "stored", "count": 1, "memories": ["free-form text to remember"], "degraded": "verbatim-fallback-empty-extraction", "id": "abc123..."}
+```
+
+The CLI exits 0 for this result and prints a stable `status=stored
+degraded=verbatim-fallback-empty-extraction id=<uuid> count=1` line. Callers
+that require extracted facts must inspect `degraded`; exit 0 establishes only
+that the input was stored. mem0 does not distinguish a swallowed extractor
+failure from a legitimate zero-fact result, so this fallback favors durability.
 
 ---
 
@@ -869,12 +883,18 @@ records 0% escalation by construction.
 All writes go through `fidelis.degrade.safe_add`:
 
 - Dependency up → memory stored + response returned
+- Extraction returns no facts → original input stored verbatim and response
+  marked `degraded=verbatim-fallback-empty-extraction`
 - Dependency down → write queued to `~/.cogito/queue/<ts>-<uuid>.json`,
   success returned; no data lost
+- Queue replay uses the same verbatim fallback and removes a queued item only
+  after extraction or fallback storage succeeds
 - Call `fidelis.degrade.replay_queue(memory, user_id)` when the
   dependency recovers to drain
 
-See `tests/test_graceful_degrade.py` for the state machine and
+See `tests/test_graceful_degrade.py` and
+`tests/test_write_fallback_contract.py` for the state machine and public
+fallback contract, and
 `tests/test_graceful_degrade_corruption.py` for the corrupt-queue-file
 branch coverage.
 

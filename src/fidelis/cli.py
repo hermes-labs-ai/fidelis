@@ -118,6 +118,18 @@ def cmd_query(args):
 def cmd_add(args):
     text = " ".join(args.text)
     result = _post("/add", {"text": text})
+    if result.get("degraded"):
+        print(
+            f"status={result.get('status', 'stored')} "
+            f"degraded={result['degraded']} "
+            f"id={result.get('id', '?')} count={result.get('count', 0)}"
+        )
+        print(
+            "Warning: extraction did not produce facts; the original input "
+            "was stored verbatim as a durability fallback.",
+            file=sys.stderr,
+        )
+        return
     print(f"Added {result.get('count', 0)} memories.")
     for m in result.get("memories", []):
         print(f"  → {m}")
