@@ -2,6 +2,9 @@
 
 # Unreleased
 
+- Preserve `/add` input verbatim when the extraction model returns no facts,
+  expose the degraded fallback through HTTP and CLI, and apply the same
+  no-silent-loss rule during queued-write replay.
 - Correct every current install surface to use tagged GitHub source; the PyPI
   project named `fidelis` is unrelated to Hermes Labs Fidelis.
 - Align public package status with v0.0.91 and remove a dead benchmark link.

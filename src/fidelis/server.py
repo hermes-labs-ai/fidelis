@@ -291,11 +291,15 @@ def make_handler(memory: object, cfg: dict) -> type:
                         }, 202)  # 202 Accepted: write deferred
                     else:
                         extracted = result.get("extracted", [])
-                        self._json({
+                        response = {
                             "status": "stored",
                             "count": len(extracted),
                             "memories": extracted,
-                        })
+                        }
+                        if result.get("degraded"):
+                            response["degraded"] = result["degraded"]
+                            response["id"] = result.get("id")
+                        self._json(response)
 
                 else:
                     self._json({"error": "not found"}, 404)
