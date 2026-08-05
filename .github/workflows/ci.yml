@@ -1,6 +1,6 @@
 name: CI
 
-# Hermetic CI for v0.0.92: runs on fresh Ubuntu and macOS runners. Proves the
+# Hermetic CI for the current Fidelis Memory release: runs on fresh Ubuntu and macOS runners. Proves the
 # fidelis package installs cleanly from source on a box that has never seen it
 # before — the equivalent of a beta tester installing the tagged source. Tests
 # that require a live Ollama or LLM endpoint are excluded by directory; the

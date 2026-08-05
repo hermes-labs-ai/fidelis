@@ -16,15 +16,15 @@ PUBLIC_SURFACES = (
 def test_public_surfaces_do_not_install_unrelated_pypi_project():
     for path in PUBLIC_SURFACES:
         text = path.read_text()
-        assert "pip install fidelis" not in text, path
+        assert "pip install fidelis\n" not in text, path
+        assert "pip install fidelis " not in text, path
         assert "pypi.org/project/fidelis" not in text, path
 
 
-def test_primary_surfaces_pin_current_github_source_release():
+def test_primary_surfaces_install_the_fidelis_memory_distribution():
     for path in (ROOT / "README.md", ROOT / "llms.txt", ROOT / "docs" / "full-reference.md"):
         text = path.read_text()
-        assert "--branch v0.0.92 --depth 1" in text, path
-        assert "python3 -m pip install ." in text, path
+        assert 'python3 -m pip install "fidelis-memory==0.0.93"' in text, path
 
 
 def test_current_readme_links_shipped_benchmark_receipts():

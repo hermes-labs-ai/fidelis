@@ -1,6 +1,6 @@
-# fidelis
+# Fidelis Memory
 
-## Zero-LLM memory for Claude Code and AI agents.
+## Local-first, zero-LLM memory for Claude Code and AI agents.
 
 **73.0% end-to-end QA on LongMemEval-S. 83.2% R@1 retrieval. $0/query. No LLM in the default retrieval path.**
 
@@ -41,24 +41,21 @@ What fidelis is:
 brew install ollama && ollama serve &
 ollama pull nomic-embed-text
 
-# 1. install the v0.0.92 GitHub source release (not the unrelated PyPI project)
-git clone --branch v0.0.92 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
-cd fidelis
-python3 -m pip install .
+# 1. install Fidelis Memory from PyPI
+python3 -m pip install "fidelis-memory==0.0.93"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
 fidelis mcp install           # wires Claude Code
 # Restart Claude Code. Memory is on.
 ```
 
-> **Package-name warning:** `fidelis` on PyPI belongs to the unrelated
-> [NGdust/fidelis](https://github.com/NGdust/fidelis) tabular-data project.
-> Hermes Labs Fidelis is not published on PyPI. Install this project only from
-> its tagged GitHub source as shown above.
+> **Package-name note:** install Hermes Labs' package as `fidelis-memory`.
+> The import name and CLI remain `fidelis`. The separate PyPI project named
+> `fidelis` belongs to [NGdust/fidelis](https://github.com/NGdust/fidelis).
 
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
-v0.0.92 - GitHub source release; not published on PyPI.
+v0.0.93 - first PyPI release of `fidelis-memory`.
 
 ## What you notice immediately
 
@@ -223,7 +220,7 @@ After `fidelis init`:
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.92)
+## Known limitations (v0.0.93)
 
 - **Pre-release.** Python function names and CLI commands may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.
@@ -245,7 +242,7 @@ Day 7: your agent starts carrying project context across sessions; you stop re-e
 
 Useful for solo builders today; relevant for teams that need memory to stay local tomorrow.
 
-## fidelis for teams
+## Fidelis Memory for teams
 
 fidelis is open-source under MIT and free for any use, including commercial. If your team has deployment requirements that the OSS path does not yet cover (centralized memory, multi-namespace isolation, custom authentication), write to **founders@hermes-labs.ai**.
 

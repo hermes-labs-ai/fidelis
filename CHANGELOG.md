@@ -2,6 +2,15 @@
 
 # Unreleased
 
+## v0.0.93 — 2026-08-05
+
+- Publish the Hermes Labs distribution to PyPI as `fidelis-memory`.
+- Make **Fidelis Memory** the user-facing product name across package metadata
+  and primary documentation, while preserving the `fidelis` repository, import,
+  and CLI names for compatibility.
+- Replace the GitHub-source install path in primary documentation with the
+  version-pinned PyPI installation command.
+
 ## v0.0.92 — 2026-08-04
 
 - Preserve `/add` input verbatim when the extraction model returns no facts,

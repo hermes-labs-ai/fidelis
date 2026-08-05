@@ -1,16 +1,14 @@
-# fidelis
+# Fidelis Memory
 
-> **Package release v0.0.92 (2026-08-04).** The separately versioned Fidelis
-> Scaffold protocol remains v0.1.0 in the API and examples below. Hermes Labs
-> Fidelis is distributed from tagged GitHub source and is not the unrelated
-> PyPI project named `fidelis`.
+> **Package release v0.0.93.** Install the Hermes Labs distribution from PyPI
+> as `fidelis-memory`; the import name and CLI remain `fidelis`. The separately
+> versioned Fidelis Scaffold protocol remains v0.1.0 in the API and examples
+> below. The separate PyPI project named `fidelis` is unrelated.
 
 ## 60-second quickstart
 
 ```bash
-git clone --branch v0.0.92 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
-cd fidelis
-python3 -m pip install .
+python3 -m pip install "fidelis-memory==0.0.93"
 fidelis init                  # installs + starts the service (launchd/systemd)
 fidelis watch ~/notes         # auto-ingests markdown/text, polls for new files
 fidelis mcp install           # wires Claude Code MCP integration
@@ -263,9 +261,7 @@ Key results:
 **1. Install**
 
 ```bash
-git clone --branch v0.0.92 --depth 1 https://github.com/hermes-labs-ai/fidelis.git
-cd fidelis
-python3 -m pip install .
+python3 -m pip install "fidelis-memory==0.0.93"
 ```
 
 **2. Pull Ollama models**
@@ -419,7 +415,7 @@ Query
 
 ```bash
 # Optional dependency for best BM25 fusion (zero deps fallback if absent)
-python3 -m pip install '.[hybrid]'
+python3 -m pip install "fidelis-memory[hybrid]==0.0.93"
 
 # Opt-in: set a filter endpoint (any OpenAI-compatible API)
 export COGITO_FILTER_ENDPOINT=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
