@@ -268,7 +268,7 @@ artifacts published separately on [Zenodo](https://zenodo.org).
 
 For enterprise deployments and AI-reliability engagements: [roli@hermes-labs.ai](mailto:roli@hermes-labs.ai) · [hermes-labs.ai](https://hermes-labs.ai)
 
-On naming. Hermes Labs is named for Hermes, the Greek messenger god - patron of communication and interpretation, the herald who carries meaning between worlds. The thread to the work: hermeneutics, the theory of interpretation that takes its name from Hermes, is the philosophical anchor for an AI infrastructure company whose substrate is linguistic. Not affiliated with NousResearch's Hermes LLM line or their hermes-agent framework - different companies, different work.
+On naming. Hermes Labs is named for Hermes, the Greek messenger god - patron of communication and interpretation, the herald who carries meaning between worlds. The thread to the work: hermeneutics, the theory of interpretation that takes its name from Hermes, is the philosophical anchor for an AI reliability engineering studio whose substrate is linguistic. Not affiliated with NousResearch's Hermes LLM line or their hermes-agent framework - different companies, different work.
 
 Founder: Rolando (Roli) Bosch.
 Site: [hermes-labs.ai](https://hermes-labs.ai)
