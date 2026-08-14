@@ -19,7 +19,6 @@
     "macOS",
     "Linux"
   ],
-  "applicationCategory": "AI agent memory",
   "keywords": [
     "agent memory",
     "zero-LLM retrieval",
