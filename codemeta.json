@@ -1,0 +1,49 @@
+{
+  "@context": "https://w3id.org/codemeta/3.1",
+  "@type": "SoftwareSourceCode",
+  "name": "fidelis",
+  "description": "Local-first, zero-LLM memory for Claude Code and AI agents. The source project, import package, and CLI are named fidelis; the PyPI distribution is fidelis-memory.",
+  "codeRepository": "https://github.com/hermes-labs-ai/fidelis",
+  "issueTracker": "https://github.com/hermes-labs-ai/fidelis/issues",
+  "readme": "https://github.com/hermes-labs-ai/fidelis/blob/main/README.md",
+  "continuousIntegration": "https://github.com/hermes-labs-ai/fidelis/actions",
+  "license": "https://spdx.org/licenses/MIT",
+  "version": "0.0.93",
+  "identifier": "https://doi.org/10.5281/zenodo.21873318",
+  "url": "https://github.com/hermes-labs-ai/fidelis",
+  "downloadUrl": "https://pypi.org/project/fidelis-memory/0.0.93/",
+  "releaseNotes": "https://github.com/hermes-labs-ai/fidelis/releases/tag/v0.0.93",
+  "programmingLanguage": "Python",
+  "runtimePlatform": "Python >=3.10",
+  "operatingSystem": [
+    "macOS",
+    "Linux"
+  ],
+  "applicationCategory": "AI agent memory",
+  "keywords": [
+    "agent memory",
+    "zero-LLM retrieval",
+    "local-first",
+    "Claude Code",
+    "verbatim retrieval",
+    "fidelis-memory"
+  ],
+  "author": [
+    {
+      "@id": "https://orcid.org/0009-0005-4896-1112",
+      "@type": "Person",
+      "givenName": "Rolando",
+      "familyName": "Bosch Rodriguez",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Hermes Labs",
+        "url": "https://hermes-labs.ai"
+      }
+    }
+  ],
+  "publisher": {
+    "@type": "Organization",
+    "name": "Hermes Labs",
+    "url": "https://hermes-labs.ai"
+  }
+}
