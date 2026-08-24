@@ -41,6 +41,21 @@ def test_current_readme_links_shipped_benchmark_receipts():
     assert recall["R@5"] == 0.983
 
 
+def test_llms_txt_headline_matches_readme_retrieval_claim():
+    """llms.txt is the agent-facing summary; its headline R@1 must be the same
+    zero-LLM stage-1 figure the README and aggregate.json carry, never the
+    opt-in LLM-filter (stage 2) figure presented as the default-path result."""
+    llms = (ROOT / "llms.txt").read_text()
+    headline = llms.splitlines()[1]
+    retrieval = ROOT / "bench" / "runs" / "runP-v35" / "aggregate.json"
+    stage1 = json.loads(retrieval.read_text())["stage1_metrics"]["recall_any"]
+    expected = f"{stage1['R@1'] * 100:.1f}% R@1"
+    assert expected in headline, headline
+    assert "zero-LLM" in headline, headline
+    assert "96.4% R@1" not in headline, headline
+    assert "bench/runs/runP-v35/aggregate.json" in llms
+
+
 def test_readme_scopes_no_telemetry_claim_to_documented_defaults():
     readme = (ROOT / "README.md").read_text()
     assert "no outbound network calls" not in readme

@@ -1,5 +1,5 @@
 # fidelis
-> Zero-LLM memory for AI agents and Claude Code. Integer-pointer fidelity guarantee — original passages returned verbatim, never paraphrased. 73.0% end-to-end QA on LongMemEval-S (470 questions, 2026-04-24); 96.4% R@1 retrieval (runP-v35, 2026-04-18). Local, $0/query, fully private. By Hermes Labs. (Internal codename during development: cogito-ergo.)
+> Zero-LLM memory for AI agents and Claude Code. Integer-pointer fidelity guarantee — original passages returned verbatim, never paraphrased. 73.0% end-to-end QA on LongMemEval-S (470 questions, 2026-04-24); 83.2% R@1 zero-LLM retrieval (runP-v35 stage 1, 2026-04-18). Local, $0/query, fully private. By Hermes Labs. (Internal codename during development: cogito-ergo.)
 
 ## What it is
 
@@ -19,9 +19,9 @@ Fidelity guarantee: when the optional filter tier is enabled, the filter LLM out
 
 ### LongMemEval-S retrieval (470 questions, runP-v35, 2026-04-18) — /recall_hybrid
 
-- R@1=96.4%, R@3=98.1%, R@5=98.3%, R@10=99.1%
-- Avg latency: 165ms retrieval + 1436ms filter (filter tier opt-in)
-- Architecture: BM25+dense+RRF → temporal boost → runtime escalation → qwen-turbo filter
+- Zero-LLM stage 1 (default path): R@1=83.2%, R@3=95.1%, R@5=98.3%, R@10=99.1% (`stage1_metrics.recall_any` in bench/runs/runP-v35/aggregate.json)
+- Avg latency in that run: 165 ms retrieval; the opt-in LLM filter tier adds ~1436 ms and its own recall figures are recorded under `stage2_metrics` in the same file (not a headline claim)
+- Architecture: BM25+dense+RRF → temporal boost → runtime escalation → optional qwen-turbo filter
 
 ### 31-case atomic eval (2026-03-28) — /recall
 
