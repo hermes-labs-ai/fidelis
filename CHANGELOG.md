@@ -2,7 +2,7 @@
 
 # Unreleased
 
-## v0.0.95 — unreleased
+## v0.0.95 — 2026-09-02
 
 - Add a portable `fidelis mcp serve` entry point and official MCP Registry
   metadata for `uvx`-based installation.
