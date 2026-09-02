@@ -1,8 +1,8 @@
-"""fidelis mcp install — wire fidelis into Claude Code's MCP config.
+"""Wire fidelis into a supported agent client's MCP configuration.
 
-Writes a fidelis MCP server entry into ~/.claude/settings.local.json. Idempotent;
-backs up existing settings first; refuses to overwrite if a non-fidelis entry
-named "fidelis" already exists.
+Claude Code configuration is edited atomically with a backup. Codex
+configuration is delegated to the supported ``codex mcp`` CLI so the desktop
+app, CLI, and IDE extension share the same registered server.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -33,7 +34,119 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 MCP_SERVER_FILE = PACKAGE_DIR / "mcp_server.py"
 
 
+def _is_fidelis_codex_entry(entry: dict) -> bool:
+    """Return whether a Codex MCP entry launches this packaged server."""
+    transport = entry.get("transport", entry)
+    command = str(transport.get("command", ""))
+    args = [str(value) for value in transport.get("args", [])]
+    blob = " ".join([command, *args])
+    return "fidelis" in blob or "mcp_server.py" in blob
+
+
+def _codex_cli() -> str | None:
+    return shutil.which("codex")
+
+
+def _codex_get(codex_bin: str) -> tuple[int, dict | None, str]:
+    result = subprocess.run(
+        [codex_bin, "mcp", "get", MCP_SERVER_NAME, "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return result.returncode, None, result.stderr.strip()
+    try:
+        return 0, json.loads(result.stdout), ""
+    except json.JSONDecodeError as exc:
+        return 1, None, f"Codex returned invalid JSON for '{MCP_SERVER_NAME}': {exc}"
+
+
+def _cmd_codex_install(args) -> int:
+    if getattr(args, "settings", None):
+        print(
+            "error: --settings is only supported for the Claude Code client; "
+            "Codex uses its shared config through the codex mcp CLI",
+            file=sys.stderr,
+        )
+        return 1
+    codex_bin = _codex_cli()
+    if not codex_bin:
+        print(
+            "error: Codex CLI not found on PATH\n"
+            "  install Codex, then rerun: fidelis mcp install --client codex",
+            file=sys.stderr,
+        )
+        return 1
+
+    rc, existing, error = _codex_get(codex_bin)
+    if existing is not None:
+        if _is_fidelis_codex_entry(existing):
+            print("Codex MCP server 'fidelis' is already configured; nothing to change")
+            return 0
+        if not args.force:
+            print(
+                "error: a non-fidelis Codex MCP server named 'fidelis' already exists\n"
+                "  refusing to overwrite. Use --force to replace it.",
+                file=sys.stderr,
+            )
+            return 1
+        # Let the supported Codex CLI replace the entry atomically. Do not
+        # remove first: if registration fails, the user's prior entry remains.
+    elif rc != 0 and "No MCP server named" not in error:
+        print(error or "error: could not inspect Codex MCP configuration", file=sys.stderr)
+        return rc
+
+    result = subprocess.run(
+        [codex_bin, "mcp", "add", MCP_SERVER_NAME, "--", sys.executable, str(MCP_SERVER_FILE)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(result.stderr.strip() or "error: Codex MCP registration failed", file=sys.stderr)
+        return result.returncode
+
+    print(result.stdout.strip() or "registered Codex MCP server 'fidelis'")
+    print("next: restart Codex, then use /mcp to confirm the fidelis tools")
+    return 0
+
+
+def _cmd_codex_uninstall() -> int:
+    codex_bin = _codex_cli()
+    if not codex_bin:
+        print("error: Codex CLI not found on PATH", file=sys.stderr)
+        return 1
+    rc, existing, error = _codex_get(codex_bin)
+    if existing is None:
+        if rc != 0 and "No MCP server named" not in error:
+            print(error or "error: could not inspect Codex MCP configuration", file=sys.stderr)
+            return rc
+        print("no 'fidelis' MCP server registered in Codex; nothing to uninstall")
+        return 0
+    if not _is_fidelis_codex_entry(existing):
+        print(
+            "error: Codex MCP server 'fidelis' does not appear to belong to Fidelis; refusing to remove it",
+            file=sys.stderr,
+        )
+        return 1
+    result = subprocess.run(
+        [codex_bin, "mcp", "remove", MCP_SERVER_NAME],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(result.stderr.strip() or "error: Codex MCP removal failed", file=sys.stderr)
+        return result.returncode
+    print(result.stdout.strip() or "removed Codex MCP server 'fidelis'")
+    return 0
+
+
 def cmd_mcp_install(args) -> int:
+    if getattr(args, "client", "claude") == "codex":
+        return _cmd_codex_install(args)
+
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 
     if not MCP_SERVER_FILE.exists():
@@ -95,6 +208,16 @@ def cmd_mcp_install(args) -> int:
 
 
 def cmd_mcp_uninstall(args) -> int:
+    if getattr(args, "client", "claude") == "codex":
+        if getattr(args, "settings", None):
+            print(
+                "error: --settings is only supported for the Claude Code client; "
+                "Codex uses its shared config through the codex mcp CLI",
+                file=sys.stderr,
+            )
+            return 1
+        return _cmd_codex_uninstall()
+
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 
     if not settings_path.exists():

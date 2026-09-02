@@ -8,6 +8,8 @@ gates in PUBLISH-PLAN-20260425.md.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -169,6 +171,104 @@ def test_mcp_uninstall_handles_missing_settings(tmp_path):
     args.settings = str(settings_path)
     rc = cmd_mcp_uninstall(args)
     assert rc == 0  # graceful no-op
+
+
+def test_mcp_codex_install_uses_supported_cli():
+    from fidelis.mcp_cmd import cmd_mcp_install
+
+    args = MagicMock(client="codex", force=False, settings=None)
+    missing = subprocess.CompletedProcess([], 1, stdout="", stderr="No MCP server named 'fidelis' found.")
+    added = subprocess.CompletedProcess([], 0, stdout="Added global MCP server 'fidelis'.", stderr="")
+    with patch("fidelis.mcp_cmd.shutil.which", return_value="/usr/local/bin/codex"), \
+         patch("fidelis.mcp_cmd.subprocess.run", side_effect=[missing, added]) as run:
+        rc = cmd_mcp_install(args)
+
+    assert rc == 0
+    assert run.call_args_list[0].args[0] == [
+        "/usr/local/bin/codex", "mcp", "get", "fidelis", "--json"
+    ]
+    add_command = run.call_args_list[1].args[0]
+    assert add_command[:6] == [
+        "/usr/local/bin/codex", "mcp", "add", "fidelis", "--", sys.executable
+    ]
+    assert add_command[-1].endswith("fidelis/mcp_server.py")
+
+
+def test_mcp_codex_install_is_idempotent_for_fidelis_entry():
+    from fidelis.mcp_cmd import cmd_mcp_install
+
+    entry = {
+        "name": "fidelis",
+        "transport": {
+            "type": "stdio",
+            "command": sys.executable,
+            "args": ["/installed/fidelis/mcp_server.py"],
+        },
+    }
+    found = subprocess.CompletedProcess([], 0, stdout=json.dumps(entry), stderr="")
+    args = MagicMock(client="codex", force=False, settings=None)
+    with patch("fidelis.mcp_cmd.shutil.which", return_value="codex"), \
+         patch("fidelis.mcp_cmd.subprocess.run", return_value=found) as run:
+        rc = cmd_mcp_install(args)
+
+    assert rc == 0
+    assert run.call_count == 1
+
+
+def test_mcp_codex_install_refuses_name_collision():
+    from fidelis.mcp_cmd import cmd_mcp_install
+
+    entry = {
+        "name": "fidelis",
+        "transport": {"type": "stdio", "command": "other-server", "args": []},
+    }
+    found = subprocess.CompletedProcess([], 0, stdout=json.dumps(entry), stderr="")
+    args = MagicMock(client="codex", force=False, settings=None)
+    with patch("fidelis.mcp_cmd.shutil.which", return_value="codex"), \
+         patch("fidelis.mcp_cmd.subprocess.run", return_value=found) as run:
+        rc = cmd_mcp_install(args)
+
+    assert rc == 1
+    assert run.call_count == 1
+
+
+def test_mcp_codex_uninstall_removes_only_fidelis_entry():
+    from fidelis.mcp_cmd import cmd_mcp_uninstall
+
+    entry = {
+        "name": "fidelis",
+        "transport": {
+            "type": "stdio",
+            "command": sys.executable,
+            "args": ["/installed/fidelis/mcp_server.py"],
+        },
+    }
+    found = subprocess.CompletedProcess([], 0, stdout=json.dumps(entry), stderr="")
+    removed = subprocess.CompletedProcess([], 0, stdout="Removed global MCP server 'fidelis'.", stderr="")
+    args = MagicMock(client="codex", settings=None)
+    with patch("fidelis.mcp_cmd.shutil.which", return_value="codex"), \
+         patch("fidelis.mcp_cmd.subprocess.run", side_effect=[found, removed]) as run:
+        rc = cmd_mcp_uninstall(args)
+
+    assert rc == 0
+    assert run.call_args_list[1].args[0] == ["codex", "mcp", "remove", "fidelis"]
+
+
+def test_mcp_codex_install_reports_missing_cli():
+    from fidelis.mcp_cmd import cmd_mcp_install
+
+    args = MagicMock(client="codex", force=False, settings=None)
+    with patch("fidelis.mcp_cmd.shutil.which", return_value=None):
+        assert cmd_mcp_install(args) == 1
+
+
+def test_mcp_codex_rejects_claude_settings_path():
+    from fidelis.mcp_cmd import cmd_mcp_install
+
+    args = MagicMock(client="codex", force=False, settings="/tmp/settings.json")
+    with patch("fidelis.mcp_cmd.shutil.which") as which:
+        assert cmd_mcp_install(args) == 1
+    which.assert_not_called()
 
 
 def test_augment_imports():

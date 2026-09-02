@@ -1,6 +1,6 @@
 """Minimal MCP server bundled with fidelis — exposes recall + health as MCP tools.
 
-Implements the JSON-RPC stdio transport for the Claude Code MCP protocol. Relies
+Implements the JSON-RPC stdio transport for MCP clients. Relies
 on a running fidelis-server (port 19420 by default) for the actual recall.
 """
 
