@@ -11,6 +11,7 @@ Stop re-explaining context to your agent. fidelis returns your original notes ve
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
 [![CI tests: 368 passing](https://img.shields.io/badge/CI%20tests-368%20passing-brightgreen)](tests/)
+[![Official MCP Registry](https://img.shields.io/badge/MCP%20Registry-active-5b5bd6)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.95)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
 ```
@@ -58,7 +59,19 @@ fidelis mcp serve             # runs the MCP server over stdio
 
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
-v0.0.94 adds supported Codex MCP installation and context-sensitive orientation.
+Fidelis Memory 0.0.95 is also published in the
+[official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.95)
+as `io.github.hermes-labs-ai/fidelis-memory`. Registry-aware clients can launch
+the same released server directly from PyPI:
+
+```bash
+uvx --from "fidelis-memory==0.0.95" fidelis mcp serve
+```
+
+This starts the MCP stdio process; run `fidelis init` first when the local
+Fidelis service and store have not already been configured. Version 0.0.94
+introduced supported Codex MCP installation and context-sensitive orientation;
+0.0.95 added the independently discoverable registry release.
 
 ## What you notice immediately
 

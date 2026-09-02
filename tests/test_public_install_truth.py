@@ -27,6 +27,40 @@ def test_primary_surfaces_install_the_fidelis_memory_distribution():
         assert 'python3 -m pip install "fidelis-memory==0.0.95"' in text, path
 
 
+def test_readme_exposes_the_exact_official_mcp_registry_release():
+    """Bind registry discovery prose to the checked-in server manifest."""
+    readme = (ROOT / "README.md").read_text()
+    manifest = json.loads((ROOT / "server.json").read_text())
+    version = manifest["version"]
+    name = manifest["name"]
+    package = manifest["packages"][0]
+    registry_path = name.replace("/", "%2F")
+    registry_url = (
+        "https://registry.modelcontextprotocol.io/v0.1/servers/"
+        f"{registry_path}/versions/{version}"
+    )
+    assert package["version"] == version
+    assert package["registryType"] == "pypi"
+    assert package["runtimeHint"] == "uvx"
+
+    runtime_args = package["runtimeArguments"]
+    assert runtime_args == [
+        {"type": "named", "name": "--from", "value": package["identifier"]}
+    ]
+    package_args = [argument["value"] for argument in package["packageArguments"]]
+    documented_command = " ".join(
+        [
+            package["runtimeHint"],
+            runtime_args[0]["name"],
+            f'"{runtime_args[0]["value"]}=={package["version"]}"',
+            *package_args,
+        ]
+    )
+
+    assert registry_url in readme
+    assert documented_command in readme
+
+
 def test_current_readme_links_shipped_benchmark_receipts():
     readme = (ROOT / "README.md").read_text()
     assert "bench/runs/zeroLLM-full-20260424/aggregate.json" not in readme
