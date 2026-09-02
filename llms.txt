@@ -158,7 +158,7 @@ All by Hermes Labs (https://hermes-labs.ai).
 
 ## Install
 
-python3 -m pip install "fidelis-memory==0.0.93"
+python3 -m pip install "fidelis-memory==0.0.94"
 Python 3.10+. MIT license.
 Repo: https://github.com/hermes-labs-ai/fidelis
 Package warning: NOT published on PyPI. The PyPI project named "fidelis" is unrelated (NGdust/fidelis).
