@@ -1,5 +1,7 @@
 # Fidelis Memory
 
+<!-- mcp-name: io.github.hermes-labs-ai/fidelis-memory -->
+
 ## Local-first, zero-LLM memory for Codex, Claude Code, and AI agents.
 
 **73.0% end-to-end QA on LongMemEval-S. 83.2% R@1 retrieval. $0/query. No LLM in the default retrieval path.**
@@ -42,10 +44,11 @@ brew install ollama && ollama serve &
 ollama pull nomic-embed-text
 
 # 1. install Fidelis Memory from PyPI
-python3 -m pip install "fidelis-memory==0.0.94"
+python3 -m pip install "fidelis-memory==0.0.95"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
 fidelis mcp install --client codex   # or omit --client for Claude Code
+fidelis mcp serve             # runs the MCP server over stdio
 # Restart your agent client. Memory is on.
 ```
 
@@ -230,7 +233,7 @@ After `fidelis init`:
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.94)
+## Known limitations (v0.0.95)
 
 - **Pre-release.** Python function names and CLI commands may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.

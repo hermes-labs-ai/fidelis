@@ -1,0 +1,52 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.hermes-labs-ai/fidelis-memory",
+  "title": "Fidelis Memory",
+  "description": "Recall locally stored agent memories through an MCP-compatible host.",
+  "websiteUrl": "https://github.com/hermes-labs-ai/fidelis",
+  "repository": {
+    "url": "https://github.com/hermes-labs-ai/fidelis",
+    "source": "github"
+  },
+  "version": "0.0.95",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "fidelis-memory",
+      "version": "0.0.95",
+      "runtimeHint": "uvx",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--from",
+          "value": "fidelis-memory"
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "fidelis"
+        },
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "FIDELIS_PORT",
+          "description": "Port of the local fidelis-server process (default: 19420).",
+          "format": "number"
+        }
+      ]
+    }
+  ]
+}

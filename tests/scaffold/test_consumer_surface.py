@@ -47,6 +47,14 @@ def test_mcp_server_module_imports():
     assert "fidelis_health" in tool_names
 
 
+def test_mcp_serve_dispatches_to_stdio_server():
+    from fidelis import cli
+
+    with patch("fidelis.mcp_server.main", return_value=0) as mcp_main:
+        assert cli._cmd_mcp_serve(MagicMock()) == 0
+    mcp_main.assert_called_once_with()
+
+
 def test_mcp_server_handles_tools_list():
     from fidelis import mcp_server
     req = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}

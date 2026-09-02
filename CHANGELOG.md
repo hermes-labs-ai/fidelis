@@ -2,6 +2,13 @@
 
 # Unreleased
 
+## v0.0.95 — unreleased
+
+- Add a portable `fidelis mcp serve` entry point and official MCP Registry
+  metadata for `uvx`-based installation.
+- Add the PyPI README ownership marker required for the
+  `io.github.hermes-labs-ai/fidelis-memory` registry namespace.
+
 ## v0.0.94 — 2026-09-02
 
 - Add supported Codex MCP installation and removal through the shared

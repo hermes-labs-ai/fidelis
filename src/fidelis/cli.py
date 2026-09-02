@@ -313,6 +313,8 @@ def main():
     # mcp — manage agent-client MCP integration
     p_mcp = sub.add_parser("mcp", help="Manage Claude Code or Codex MCP integration")
     mcp_sub = p_mcp.add_subparsers(dest="mcp_command", required=True)
+    p_mcp_serve = mcp_sub.add_parser("serve", help="Run the MCP server over stdio")
+    p_mcp_serve.set_defaults(func=lambda a: sys.exit(_cmd_mcp_serve(a)))
     p_mcp_install = mcp_sub.add_parser("install", help="Install the fidelis MCP server into an agent client")
     p_mcp_install.add_argument("--client", choices=("claude", "codex"), default="claude",
                                help="MCP client to configure (default: claude)")
@@ -351,6 +353,11 @@ def _cmd_mcp_install(args):
 def _cmd_mcp_uninstall(args):
     from fidelis.mcp_cmd import cmd_mcp_uninstall
     return cmd_mcp_uninstall(args)
+
+
+def _cmd_mcp_serve(args):
+    from fidelis.mcp_server import main as mcp_main
+    return mcp_main()
 
 
 if __name__ == "__main__":
