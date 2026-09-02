@@ -42,7 +42,7 @@ brew install ollama && ollama serve &
 ollama pull nomic-embed-text
 
 # 1. install Fidelis Memory from PyPI
-python3 -m pip install "fidelis-memory==0.0.93"
+python3 -m pip install "fidelis-memory==0.0.94"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
 fidelis mcp install --client codex   # or omit --client for Claude Code
@@ -55,7 +55,7 @@ fidelis mcp install --client codex   # or omit --client for Claude Code
 
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
-v0.0.93 - first PyPI release of `fidelis-memory`.
+v0.0.94 adds supported Codex MCP installation and context-sensitive orientation.
 
 ## What you notice immediately
 
@@ -230,7 +230,7 @@ After `fidelis init`:
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.93)
+## Known limitations (v0.0.94)
 
 - **Pre-release.** Python function names and CLI commands may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.

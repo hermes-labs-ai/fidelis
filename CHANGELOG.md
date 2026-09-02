@@ -2,6 +2,17 @@
 
 # Unreleased
 
+## v0.0.94 — 2026-09-02
+
+- Add supported Codex MCP installation and removal through the shared
+  `codex mcp` configuration, with exact ownership checks that preserve
+  unrelated entries.
+- Add `fidelis_orient`, a deterministic MCP tool that selects a bounded
+  evidence lane, returns retrieved records without rephrasing them, and
+  abstains when a turn lacks a known referent or historical-context cue.
+- Add citation and CodeMeta metadata and align the agent-facing `llms.txt`
+  retrieval headline with the shipped zero-LLM benchmark evidence.
+
 ## v0.0.93 — 2026-08-05
 
 - Publish the Hermes Labs distribution to PyPI as `fidelis-memory`.

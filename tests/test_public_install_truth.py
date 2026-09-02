@@ -24,7 +24,7 @@ def test_public_surfaces_do_not_install_unrelated_pypi_project():
 def test_primary_surfaces_install_the_fidelis_memory_distribution():
     for path in (ROOT / "README.md", ROOT / "llms.txt", ROOT / "docs" / "full-reference.md"):
         text = path.read_text()
-        assert 'python3 -m pip install "fidelis-memory==0.0.93"' in text, path
+        assert 'python3 -m pip install "fidelis-memory==0.0.94"' in text, path
 
 
 def test_current_readme_links_shipped_benchmark_receipts():
