@@ -3,7 +3,7 @@ fidelis CLI
 
   fidelis init                       install + start service (launchd/systemd)
   fidelis watch  ~/notes             auto-ingest a directory
-  fidelis mcp install                wire Claude Code MCP integration
+  fidelis mcp install --client codex wire Codex MCP integration
   fidelis recall "query"             two-stage recall via running server
   fidelis query  "query"             simple vector query (no filter)
   fidelis add    "text"              add a memory
@@ -310,15 +310,19 @@ def main():
     p_watch.add_argument("--verbose", "-v", action="store_true")
     p_watch.set_defaults(func=lambda a: sys.exit(_cmd_watch(a)))
 
-    # mcp — manage Claude Code MCP integration
-    p_mcp = sub.add_parser("mcp", help="Manage Claude Code MCP integration")
+    # mcp — manage agent-client MCP integration
+    p_mcp = sub.add_parser("mcp", help="Manage Claude Code or Codex MCP integration")
     mcp_sub = p_mcp.add_subparsers(dest="mcp_command", required=True)
-    p_mcp_install = mcp_sub.add_parser("install", help="Install fidelis MCP server into ~/.claude/settings.local.json")
+    p_mcp_install = mcp_sub.add_parser("install", help="Install the fidelis MCP server into an agent client")
+    p_mcp_install.add_argument("--client", choices=("claude", "codex"), default="claude",
+                               help="MCP client to configure (default: claude)")
     p_mcp_install.add_argument("--settings", help="Path to settings.local.json (default: ~/.claude/settings.local.json)")
     p_mcp_install.add_argument("--force", action="store_true",
                                help="Overwrite an existing 'fidelis' entry even if it doesn't look like ours")
     p_mcp_install.set_defaults(func=lambda a: sys.exit(_cmd_mcp_install(a)))
-    p_mcp_uninstall = mcp_sub.add_parser("uninstall", help="Remove fidelis MCP server from settings")
+    p_mcp_uninstall = mcp_sub.add_parser("uninstall", help="Remove the fidelis MCP server from an agent client")
+    p_mcp_uninstall.add_argument("--client", choices=("claude", "codex"), default="claude",
+                                 help="MCP client to configure (default: claude)")
     p_mcp_uninstall.add_argument("--settings", help="Path to settings.local.json")
     p_mcp_uninstall.set_defaults(func=lambda a: sys.exit(_cmd_mcp_uninstall(a)))
 

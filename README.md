@@ -1,6 +1,6 @@
 # Fidelis Memory
 
-## Local-first, zero-LLM memory for Claude Code and AI agents.
+## Local-first, zero-LLM memory for Codex, Claude Code, and AI agents.
 
 **73.0% end-to-end QA on LongMemEval-S. 83.2% R@1 retrieval. $0/query. No LLM in the default retrieval path.**
 
@@ -20,7 +20,7 @@ fidelis retrieval       (BM25 + dense + RRF, no LLM)
        ↓
 original passages       (verbatim, never rephrased)
        ↓
-Claude Code / your agent
+Codex / Claude Code / your agent
 ```
 
 What fidelis is:
@@ -30,7 +30,7 @@ What fidelis is:
 - **private** - local memory store by default
 - **faithful** - original stored passages returned, not paraphrases
 - **proven** - benchmarked on LongMemEval-S (470 questions, public benchmark), with raw evidence in [`experiments/zeroLLM-FLAGSHIP-evidence/`](experiments/zeroLLM-FLAGSHIP-evidence/)
-- **installable** - Claude Code via MCP in about 60 seconds
+- **installable** - Codex or Claude Code via MCP in about 60 seconds
 
 ---
 
@@ -45,8 +45,8 @@ ollama pull nomic-embed-text
 python3 -m pip install "fidelis-memory==0.0.93"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
-fidelis mcp install           # wires Claude Code
-# Restart Claude Code. Memory is on.
+fidelis mcp install --client codex   # or omit --client for Claude Code
+# Restart your agent client. Memory is on.
 ```
 
 > **Package-name note:** install Hermes Labs' package as `fidelis-memory`.
@@ -59,7 +59,7 @@ v0.0.93 - first PyPI release of `fidelis-memory`.
 
 ## What you notice immediately
 
-After the four commands above, the next time you open Claude Code:
+After the four commands above, the next time you open Codex or Claude Code:
 
 - It stops asking you to repeat context you already wrote down.
 - You can ask "what did we decide last week about auth?" - and the answer cites your actual decision, not a generic OAuth lecture.
@@ -95,16 +95,16 @@ The 3600s window is non-configurable in our current contract.
 
 The non-configurable qualifier survives. So does every other detail you wrote down.
 
-## What this enables in Claude Code
+## What this enables in Codex and Claude Code
 
-Once `fidelis mcp install` is run, ask your agent:
+Once `fidelis mcp install --client codex` (or the default Claude install) is run, ask your agent:
 
 - *"What did we decide about auth?"*
 - *"What failed last time we tried this migration?"*
 - *"Which billing constraint was non-configurable?"*
 - *"What did I say about Sarah's onboarding flow?"*
 
-The MCP `fidelis_recall` tool fires before Claude composes its answer. Claude sees the original passages, not paraphrased summaries. The answer is grounded in what you wrote, with the qualifiers intact.
+The MCP `fidelis_recall` tool gives the agent the original passages before it composes an answer, not paraphrased summaries. The answer can stay grounded in what you wrote, with the qualifiers intact.
 
 > **fidelis retrieves memory without an LLM. Your agent still uses its normal LLM to answer using the retrieved context.** "Zero-LLM" applies to the memory hot path, not to your agent.
 
@@ -118,7 +118,7 @@ Three concrete reasons teams pick fidelis over hosted memory:
 
 ## How it fits
 
-The diagram is at the top. Claude Code is the fastest path to value. The retrieval engine is agent-agnostic - pair it with any LLM client.
+The diagram is at the top. Codex and Claude Code are the fastest paths to value. The retrieval engine is agent-agnostic - pair it with any LLM client. Codex registration uses its supported `codex mcp` CLI, and the resulting server configuration is shared by the Codex desktop app, CLI, and IDE extension on that host.
 
 ## Benchmarks
 
@@ -153,6 +153,16 @@ tail ~/.fidelis/server.log
 ```
 
 The default `zero_llm` tier never makes an outbound LLM call. Optional `--tier filter` and `--tier flagship` modes do call an LLM, but only to select integer pointers - the server dereferences those pointers to the original stored text. The LLM cannot rephrase memory content.
+
+### Context-sensitive orientation (MCP)
+
+The bundled MCP server also exposes `fidelis_orient`. It recognizes when a
+turn invokes prior work—even when it is a statement such as “I need to
+remember our Fidelis work”—and selects a bounded evidence lane for identity,
+maintenance, conceptual reuse, comparison, decisions, historical state, or
+current state. The returned orientation is a derived index; retrieved records
+remain verbatim evidence with their existing IDs and metadata. Unrelated turns
+explicitly abstain without calling the memory server.
 
 ## Requirements
 
@@ -216,7 +226,7 @@ After `fidelis init`:
 
 - **Service:** `fidelis-server` runs at `http://127.0.0.1:19420` under your OS service manager (launchd on macOS, systemd on Linux). Auto-starts on boot. Logs at `~/.fidelis/server.log`.
 - **Storage:** Chroma + SQLite at `~/.cogito/` (the directory name is preserved from the project's pre-rename codename for v0.0.x compatibility - it will move to `~/.fidelis/` in a later major bump). No data leaves your machine in the default zero-LLM path.
-- **MCP:** if you ran `fidelis mcp install`, Claude Code sees three tools: `fidelis_recall`, `fidelis_query`, `fidelis_health`.
+- **MCP:** after installing for your selected client, Codex or Claude Code sees four tools: `fidelis_recall`, `fidelis_query`, `fidelis_health`, and `fidelis_orient`.
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
@@ -237,7 +247,7 @@ To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 ## What this turns into over time
 
 Day 1: drop notes into `~/notes`, run the four commands.
-Day 2: ask Claude Code about yesterday's decision - the answer cites your original passage.
+Day 2: ask your agent about yesterday's decision - the answer cites your original passage.
 Day 7: your agent starts carrying project context across sessions; you stop re-explaining.
 
 Useful for solo builders today; relevant for teams that need memory to stay local tomorrow.
