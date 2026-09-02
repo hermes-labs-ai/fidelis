@@ -77,11 +77,33 @@ class ContextPlan:
 
 def _entity_from_turns(utterance: str, recent_turns: Iterable[str]) -> str | None:
     combined = [utterance, *list(recent_turns)[-4:]]
-    for text in combined:
+    for index, text in enumerate(combined):
         lowered = text.casefold()
         for entity in _KNOWN_ENTITIES:
             if entity.casefold() in lowered:
                 return entity
+        # Capitalization alone is not evidence that a turn names prior work:
+        # sentence starters such as "Can", "Please", and "How" otherwise
+        # become false project entities.  Infer an unknown proper noun only
+        # from recent context or when the current turn itself asks for
+        # identity/history/current-state context.  Callers can always provide
+        # ``entity_hint`` for a new project name.
+        allow_unknown = index > 0 or any(
+            pattern.search(text)
+            for pattern in (
+                _RECALL_RE,
+                _PAST_WORK_RE,
+                _TRANSFER_RE,
+                _COMPARISON_RE,
+                _DECISION_RE,
+                _HISTORICAL_RE,
+                _CURRENT_RE,
+                _IDENTITY_RE,
+                _CASUAL_RE,
+            )
+        )
+        if not allow_unknown:
+            continue
         candidates = [
             item
             for item in _ENTITY_RE.findall(text)
@@ -100,6 +122,17 @@ def _entity_from_turns(utterance: str, recent_turns: Iterable[str]) -> str | Non
                 "explain",
                 "review",
                 "summarize",
+                "can",
+                "how",
+                "please",
+                "tell",
+                "this",
+                "that",
+                "the",
+                "we",
+                "our",
+                "my",
+                "i",
             }
         ]
         if candidates:

@@ -35,6 +35,26 @@ def test_unrelated_turn_abstains():
     assert plan.retrieval_query is None
 
 
+def test_sentence_starters_do_not_become_project_entities():
+    for utterance in (
+        "Can you write a sorting function?",
+        "Please explain recursion.",
+        "This is interesting.",
+        "How do I install Python?",
+        "Tell me a joke.",
+    ):
+        plan = plan_context(utterance)
+        assert plan.disposition == "abstain", utterance
+        assert plan.entity is None, utterance
+
+
+def test_unknown_entity_can_be_inferred_from_context_cue():
+    plan = plan_context("What is Acme's current status?")
+    assert plan.disposition == "retrieve"
+    assert plan.entity == "Acme"
+    assert plan.evidence_lane == "current"
+
+
 def test_recent_turn_resolves_referent():
     plan = plan_context(
         "What is its current status?",
