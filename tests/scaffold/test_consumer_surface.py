@@ -195,21 +195,21 @@ def test_mcp_codex_install_uses_supported_cli():
 
 
 def test_mcp_codex_install_is_idempotent_for_fidelis_entry():
-    from fidelis.mcp_cmd import cmd_mcp_install
+    from fidelis import mcp_cmd
 
     entry = {
         "name": "fidelis",
         "transport": {
             "type": "stdio",
             "command": sys.executable,
-            "args": ["/installed/fidelis/mcp_server.py"],
+            "args": [str(mcp_cmd.MCP_SERVER_FILE)],
         },
     }
     found = subprocess.CompletedProcess([], 0, stdout=json.dumps(entry), stderr="")
     args = MagicMock(client="codex", force=False, settings=None)
     with patch("fidelis.mcp_cmd.shutil.which", return_value="codex"), \
          patch("fidelis.mcp_cmd.subprocess.run", return_value=found) as run:
-        rc = cmd_mcp_install(args)
+        rc = mcp_cmd.cmd_mcp_install(args)
 
     assert rc == 0
     assert run.call_count == 1
@@ -232,15 +232,33 @@ def test_mcp_codex_install_refuses_name_collision():
     assert run.call_count == 1
 
 
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"transport": {"command": "/opt/fidelis-proxy", "args": []}},
+        {
+            "transport": {
+                "command": sys.executable,
+                "args": ["/tmp/not-mcp_server.py-backup"],
+            }
+        },
+    ],
+)
+def test_mcp_codex_entry_rejects_near_collisions(entry):
+    from fidelis.mcp_cmd import _is_fidelis_codex_entry
+
+    assert not _is_fidelis_codex_entry(entry)
+
+
 def test_mcp_codex_uninstall_removes_only_fidelis_entry():
-    from fidelis.mcp_cmd import cmd_mcp_uninstall
+    from fidelis import mcp_cmd
 
     entry = {
         "name": "fidelis",
         "transport": {
             "type": "stdio",
             "command": sys.executable,
-            "args": ["/installed/fidelis/mcp_server.py"],
+            "args": [str(mcp_cmd.MCP_SERVER_FILE)],
         },
     }
     found = subprocess.CompletedProcess([], 0, stdout=json.dumps(entry), stderr="")
@@ -248,10 +266,31 @@ def test_mcp_codex_uninstall_removes_only_fidelis_entry():
     args = MagicMock(client="codex", settings=None)
     with patch("fidelis.mcp_cmd.shutil.which", return_value="codex"), \
          patch("fidelis.mcp_cmd.subprocess.run", side_effect=[found, removed]) as run:
-        rc = cmd_mcp_uninstall(args)
+        rc = mcp_cmd.cmd_mcp_uninstall(args)
 
     assert rc == 0
     assert run.call_args_list[1].args[0] == ["codex", "mcp", "remove", "fidelis"]
+
+
+def test_mcp_codex_uninstall_refuses_near_collision():
+    from fidelis.mcp_cmd import cmd_mcp_uninstall
+
+    entry = {
+        "name": "fidelis",
+        "transport": {
+            "type": "stdio",
+            "command": sys.executable,
+            "args": ["/tmp/not-mcp_server.py-backup"],
+        },
+    }
+    found = subprocess.CompletedProcess([], 0, stdout=json.dumps(entry), stderr="")
+    args = MagicMock(client="codex", settings=None)
+    with patch("fidelis.mcp_cmd.shutil.which", return_value="codex"), \
+         patch("fidelis.mcp_cmd.subprocess.run", return_value=found) as run:
+        rc = cmd_mcp_uninstall(args)
+
+    assert rc == 1
+    assert run.call_count == 1
 
 
 def test_mcp_codex_install_reports_missing_cli():

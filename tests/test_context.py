@@ -48,6 +48,12 @@ def test_sentence_starters_do_not_become_project_entities():
         assert plan.entity is None, utterance
 
 
+def test_casual_unknown_entity_does_not_trigger_retrieval():
+    plan = plan_context("Docker is good.")
+    assert plan.disposition == "abstain"
+    assert plan.entity is None
+
+
 def test_unknown_entity_can_be_inferred_from_context_cue():
     plan = plan_context("What is Acme's current status?")
     assert plan.disposition == "retrieve"

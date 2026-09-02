@@ -99,7 +99,6 @@ def _entity_from_turns(utterance: str, recent_turns: Iterable[str]) -> str | Non
                 _HISTORICAL_RE,
                 _CURRENT_RE,
                 _IDENTITY_RE,
-                _CASUAL_RE,
             )
         )
         if not allow_unknown:

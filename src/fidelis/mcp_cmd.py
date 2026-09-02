@@ -39,8 +39,11 @@ def _is_fidelis_codex_entry(entry: dict) -> bool:
     transport = entry.get("transport", entry)
     command = str(transport.get("command", ""))
     args = [str(value) for value in transport.get("args", [])]
-    blob = " ".join([command, *args])
-    return "fidelis" in blob or "mcp_server.py" in blob
+    return (
+        Path(command).expanduser().resolve() == Path(sys.executable).resolve()
+        and len(args) == 1
+        and Path(args[0]).expanduser().resolve() == MCP_SERVER_FILE.resolve()
+    )
 
 
 def _codex_cli() -> str | None:

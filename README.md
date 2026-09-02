@@ -226,7 +226,7 @@ After `fidelis init`:
 
 - **Service:** `fidelis-server` runs at `http://127.0.0.1:19420` under your OS service manager (launchd on macOS, systemd on Linux). Auto-starts on boot. Logs at `~/.fidelis/server.log`.
 - **Storage:** Chroma + SQLite at `~/.cogito/` (the directory name is preserved from the project's pre-rename codename for v0.0.x compatibility - it will move to `~/.fidelis/` in a later major bump). No data leaves your machine in the default zero-LLM path.
-- **MCP:** after installing for your selected client, Codex or Claude Code sees three tools: `fidelis_recall`, `fidelis_query`, `fidelis_health`.
+- **MCP:** after installing for your selected client, Codex or Claude Code sees four tools: `fidelis_recall`, `fidelis_query`, `fidelis_health`, and `fidelis_orient`.
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
