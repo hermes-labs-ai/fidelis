@@ -13,6 +13,7 @@ import urllib.error
 import urllib.request
 
 from fidelis import __version__
+from fidelis.context import context_packet, plan_context
 
 
 def _server_url() -> str:
@@ -76,6 +77,32 @@ TOOLS = [
         "description": "Check the fidelis server's health and memory count.",
         "inputSchema": {"type": "object", "properties": {}},
     },
+    {
+        "name": "fidelis_orient",
+        "description": (
+            "Context-sensitive re-entry for prior work. Call when a turn mentions "
+            "a known project, decision, earlier work, maintenance, comparison, or "
+            "possible reuse—even when the turn is not phrased as a question. "
+            "Returns an evidence-bound orientation packet or explicitly abstains."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "utterance": {"type": "string", "description": "Current user turn"},
+                "recent_turns": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Up to four recent turns for referent resolution",
+                },
+                "entity": {
+                    "type": "string",
+                    "description": "Optional exact known project or concept name",
+                },
+                "limit": {"type": "integer", "default": 5},
+            },
+            "required": ["utterance"],
+        },
+    },
 ]
 
 
@@ -124,10 +151,39 @@ def _tool_health(arguments: dict) -> str:
     )
 
 
+def _tool_orient(arguments: dict) -> str:
+    utterance = str(arguments.get("utterance", ""))
+    recent_turns = arguments.get("recent_turns", [])
+    if not isinstance(recent_turns, list):
+        recent_turns = []
+    plan = plan_context(
+        utterance,
+        recent_turns=[str(turn) for turn in recent_turns[-4:]],
+        entity_hint=arguments.get("entity"),
+    )
+    if plan.disposition == "abstain":
+        return json.dumps(context_packet(plan, []), ensure_ascii=False)
+    limit = max(1, min(int(arguments.get("limit", 5)), 20))
+    res = _http_post(
+        "/recall_hybrid",
+        {"text": plan.retrieval_query, "limit": limit, "tier": "zero_llm"},
+    )
+    if res.get("error"):
+        packet = context_packet(plan, [])
+        packet["evidence_status"] = "unavailable"
+        packet["error"] = res["error"]
+        return json.dumps(packet, ensure_ascii=False)
+    return json.dumps(
+        context_packet(plan, res.get("memories", [])[:limit]),
+        ensure_ascii=False,
+    )
+
+
 TOOL_HANDLERS = {
     "fidelis_recall": _tool_recall,
     "fidelis_query": _tool_query,
     "fidelis_health": _tool_health,
+    "fidelis_orient": _tool_orient,
 }
 
 

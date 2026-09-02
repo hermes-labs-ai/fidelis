@@ -154,6 +154,16 @@ tail ~/.fidelis/server.log
 
 The default `zero_llm` tier never makes an outbound LLM call. Optional `--tier filter` and `--tier flagship` modes do call an LLM, but only to select integer pointers - the server dereferences those pointers to the original stored text. The LLM cannot rephrase memory content.
 
+### Context-sensitive orientation (MCP)
+
+The bundled MCP server also exposes `fidelis_orient`. It recognizes when a
+turn invokes prior work—even when it is a statement such as “I need to
+remember our Fidelis work”—and selects a bounded evidence lane for identity,
+maintenance, conceptual reuse, comparison, decisions, historical state, or
+current state. The returned orientation is a derived index; retrieved records
+remain verbatim evidence with their existing IDs and metadata. Unrelated turns
+explicitly abstain without calling the memory server.
+
 ## Requirements
 
 - macOS or Linux (Windows not yet supported)
