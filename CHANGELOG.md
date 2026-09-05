@@ -2,6 +2,21 @@
 
 # Unreleased
 
+- Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
+  --client copilot`, which register the bundled stdio MCP server in GitHub
+  Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)
+  with atomic writes, backups, and ownership checks that preserve unrelated
+  entries. The `copilot` binary is not required at configuration time.
+  `fidelis mcp uninstall --force` removes an entry that does not look like
+  ours, for the case where the ownership check is wrong.
+- Atomic config rewrites now keep the destination file's permission bits, and
+  a config Fidelis creates is `0600`. Previously every rewrite reset an
+  `mcp-config.json` or `settings.local.json` to the umask default, widening a
+  file that can hold MCP `env` secrets.
+- Config backups no longer overwrite each other when two mutations land in the
+  same second, so an install immediately followed by an uninstall keeps both
+  restore points.
+
 ## v0.0.95 — 2026-09-02
 
 - Add a portable `fidelis mcp serve` entry point and official MCP Registry
