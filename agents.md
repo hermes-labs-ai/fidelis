@@ -154,7 +154,8 @@ If the upstream LLM (Ollama / extraction model) is unreachable, `/store` and `/a
 2. `fidelis calibrate` — build vocab bridge from corpus (one-time)
 3. `fidelis snapshot` — build compressed index (one-time, rebuild after major changes)
 4. `fidelis init` — install background service (launchd / systemd)
-5. `fidelis mcp install --client codex` — wire Codex as an MCP client, or
+5. `fidelis mcp install --client codex` — wire Codex as an MCP client,
+   `fidelis mcp install --client copilot` for GitHub Copilot CLI, or
    `fidelis mcp install` for Claude Code
 
 If extraction is broken (zer0lint score < 80%), fix that before deploying fidelis. No point filtering garbage.

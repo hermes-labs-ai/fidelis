@@ -2,7 +2,9 @@
 
 Claude Code configuration is edited atomically with a backup. Codex
 configuration is delegated to the supported ``codex mcp`` CLI so the desktop
-app, CLI, and IDE extension share the same registered server.
+app, CLI, and IDE extension share the same registered server. GitHub Copilot
+CLI configuration is edited atomically with a backup in the documented
+``mcp-config.json`` file (``~/.copilot`` by default, or ``$COPILOT_HOME``).
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ def _atomic_write_json(path: Path, data: dict) -> None:
 
 DEFAULT_SETTINGS = Path.home() / ".claude" / "settings.local.json"
 MCP_SERVER_NAME = "fidelis"
+COPILOT_MCP_CONFIG_NAME = "mcp-config.json"
 
 # Bundled MCP server file lives alongside this module
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -68,7 +71,7 @@ def _codex_get(codex_bin: str) -> tuple[int, dict | None, str]:
 def _cmd_codex_install(args) -> int:
     if getattr(args, "settings", None):
         print(
-            "error: --settings is only supported for the Claude Code client; "
+            "error: --settings is only supported for the Claude Code and Copilot CLI clients; "
             "Codex uses its shared config through the codex mcp CLI",
             file=sys.stderr,
         )
@@ -146,9 +149,155 @@ def _cmd_codex_uninstall() -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# GitHub Copilot CLI
+#
+# Copilot CLI stores MCP servers in ``mcp-config.json`` under its configuration
+# directory (``~/.copilot`` by default; ``COPILOT_HOME`` overrides it). GitHub
+# documents editing that file directly as a supported alternative to
+# ``copilot mcp add``. Fidelis edits it atomically with a backup so the host CLI
+# does not need to be installed at configuration time and no account state is
+# touched.
+# ---------------------------------------------------------------------------
+
+
+def copilot_config_path(settings: str | None = None) -> Path:
+    """Resolve the Copilot CLI ``mcp-config.json`` path.
+
+    Explicit ``settings`` wins, then ``$COPILOT_HOME/mcp-config.json``, then
+    the documented default ``~/.copilot/mcp-config.json``."""
+    if settings:
+        return Path(settings).expanduser()
+    home = os.environ.get("COPILOT_HOME")
+    base = Path(home).expanduser() if home else Path.home() / ".copilot"
+    return base / COPILOT_MCP_CONFIG_NAME
+
+
+def copilot_server_entry() -> dict:
+    """The exact Copilot CLI stdio entry Fidelis registers."""
+    return {
+        "type": "stdio",
+        "command": sys.executable,
+        "args": [str(MCP_SERVER_FILE)],
+        "tools": ["*"],
+    }
+
+
+def _is_fidelis_copilot_entry(entry: object) -> bool:
+    """Return whether a Copilot MCP entry launches this packaged server."""
+    if not isinstance(entry, dict):
+        return False
+    args = [str(value) for value in entry.get("args", [])]
+    return (
+        len(args) == 1
+        and Path(args[0]).expanduser().resolve() == MCP_SERVER_FILE.resolve()
+    )
+
+
+def _load_json_object(path: Path) -> tuple[dict | None, str | None]:
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        return None, f"error: {path} is not valid JSON: {exc}"
+    if not isinstance(data, dict):
+        return None, f"error: {path} must contain a JSON object at the top level"
+    return data, None
+
+
+def _backup(path: Path) -> Path:
+    backup = path.with_suffix(f".json.bak.{int(time.time())}")
+    shutil.copy(path, backup)
+    return backup
+
+
+def _cmd_copilot_install(args) -> int:
+    if not MCP_SERVER_FILE.exists():
+        print(
+            f"error: bundled MCP server not found at {MCP_SERVER_FILE}\n"
+            "  this install appears incomplete; reinstall Hermes Labs Fidelis "
+            "from its tagged GitHub source (see README)",
+            file=sys.stderr,
+        )
+        return 1
+
+    config_path = copilot_config_path(getattr(args, "settings", None))
+    if config_path.exists():
+        config, error = _load_json_object(config_path)
+        if error:
+            print(error, file=sys.stderr)
+            return 1
+    else:
+        config = {}
+
+    mcp_servers = config.setdefault("mcpServers", {})
+    if not isinstance(mcp_servers, dict):
+        print(f"error: 'mcpServers' in {config_path} is not a JSON object", file=sys.stderr)
+        return 1
+
+    existing = mcp_servers.get(MCP_SERVER_NAME)
+    entry = copilot_server_entry()
+    if existing == entry:
+        print(f"Copilot CLI MCP server '{MCP_SERVER_NAME}' is already configured in {config_path}; nothing to change")
+        return 0
+    if existing is not None and not _is_fidelis_copilot_entry(existing) and not args.force:
+        print(
+            f"error: a non-fidelis Copilot CLI MCP server named '{MCP_SERVER_NAME}' already exists in {config_path}\n"
+            f"  entry: {json.dumps(existing)}\n"
+            "  refusing to overwrite. Use --force to replace it.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if config_path.exists():
+        print(f"backed up existing config to {_backup(config_path)}")
+    else:
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    mcp_servers[MCP_SERVER_NAME] = entry
+    _atomic_write_json(config_path, config)
+    print(f"wrote MCP server '{MCP_SERVER_NAME}' to {config_path}")
+    print()
+    print("next: restart Copilot CLI, then run /mcp show to confirm the fidelis server")
+    print("  Copilot may ask you to approve the fidelis tools on first use")
+    return 0
+
+
+def _cmd_copilot_uninstall(args) -> int:
+    config_path = copilot_config_path(getattr(args, "settings", None))
+    if not config_path.exists():
+        print(f"no Copilot CLI config at {config_path}; nothing to uninstall")
+        return 0
+
+    config, error = _load_json_object(config_path)
+    if error:
+        print(error, file=sys.stderr)
+        return 1
+
+    mcp_servers = config.get("mcpServers")
+    if not isinstance(mcp_servers, dict) or MCP_SERVER_NAME not in mcp_servers:
+        print(f"no '{MCP_SERVER_NAME}' MCP server registered in {config_path}")
+        return 0
+    if not _is_fidelis_copilot_entry(mcp_servers[MCP_SERVER_NAME]):
+        print(
+            f"error: Copilot CLI MCP server '{MCP_SERVER_NAME}' in {config_path} does not appear "
+            "to belong to Fidelis; refusing to remove it",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"backed up to {_backup(config_path)}")
+    del mcp_servers[MCP_SERVER_NAME]
+    _atomic_write_json(config_path, config)
+    print(f"removed '{MCP_SERVER_NAME}' MCP server from {config_path}")
+    return 0
+
+
 def cmd_mcp_install(args) -> int:
-    if getattr(args, "client", "claude") == "codex":
+    client = getattr(args, "client", "claude")
+    if client == "codex":
         return _cmd_codex_install(args)
+    if client == "copilot":
+        return _cmd_copilot_install(args)
 
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 
@@ -211,15 +360,18 @@ def cmd_mcp_install(args) -> int:
 
 
 def cmd_mcp_uninstall(args) -> int:
-    if getattr(args, "client", "claude") == "codex":
+    client = getattr(args, "client", "claude")
+    if client == "codex":
         if getattr(args, "settings", None):
             print(
-                "error: --settings is only supported for the Claude Code client; "
+                "error: --settings is only supported for the Claude Code and Copilot CLI clients; "
                 "Codex uses its shared config through the codex mcp CLI",
                 file=sys.stderr,
             )
             return 1
         return _cmd_codex_uninstall()
+    if client == "copilot":
+        return _cmd_copilot_uninstall(args)
 
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 

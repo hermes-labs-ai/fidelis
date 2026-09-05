@@ -69,7 +69,7 @@ src/fidelis/cli.py        — CLI: recall, query, add, store, seed, snapshot, ca
 src/fidelis/degrade.py    — graceful-degradation queue: atomic writes, per-item retry budget, dead-letter at MAX_ATTEMPTS=5
 src/fidelis/init_cmd.py   — `fidelis init`: installs background service (launchd on macOS, systemd on Linux)
 src/fidelis/watch_cmd.py  — `fidelis watch`: file-system watcher that auto-ingests markdown into the store
-src/fidelis/mcp_cmd.py    — `fidelis mcp install`: wires the MCP server into Claude Code's settings
+src/fidelis/mcp_cmd.py    — `fidelis mcp install`: wires the MCP server into Claude Code, Codex, or GitHub Copilot CLI (--client)
 src/fidelis/augment.py    — Python helper: `augment(question=..., qtype=..., llm_call=...)` for direct integration
 
 ## Key Config Keys
@@ -98,6 +98,8 @@ fidelis init                         install background service (launchd / syste
 fidelis init --uninstall             remove background service
 fidelis watch <dir>                  auto-ingest markdown from a directory
 fidelis mcp install                  wire fidelis MCP tools into Claude Code
+fidelis mcp install --client codex   wire fidelis MCP tools into Codex
+fidelis mcp install --client copilot wire fidelis MCP tools into GitHub Copilot CLI (~/.copilot/mcp-config.json)
 fidelis recall "query"               two-stage recall
 fidelis query "query"                simple vector query
 fidelis recall-hybrid "query"        BM25+dense+RRF retrieval (with --tier zero_llm | filter | flagship)

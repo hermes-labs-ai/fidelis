@@ -48,7 +48,7 @@ ollama pull nomic-embed-text
 python3 -m pip install "fidelis-memory==0.0.95"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
-fidelis mcp install --client codex   # or omit --client for Claude Code
+fidelis mcp install --client codex   # or --client copilot, or omit for Claude Code
 fidelis mcp serve             # runs the MCP server over stdio
 # Restart your agent client. Memory is on.
 ```
@@ -111,9 +111,9 @@ The 3600s window is non-configurable in our current contract.
 
 The non-configurable qualifier survives. So does every other detail you wrote down.
 
-## What this enables in Codex and Claude Code
+## What this enables in Codex, Claude Code, and GitHub Copilot CLI
 
-Once `fidelis mcp install --client codex` (or the default Claude install) is run, ask your agent:
+Once `fidelis mcp install --client codex`, `--client copilot`, or the default Claude install is run, ask your agent:
 
 - *"What did we decide about auth?"*
 - *"What failed last time we tried this migration?"*
@@ -123,6 +123,27 @@ Once `fidelis mcp install --client codex` (or the default Claude install) is run
 The MCP `fidelis_recall` tool gives the agent the original passages before it composes an answer, not paraphrased summaries. The answer can stay grounded in what you wrote, with the qualifiers intact.
 
 > **fidelis retrieves memory without an LLM. Your agent still uses its normal LLM to answer using the retrieved context.** "Zero-LLM" applies to the memory hot path, not to your agent.
+
+### GitHub Copilot CLI
+
+Copilot CLI loads MCP servers from `mcp-config.json` in its configuration
+directory (`~/.copilot` by default, or `$COPILOT_HOME`). Fidelis writes the
+documented stdio entry there atomically, backing up any existing file and
+leaving other servers untouched:
+
+```bash
+fidelis mcp install --client copilot     # writes ~/.copilot/mcp-config.json
+copilot                                  # restart, then /mcp show lists "fidelis"
+fidelis mcp uninstall --client copilot   # removes only the fidelis entry
+```
+
+Use `--settings /path/to/mcp-config.json` to target a different file. The
+`copilot` binary is not required at install time; if you prefer the host CLI,
+the equivalent registration is
+`copilot mcp add fidelis -- "$(python3 -c 'import sys;print(sys.executable)')" "$(python3 -c 'import fidelis.mcp_cmd as m;print(m.MCP_SERVER_FILE)')"`.
+Copilot does not currently expose a hook or automatic-recall mechanism to
+third-party servers, so recall happens when the agent calls the
+`fidelis_recall`, `fidelis_orient`, or `fidelis_health` tools.
 
 ## Use cases & ROI
 

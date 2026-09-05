@@ -2,6 +2,12 @@
 
 # Unreleased
 
+- Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
+  --client copilot`, which register the bundled stdio MCP server in GitHub
+  Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)
+  with atomic writes, backups, and ownership checks that preserve unrelated
+  entries. The `copilot` binary is not required at configuration time.
+
 ## v0.0.95 — 2026-09-02
 
 - Add a portable `fidelis mcp serve` entry point and official MCP Registry
