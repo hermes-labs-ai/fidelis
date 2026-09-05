@@ -331,6 +331,9 @@ def main():
                                  help="MCP client to configure (default: claude)")
     p_mcp_uninstall.add_argument("--settings",
                                  help="Config file to edit (Claude Code settings.local.json or Copilot CLI mcp-config.json)")
+    p_mcp_uninstall.add_argument("--force", action="store_true",
+                                 help="Remove an entry named 'fidelis' even if it doesn't look like ours "
+                                      "(Copilot CLI)")
     p_mcp_uninstall.set_defaults(func=lambda a: sys.exit(_cmd_mcp_uninstall(a)))
 
     args = parser.parse_args()

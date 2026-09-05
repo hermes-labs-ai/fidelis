@@ -16,6 +16,7 @@ import pytest
 from fidelis import cli, mcp_cmd
 from fidelis.mcp_cmd import (
     MCP_SERVER_FILE,
+    _is_fidelis_server_path,
     cmd_mcp_install,
     cmd_mcp_uninstall,
     copilot_config_path,
@@ -200,3 +201,157 @@ def test_cli_accepts_copilot_client(tmp_path, monkeypatch):
         cli.main()
     assert exc.value.code == 0
     assert "fidelis" not in _read(config)["mcpServers"]
+
+
+def _mode(path: Path) -> int:
+    return path.stat().st_mode & 0o777
+
+
+# --- file permissions -------------------------------------------------------
+
+
+def test_install_creates_a_new_config_owner_only(tmp_path):
+    """A config Fidelis creates may later gain an `env` block with API tokens."""
+    config = tmp_path / "mcp-config.json"
+    assert cmd_mcp_install(_args(str(config))) == 0
+    assert _mode(config) == 0o600
+
+
+def test_install_and_uninstall_preserve_existing_config_permissions(tmp_path):
+    """os.replace swaps in the temp file's metadata; the rewrite must not widen
+    a config the user (or Copilot CLI) locked down."""
+    config = tmp_path / "mcp-config.json"
+    config.write_text(json.dumps({"mcpServers": {}}))
+    config.chmod(0o600)
+
+    assert cmd_mcp_install(_args(str(config))) == 0
+    assert _mode(config) == 0o600
+
+    assert cmd_mcp_uninstall(_args(str(config))) == 0
+    assert _mode(config) == 0o600
+
+
+def test_rewrite_keeps_a_deliberately_group_readable_config(tmp_path):
+    config = tmp_path / "mcp-config.json"
+    config.write_text(json.dumps({"mcpServers": {}}))
+    config.chmod(0o640)
+    assert cmd_mcp_install(_args(str(config))) == 0
+    assert _mode(config) == 0o640
+
+
+def test_no_temp_file_survives_a_write(tmp_path):
+    config = tmp_path / "mcp-config.json"
+    assert cmd_mcp_install(_args(str(config))) == 0
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+# --- backups ----------------------------------------------------------------
+
+
+def test_two_mutations_in_one_second_keep_both_restore_points(tmp_path, monkeypatch):
+    """A whole-second stamp alone would let the uninstall backup clobber the
+    install backup, destroying the only copy of the user's original file."""
+    monkeypatch.setattr(mcp_cmd.time, "time", lambda: 1_700_000_000.0)
+    config = tmp_path / "mcp-config.json"
+    original = {"mcpServers": {"github": {"type": "http", "url": "https://example.invalid"}}}
+    config.write_text(json.dumps(original))
+
+    assert cmd_mcp_install(_args(str(config))) == 0
+    assert cmd_mcp_uninstall(_args(str(config))) == 0
+
+    backups = _backups(config)
+    assert len(backups) == 2
+    contents = [_read(backup) for backup in backups]
+    assert original in contents
+    assert any("fidelis" in snapshot["mcpServers"] for snapshot in contents)
+
+
+# --- ownership across environments ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/opt/homebrew/lib/python3.12/site-packages/fidelis/mcp_server.py",
+        "~/.local/pipx/venvs/fidelis-memory/lib/python3.11/site-packages/fidelis/mcp_server.py",
+    ],
+)
+def test_a_fidelis_install_from_another_environment_is_recognized_as_ours(path):
+    assert _is_fidelis_server_path(path)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/tmp/not-mcp_server.py-backup",
+        "/opt/other-server/mcp_server.py",
+        "/opt/fidelis/server.py",
+        "some-other-fidelis",
+    ],
+)
+def test_foreign_servers_are_not_mistaken_for_ours(path):
+    assert not _is_fidelis_server_path(path)
+
+
+def test_install_refreshes_an_entry_written_by_another_environment(tmp_path):
+    """The user's own prior install must be refreshable without --force even
+    when its interpreter and package root are gone."""
+    config = tmp_path / "mcp-config.json"
+    stale = {
+        "type": "stdio",
+        "command": "/opt/homebrew/opt/python@3.12/bin/python3.12",
+        "args": ["/opt/homebrew/lib/python3.12/site-packages/fidelis/mcp_server.py"],
+        "tools": ["*"],
+    }
+    config.write_text(json.dumps({"mcpServers": {"fidelis": stale}}))
+
+    assert cmd_mcp_install(_args(str(config))) == 0
+    assert _read(config)["mcpServers"]["fidelis"] == copilot_server_entry()
+
+
+def test_uninstall_removes_an_entry_written_by_another_environment(tmp_path):
+    config = tmp_path / "mcp-config.json"
+    stale = {
+        "type": "stdio",
+        "command": "/opt/homebrew/opt/python@3.12/bin/python3.12",
+        "args": ["/opt/homebrew/lib/python3.12/site-packages/fidelis/mcp_server.py"],
+    }
+    config.write_text(json.dumps({"mcpServers": {"fidelis": stale}}))
+
+    assert cmd_mcp_uninstall(_args(str(config))) == 0
+    assert "fidelis" not in _read(config)["mcpServers"]
+
+
+def test_uninstall_force_removes_a_foreign_entry(tmp_path, capsys):
+    """The ownership check is a guess; --force is the documented escape."""
+    config = tmp_path / "mcp-config.json"
+    foreign = {"type": "stdio", "command": "npx", "args": ["other"]}
+    config.write_text(json.dumps({"mcpServers": {"fidelis": foreign, "keep": {"type": "http"}}}))
+
+    assert cmd_mcp_uninstall(_args(str(config))) == 1
+    assert "use --force" in capsys.readouterr().err
+
+    assert cmd_mcp_uninstall(_args(str(config), force=True)) == 0
+    after = _read(config)
+    assert "fidelis" not in after["mcpServers"]
+    assert after["mcpServers"]["keep"] == {"type": "http"}
+
+
+# --- remaining input branches ------------------------------------------------
+
+
+def test_install_rejects_a_non_object_config(tmp_path, capsys):
+    config = tmp_path / "mcp-config.json"
+    config.write_text(json.dumps(["not", "an", "object"]))
+    assert cmd_mcp_install(_args(str(config))) == 1
+    assert "JSON object at the top level" in capsys.readouterr().err
+    assert _read(config) == ["not", "an", "object"]
+
+
+def test_uninstall_rejects_invalid_json_without_writing(tmp_path, capsys):
+    config = tmp_path / "mcp-config.json"
+    config.write_text("{not json")
+    assert cmd_mcp_uninstall(_args(str(config))) == 1
+    assert config.read_text() == "{not json"
+    assert "not valid JSON" in capsys.readouterr().err
+    assert not _backups(config)

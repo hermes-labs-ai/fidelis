@@ -12,7 +12,8 @@ python3 -m pip install "fidelis-memory==0.0.95"
 fidelis init                  # installs + starts the service (launchd/systemd)
 fidelis watch ~/notes         # auto-ingests markdown/text, polls for new files
 fidelis mcp install           # wires Claude Code MCP integration
-fidelis mcp install --client copilot   # or Codex (--client codex) / GitHub Copilot CLI
+fidelis mcp install --client codex     # wires Codex MCP integration
+# --client copilot wires GitHub Copilot CLI; it is on main, not in 0.0.95
 # Done. Restart Claude Code. Memory is on.
 ```
 

@@ -100,6 +100,7 @@ fidelis watch <dir>                  auto-ingest markdown from a directory
 fidelis mcp install                  wire fidelis MCP tools into Claude Code
 fidelis mcp install --client codex   wire fidelis MCP tools into Codex
 fidelis mcp install --client copilot wire fidelis MCP tools into GitHub Copilot CLI (~/.copilot/mcp-config.json)
+                                     [unreleased: on main, not in 0.0.95]
 fidelis recall "query"               two-stage recall
 fidelis query "query"                simple vector query
 fidelis recall-hybrid "query"        BM25+dense+RRF retrieval (with --tier zero_llm | filter | flagship)

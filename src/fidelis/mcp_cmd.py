@@ -18,15 +18,59 @@ import time
 from pathlib import Path
 
 
+# An agent MCP config routinely carries an `env` block with API tokens, so a
+# file we create for the first time is owner-only.
+NEW_CONFIG_MODE = 0o600
+
+
 def _atomic_write_json(path: Path, data: dict) -> None:
     """Write JSON atomically: temp file + os.replace. Prevents corruption if
     Claude Code (or any reader) is reading the settings file concurrently.
 
+    os.replace swaps in the temp file's metadata, so the destination's
+    permission bits are read first and reapplied. Without that, rewriting a
+    0600 mcp-config.json would silently widen it to the umask default. A file
+    that does not exist yet is created NEW_CONFIG_MODE.
+
     Uses parent/(name+".tmp") instead of with_suffix to be safe on Python
     3.10/3.11 where with_suffix raised ValueError on multi-dot suffixes."""
+    try:
+        mode = path.stat().st_mode & 0o777
+    except FileNotFoundError:
+        mode = NEW_CONFIG_MODE
     tmp = path.parent / (path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2))
+    # Create restrictively, then widen to the destination mode: the contents
+    # must never pass through a file more readable than the destination.
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write(json.dumps(data, indent=2))
+        os.chmod(tmp, mode)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     os.replace(tmp, path)
+
+
+def _backup(path: Path) -> Path:
+    """Copy `path` aside and return a restore point that never overwrites an
+    earlier one.
+
+    A whole-second timestamp alone collides when two mutations land in the same
+    second — an install followed straight away by an uninstall — which would
+    destroy the older restore point. O_EXCL plus a counter keeps both."""
+    stamp = int(time.time())
+    for attempt in range(1000):
+        suffix = f".bak.{stamp}" if attempt == 0 else f".bak.{stamp}.{attempt}"
+        backup = path.parent / (path.name + suffix)
+        try:
+            os.close(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+        except FileExistsError:
+            continue
+        shutil.copy(path, backup)
+        return backup
+    raise OSError(f"could not allocate an unused backup name for {path}")
+
 
 DEFAULT_SETTINGS = Path.home() / ".claude" / "settings.local.json"
 MCP_SERVER_NAME = "fidelis"
@@ -183,15 +227,29 @@ def copilot_server_entry() -> dict:
     }
 
 
+def _is_fidelis_server_path(value: object) -> bool:
+    """Return whether a configured argument points at a Fidelis MCP server.
+
+    An exact match against this install is the common case. But a user who
+    registered Fidelis from another environment — a venv since rebuilt, pipx,
+    uvx, a different Python prefix — has the same package laid out under a
+    different root, and refusing to recognize that entry would leave them
+    unable to refresh or remove their own server without --force. Requiring
+    both the packaged file name and its `fidelis` package directory keeps
+    foreign servers out: a near-collision such as
+    ``/tmp/not-mcp_server.py-backup`` still fails."""
+    candidate = Path(str(value)).expanduser()
+    if candidate.resolve() == MCP_SERVER_FILE.resolve():
+        return True
+    return candidate.name == MCP_SERVER_FILE.name and candidate.parent.name == PACKAGE_DIR.name
+
+
 def _is_fidelis_copilot_entry(entry: object) -> bool:
     """Return whether a Copilot MCP entry launches this packaged server."""
     if not isinstance(entry, dict):
         return False
     args = [str(value) for value in entry.get("args", [])]
-    return (
-        len(args) == 1
-        and Path(args[0]).expanduser().resolve() == MCP_SERVER_FILE.resolve()
-    )
+    return len(args) == 1 and _is_fidelis_server_path(args[0])
 
 
 def _load_json_object(path: Path) -> tuple[dict | None, str | None]:
@@ -202,12 +260,6 @@ def _load_json_object(path: Path) -> tuple[dict | None, str | None]:
     if not isinstance(data, dict):
         return None, f"error: {path} must contain a JSON object at the top level"
     return data, None
-
-
-def _backup(path: Path) -> Path:
-    backup = path.with_suffix(f".json.bak.{int(time.time())}")
-    shutil.copy(path, backup)
-    return backup
 
 
 def _cmd_copilot_install(args) -> int:
@@ -257,7 +309,8 @@ def _cmd_copilot_install(args) -> int:
     _atomic_write_json(config_path, config)
     print(f"wrote MCP server '{MCP_SERVER_NAME}' to {config_path}")
     print()
-    print("next: restart Copilot CLI, then run /mcp show to confirm the fidelis server")
+    print("next: restart Copilot CLI, then run /mcp list to see the fidelis server")
+    print("  /mcp show fidelis shows its status and the tools it exposes")
     print("  Copilot may ask you to approve the fidelis tools on first use")
     return 0
 
@@ -277,10 +330,12 @@ def _cmd_copilot_uninstall(args) -> int:
     if not isinstance(mcp_servers, dict) or MCP_SERVER_NAME not in mcp_servers:
         print(f"no '{MCP_SERVER_NAME}' MCP server registered in {config_path}")
         return 0
-    if not _is_fidelis_copilot_entry(mcp_servers[MCP_SERVER_NAME]):
+    if not _is_fidelis_copilot_entry(mcp_servers[MCP_SERVER_NAME]) and not getattr(args, "force", False):
         print(
             f"error: Copilot CLI MCP server '{MCP_SERVER_NAME}' in {config_path} does not appear "
-            "to belong to Fidelis; refusing to remove it",
+            "to belong to Fidelis; refusing to remove it\n"
+            f"  entry: {json.dumps(mcp_servers[MCP_SERVER_NAME])}\n"
+            "  use --force to remove it anyway.",
             file=sys.stderr,
         )
         return 1
@@ -319,9 +374,7 @@ def cmd_mcp_install(args) -> int:
             return 1
 
         # Backup before edit
-        backup = settings_path.with_suffix(f".json.bak.{int(time.time())}")
-        shutil.copy(settings_path, backup)
-        print(f"backed up existing settings to {backup}")
+        print(f"backed up existing settings to {_backup(settings_path)}")
     else:
         settings = {}
         settings_path.parent.mkdir(parents=True, exist_ok=True)
@@ -390,9 +443,7 @@ def cmd_mcp_uninstall(args) -> int:
         print(f"no '{MCP_SERVER_NAME}' MCP server registered in {settings_path}")
         return 0
 
-    backup = settings_path.with_suffix(f".json.bak.{int(time.time())}")
-    shutil.copy(settings_path, backup)
-    print(f"backed up to {backup}")
+    print(f"backed up to {_backup(settings_path)}")
 
     del mcp_servers[MCP_SERVER_NAME]
     _atomic_write_json(settings_path, settings)

@@ -48,7 +48,7 @@ ollama pull nomic-embed-text
 python3 -m pip install "fidelis-memory==0.0.95"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
-fidelis mcp install --client codex   # or --client copilot, or omit for Claude Code
+fidelis mcp install --client codex   # or omit for Claude Code
 fidelis mcp serve             # runs the MCP server over stdio
 # Restart your agent client. Memory is on.
 ```
@@ -131,9 +131,14 @@ directory (`~/.copilot` by default, or `$COPILOT_HOME`). Fidelis writes the
 documented stdio entry there atomically, backing up any existing file and
 leaving other servers untouched:
 
+> **Unreleased.** `--client copilot` is on `main` and not in the pinned
+> 0.0.95 package installed in the [Quickstart](#quickstart); it ships in the
+> next release. Install from source to use it today.
+
 ```bash
 fidelis mcp install --client copilot     # writes ~/.copilot/mcp-config.json
-copilot                                  # restart, then /mcp show lists "fidelis"
+copilot                                  # restart, then /mcp list shows "fidelis"
+                                         # /mcp show fidelis lists its tools
 fidelis mcp uninstall --client copilot   # removes only the fidelis entry
 ```
 
