@@ -918,42 +918,48 @@ def _openclaw_cli() -> str | None:
     return shutil.which("openclaw")
 
 
-# The fields of an OpenClaw entry that describe what actually gets launched,
-# per ``openclaw mcp add --command/--arg`` (see ``openclaw_add_arguments``).
-# Ownership is decided by these alone -- never by ``env``, ``headers``, a
-# remote ``url``, or any other field a *foreign* server is free to fill with
-# our script path as unrelated data.
-_OPENCLAW_LAUNCH_KEYS = ("command", "args", "arguments")
+# The fields of an OpenClaw entry that name what actually gets launched, per
+# ``openclaw mcp add --command/--arg`` (see ``openclaw_add_arguments``): the
+# executable itself, or the first positional argument -- the one script or
+# module position an interpreter is launched with, exactly like Fidelis's
+# own single ``--arg``. Never a later argument: a foreign server can take our
+# script path as *input* (e.g. ``--input-file``) while launching its own
+# code, and a later position is where that would land.
+_OPENCLAW_LAUNCH_LIST_KEYS = ("args", "arguments")
 
 
 def _mentions_fidelis_server(node: object) -> bool:
-    """Whether an entry's own launch definition names our packaged server.
+    """Whether an entry's own launch position names our packaged server.
 
-    Restricted to the launch-defining fields rather than every string in the
-    entry: an entry's metadata -- ``env``, ``headers``, a remote ``url`` --
-    is user data that can legitimately hold our script path as a *value*
-    (some unrelated server referencing it) without that entry being ours to
-    launch. Matching on it would let a foreign server be recognized as
-    Fidelis's own, and then get installed over or uninstalled without
-    ``--force``. A shape with none of these fields is never ours -- it fails
-    closed as foreign, not as a false match."""
+    Restricted to the command and the first launch argument, not every
+    string in the entry, and not even every element of ``args``: an entry's
+    metadata -- ``env``, ``headers``, a remote ``url`` -- is user data that
+    can legitimately hold our script path as a *value* without the entry
+    being ours to launch, and so can a later argument (a foreign server can
+    pass our script path as its own input while launching something else
+    entirely at position 0). Matching on either would let a foreign server
+    be recognized as Fidelis's own, and then get installed over or
+    uninstalled without ``--force``. A shape that matches neither is never
+    ours -- it fails closed as foreign, not as a false match."""
     if not isinstance(node, dict):
         return False
-    for key, value in node.items():
-        if key not in _OPENCLAW_LAUNCH_KEYS:
+    candidates: list[str] = []
+    command = node.get("command")
+    if isinstance(command, str):
+        candidates.append(command)
+    for list_key in _OPENCLAW_LAUNCH_LIST_KEYS:
+        values = node.get(list_key)
+        if isinstance(values, list) and values and isinstance(values[0], str):
+            candidates.append(values[0])
+    for candidate in candidates:
+        # The value is still user data -- path resolution on it can raise
+        # (embedded NUL, an unresolvable ``~user``); that just means "not
+        # our path".
+        try:
+            if _is_fidelis_server_path(candidate):
+                return True
+        except (OSError, ValueError, RuntimeError):
             continue
-        candidates = [value] if isinstance(value, str) else value if isinstance(value, list) else []
-        for candidate in candidates:
-            if not isinstance(candidate, str):
-                continue
-            # The value is still user data -- path resolution on it can raise
-            # (embedded NUL, an unresolvable ``~user``); that just means
-            # "not our path".
-            try:
-                if _is_fidelis_server_path(candidate):
-                    return True
-            except (OSError, ValueError, RuntimeError):
-                continue
     return False
 
 
