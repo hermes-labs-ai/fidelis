@@ -46,6 +46,21 @@
   an entry is now treated as foreign, and left alone unless `--force` is
   passed, the way OpenClaw entries already were.
 
+- OpenClaw ownership no longer matches on any string anywhere in an entry —
+  only on `command` naming a Python interpreter (this process's own, by exact
+  path, or a plausible name like `pypy3` elsewhere) paired with exactly one
+  argument naming the bundled script, the one shape `openclaw mcp add`
+  actually writes. A foreign server that merely references the script path in
+  `env`, a header, a URL, or an unrelated argument is no longer recognized as
+  Fidelis's own and installed over or removed without `--force`. Install also
+  verifies the read-back entry's command, argument, and enabled state match
+  what was requested, not just that it belongs to Fidelis — a stale entry
+  from a prior install (wrong interpreter, left disabled) could otherwise read
+  back as "ours" even when `openclaw mcp add` silently left it untouched.
+  Diagnostics for a refused or unexpected entry now show only its
+  launch-shaped fields (never argument values, `env`, or headers), so a
+  credential on the entry is never echoed to stderr.
+
 - Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
   --client copilot`, which register the bundled stdio MCP server in GitHub
   Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)
