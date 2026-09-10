@@ -923,6 +923,13 @@ def _openclaw_cli() -> str | None:
 _OPENCLAW_LAUNCH_LIST_KEYS = ("args", "arguments")
 
 
+# An interpreter's own basename, optionally versioned (`python3`,
+# `pypy3.10`) and optionally free-threaded (`python3.14t`) or `.exe`-suffixed.
+# Anchored on both ends so a real but unrelated tool that merely contains one
+# of these names -- `python-config`, `python3-analyzer` -- does not match.
+_INTERPRETER_NAME_RE = re.compile(r"^(python|pypy)(2|3)?(\.\d+){0,2}t?(\.exe)?$", re.IGNORECASE)
+
+
 def _looks_like_python_interpreter(command: str) -> bool:
     """Whether `command` is -- or, by name, plausibly is -- a Python
     interpreter.
@@ -932,18 +939,18 @@ def _looks_like_python_interpreter(command: str) -> bool:
     that merely accepts our script's path as its one input". This exact
     process's own interpreter always counts, whatever it is named --
     that is the one Fidelis itself has ever actually written via
-    ``openclaw mcp add --command``. Beyond that, only the executable's own
-    name is checked, not a fixed path, so a differently-rooted venv, a
-    pyenv shim, or a pipx-managed Python from a past install are also
-    recognized: CPython and PyPy binaries are named for it wherever they
-    are installed."""
+    ``openclaw mcp add --command``. Beyond that, the executable's own name
+    must match a known interpreter shape exactly, not merely contain one:
+    a differently-rooted venv, a pyenv shim, or a pipx-managed Python from
+    a past install are still recognized (CPython and PyPy binaries are
+    named for it wherever they are installed), but a real tool that just
+    happens to have "python" in its name, and is not itself one, is not."""
     try:
         if Path(command).expanduser().resolve() == Path(sys.executable).resolve():
             return True
     except (OSError, ValueError, RuntimeError):
         pass
-    name = Path(command).name.lower()
-    return "python" in name or "pypy" in name
+    return bool(_INTERPRETER_NAME_RE.match(Path(command).name))
 
 
 def _mentions_fidelis_server(node: object) -> bool:

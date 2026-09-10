@@ -817,3 +817,19 @@ def test_ownership_check_requires_a_python_command_not_just_a_matching_argument(
     assert _entry(config) == foreign
     assert openclaw.writes() == [], "must not shell out to write before refusing"
     assert "refusing to overwrite" in capsys.readouterr().err
+
+
+def test_ownership_check_requires_an_exact_interpreter_name_not_a_substring(
+    tmp_path, openclaw, capsys
+):
+    """`python-config` (a real tool bundled with a Python install, not an
+    interpreter) must not be recognized just because its name contains
+    "python"."""
+    config = tmp_path / "openclaw.json"
+    foreign = {"command": "/usr/bin/python3-config", "args": [str(MCP_SERVER_FILE)]}
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: foreign}}}))
+
+    assert cmd_mcp_install(_args(config)) == 1  # foreign, not ours
+    assert _entry(config) == foreign
+    assert openclaw.writes() == [], "must not shell out to write before refusing"
+    assert "refusing to overwrite" in capsys.readouterr().err
