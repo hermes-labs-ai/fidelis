@@ -245,10 +245,17 @@ def _is_fidelis_server_path(value: object) -> bool:
     unable to refresh or remove their own server without --force. Requiring
     both the packaged file name and its `fidelis` package directory keeps
     foreign servers out: a near-collision such as
-    ``/tmp/not-mcp_server.py-backup`` still fails."""
-    candidate = Path(str(value)).expanduser()
-    if candidate.resolve() == MCP_SERVER_FILE.resolve():
-        return True
+    ``/tmp/not-mcp_server.py-backup`` still fails.
+
+    The value is user data read from a hand-editable config. Resolving it can
+    raise -- an embedded NUL, an unresolvable ``~user`` -- and that only means
+    "not our path": the caller must still refuse the entry, not crash."""
+    try:
+        candidate = Path(str(value)).expanduser()
+        if candidate.resolve() == MCP_SERVER_FILE.resolve():
+            return True
+    except (OSError, ValueError, RuntimeError):
+        return False
     return candidate.name == MCP_SERVER_FILE.name and candidate.parent.name == PACKAGE_DIR.name
 
 

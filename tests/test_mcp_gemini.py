@@ -403,6 +403,31 @@ def test_uninstall_force_removes_a_foreign_entry(gemini):
     assert "fidelis" not in _read(gemini.path)["mcpServers"]
 
 
+@pytest.mark.parametrize("hostile_arg", [
+    "a\x00b",                        # JSON \u0000 decodes to a NUL: Path.resolve raises
+    "~nosuchuser000/mcp_server.py",  # unresolvable ~user: Path.expanduser raises
+])
+def test_ownership_check_survives_hostile_settings_strings(gemini, capsys, hostile_arg):
+    """Every string in settings.json is user data; path resolution must not crash.
+
+    Both inputs are legal Gemini settings (``\u0000`` is valid JSON), and both
+    used to escape install and uninstall as a traceback instead of the
+    ownership refusal -- so the file was neither refused nor protected."""
+    hostile = {"command": "python", "args": [hostile_arg]}
+    gemini.path.parent.mkdir(parents=True)
+    gemini.path.write_text(json.dumps({"mcpServers": {"fidelis": hostile}}))
+
+    assert cmd_mcp_install(_args()) == 1
+    assert not [c for c in gemini.calls if c[1:3] == ["mcp", "add"]], "must not write"
+    assert "refusing to overwrite" in capsys.readouterr().err
+
+    assert cmd_mcp_uninstall(_args()) == 1
+    assert not [c for c in gemini.calls if c[1:3] == ["mcp", "remove"]], "must not write"
+    assert "refusing to remove it" in capsys.readouterr().err
+
+    assert _read(gemini.path)["mcpServers"]["fidelis"] == hostile
+
+
 # --------------------------------------------------------------------------
 # preflight: binary, version boundary, flag routing
 # --------------------------------------------------------------------------
@@ -523,6 +548,8 @@ def test_comment_stripper_keeps_line_numbers_for_error_messages():
     {"command": "python", "args": []},                       # empty args
     {"command": "python", "args": ["a.py", "b.py"]},         # more than one arg
     {"command": "python", "args": ["/tmp/not-mcp_server.py-backup"]},
+    {"command": "python", "args": ["\x00"]},                   # resolve() raises
+    {"command": "python", "args": ["~nosuchuser000/mcp_server.py"]},  # expanduser() raises
 ])
 def test_foreign_shaped_entries_are_never_claimed_as_ours(entry):
     assert not _is_fidelis_gemini_entry(entry)

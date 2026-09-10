@@ -38,6 +38,14 @@
   unknown — never as "no entry there", and never as a success, even under
   `--force`. The `openclaw` binary is required, because it owns the write and
   is the only reader that can be trusted with a JSON5 config.
+
+- The Gemini CLI and GitHub Copilot CLI ownership check no longer crashes on a
+  hostile string in a hand-edited config: an embedded NUL (`\u0000` is valid
+  JSON) or an unresolvable `~user` in the entry's arguments used to escape
+  install and uninstall as a traceback instead of the ownership refusal. Such
+  an entry is now treated as foreign, and left alone unless `--force` is
+  passed, the way OpenClaw entries already were.
+
 - Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
   --client copilot`, which register the bundled stdio MCP server in GitHub
   Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)

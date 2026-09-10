@@ -41,7 +41,7 @@ globs = ["**/*.py"]
 
 [[fast]]
 name = "diff-check"
-argv = ["python3", ".hermes/hermes_gate_runner.py", "diff-check", "{files}"]
+argv = ["python3", ".hermes/run_gate_runner.py", "diff-check", "{files}"]
 timeout_seconds = 4.0
 globs = ["**/*"]
 
