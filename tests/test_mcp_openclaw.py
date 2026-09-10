@@ -2,13 +2,16 @@
 
 OpenClaw reads an optional JSON5 config from ``~/.openclaw/openclaw.json`` and
 keeps outbound MCP servers under ``mcp.servers.<name>``. Because that file is
-JSON5, Fidelis never rewrites it -- the documented ``openclaw mcp add`` CLI
-owns every write, and ``$OPENCLAW_CONFIG_PATH`` pins which file that is.
+JSON5, Fidelis neither writes it nor parses it: the documented ``openclaw mcp
+add`` / ``mcp unset`` CLI owns every write, the documented ``openclaw mcp show
+--json`` / ``mcp list --json`` CLI answers every question about what is in it,
+and ``$OPENCLAW_CONFIG_PATH`` pins which file that is for both.
 
-These tests stand up a fake ``openclaw`` executable on PATH that implements the
-documented ``mcp add --command/--arg`` and ``mcp unset`` contract against
-``$OPENCLAW_CONFIG_PATH``. Nothing here touches the real home directory or
-requires OpenClaw to be installed.
+These tests stand up a fake ``openclaw`` executable on PATH that implements
+that contract, including reading JSON5 the way OpenClaw does. A config Fidelis
+could not parse for itself is therefore fully visible here -- which is what
+makes the JSON5 cases below real tests rather than tests of a blind spot.
+Nothing here touches the real home directory or requires OpenClaw installed.
 """
 
 import json
@@ -28,38 +31,110 @@ from fidelis.mcp_cmd import (
     cmd_mcp_uninstall,
     openclaw_add_arguments,
     openclaw_config_path,
+    openclaw_list_arguments,
+    openclaw_show_arguments,
 )
 
 
 # A stand-in for the OpenClaw CLI. It honours exactly the documented surface
-# Fidelis delegates to, records every invocation, and can be told to fail.
+# Fidelis delegates to -- `mcp add --command/--arg`, `mcp unset`, `mcp show
+# --json`, `mcp list --json`, and the `{"ok": false, "error": {...}}` failure
+# envelope -- records every invocation, and can be told to misbehave.
+#
+# `FAKE_OPENCLAW_MODE` only ever changes the *write* subcommands, except for
+# "unreadable", which is the config-is-broken case and only changes the reads.
+# The reads are how Fidelis learns the truth; a shim that broke them everywhere
+# could not tell a caught failure apart from a blind one.
 FAKE_OPENCLAW = r'''#!/usr/bin/env python3
-import json, os, sys
+import json, os, re, sys
 
 argv = sys.argv[1:]
 record = os.environ["FAKE_OPENCLAW_LOG"]
 with open(record, "a") as handle:
     handle.write(json.dumps({"argv": argv, "config": os.environ.get("OPENCLAW_CONFIG_PATH")}) + "\n")
 
+path = os.environ["OPENCLAW_CONFIG_PATH"]
 mode = os.environ.get("FAKE_OPENCLAW_MODE", "ok")
-if mode == "fail":
+is_write = argv[:2] in (["mcp", "add"], ["mcp", "unset"])
+
+
+def strip_json5(text):
+    """Drop // and /* */ comments and trailing commas, respecting strings."""
+    out, index, size = [], 0, len(text)
+    while index < size:
+        char = text[index]
+        if char == '"':
+            end = index + 1
+            while end < size:
+                if text[end] == "\\":
+                    end += 2
+                    continue
+                if text[end] == '"':
+                    end += 1
+                    break
+                end += 1
+            out.append(text[index:end])
+            index = end
+            continue
+        if text.startswith("//", index):
+            newline = text.find("\n", index)
+            index = size if newline == -1 else newline
+            continue
+        if text.startswith("/*", index):
+            close = text.find("*/", index)
+            index = size if close == -1 else close + 2
+            continue
+        out.append(char)
+        index += 1
+    return re.sub(r",(\s*[}\]])", r"\1", "".join(out))
+
+
+def fail(message):
+    print(json.dumps({"ok": False, "error": {"type": "cli_error", "message": message}}))
+    sys.exit(1)
+
+
+if mode == "unreadable" and not is_write:
+    fail("Config file is invalid; fix it before using MCP config commands.")
+
+if mode == "legacy" and not is_write:
+    # An openclaw that writes but has no read-only surface to confirm with:
+    # the answer is unknown, and unknown is not "nothing there".
+    sys.stderr.write("error: unknown command '" + " ".join(argv[1:2]) + "'\n")
+    sys.exit(2)
+
+if is_write and mode == "fail":
     sys.stderr.write("openclaw: boom\n")
     sys.exit(3)
-if mode == "noop":
-    # Accept the call but leave the config alone. Models both "OpenClaw owns
-    # its JSON5 file and this shim cannot parse it" and "the write silently
-    # did not land" -- Fidelis must tell those apart by read-back, not by
-    # trusting the exit code.
+
+if is_write and mode == "noop":
+    # Accept the call but leave the config alone. Models a write that silently
+    # did not land -- Fidelis must catch that by read-back, not by trusting the
+    # exit code.
     print("ok")
     sys.exit(0)
 
-path = os.environ["OPENCLAW_CONFIG_PATH"]
 try:
     with open(path) as handle:
-        config = json.load(handle)
+        config = json.loads(strip_json5(handle.read()))
 except FileNotFoundError:
     config = {}
 servers = config.setdefault("mcp", {}).setdefault("servers", {})
+
+if argv[:2] == ["mcp", "list"]:
+    print(json.dumps(servers))
+    sys.exit(0)
+
+if argv[:2] == ["mcp", "show"]:
+    rest = [value for value in argv[2:] if not value.startswith("--")]
+    if not rest:
+        print(json.dumps(servers))
+        sys.exit(0)
+    name = rest[0]
+    if name not in servers:
+        fail('No MCP server named "' + name + '" in ' + path + ".")
+    print(json.dumps(servers[name]))
+    sys.exit(0)
 
 if argv[:2] == ["mcp", "add"]:
     name = argv[2]
@@ -73,7 +148,9 @@ if argv[:2] == ["mcp", "add"]:
     servers[name] = {"command": command, "args": args, "enabled": True}
     print("added " + name)
 elif argv[:2] == ["mcp", "unset"]:
-    servers.pop(argv[2], None)
+    if argv[2] not in servers:
+        fail('No MCP server named "' + argv[2] + '" in ' + path + ".")
+    servers.pop(argv[2])
     print("unset " + argv[2])
 else:
     sys.stderr.write("openclaw: unsupported: " + " ".join(argv) + "\n")
@@ -83,6 +160,31 @@ os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
 with open(path, "w") as handle:
     json.dump(config, handle, indent=2)
 '''
+
+WRITE_ARGV_PREFIXES = (["mcp", "add"], ["mcp", "unset"])
+
+# A JSON5 config: comments and a trailing comma. `json.loads` rejects every
+# one of these files; OpenClaw reads them all.
+JSON5_EMPTY = """{
+  // hand-written note
+  "mcp": {
+    "servers": {},
+  },
+}
+"""
+
+
+def _json5_with_entry(entry: dict) -> str:
+    return (
+        "{\n"
+        "  // hand-written note\n"
+        '  "mcp": {\n'
+        '    "servers": {\n'
+        f'      "{MCP_SERVER_NAME}": {json.dumps(entry)},  /* mine, not yours */\n'
+        "    },\n"
+        "  },\n"
+        "}\n"
+    )
 
 
 @pytest.fixture
@@ -108,10 +210,29 @@ def openclaw(tmp_path, monkeypatch):
             return [json.loads(line) for line in log.read_text().splitlines() if line]
 
         @staticmethod
+        def argvs() -> list[list[str]]:
+            return [call["argv"] for call in Handle.calls()]
+
+        @staticmethod
+        def writes() -> list[list[str]]:
+            return [argv for argv in Handle.argvs() if argv[:2] in WRITE_ARGV_PREFIXES]
+
+        @staticmethod
         def mode(value: str) -> None:
             monkeypatch.setenv("FAKE_OPENCLAW_MODE", value)
 
     return Handle()
+
+
+@pytest.fixture
+def no_fidelis_writes(monkeypatch):
+    """Fail the test if Fidelis writes an OpenClaw config itself."""
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Fidelis must delegate every OpenClaw config write to the CLI")
+
+    monkeypatch.setattr(mcp_cmd, "_atomic_write_json", forbidden)
+    monkeypatch.setattr(mcp_cmd, "_backup", forbidden)
 
 
 def _args(settings, force: bool = False, client: str = "openclaw") -> Namespace:
@@ -135,14 +256,14 @@ def test_install_delegates_the_documented_add_invocation(tmp_path, openclaw, cap
     config = tmp_path / "openclaw.json"
     assert cmd_mcp_install(_args(config)) == 0
 
-    calls = openclaw.calls()
-    assert len(calls) == 1
-    assert calls[0]["argv"] == [
-        "mcp", "add", "fidelis", "--command", sys.executable, "--arg", str(MCP_SERVER_FILE),
+    writes = openclaw.writes()
+    assert writes == [
+        ["mcp", "add", "fidelis", "--command", sys.executable, "--arg", str(MCP_SERVER_FILE)],
     ]
-    assert calls[0]["argv"] == openclaw_add_arguments()
-    # The delegated write is pinned to the file we read back.
-    assert calls[0]["config"] == str(config)
+    assert writes[0] == openclaw_add_arguments()
+    # Every delegated call -- the write and the read-back -- is pinned to the
+    # file Fidelis reports on.
+    assert {call["config"] for call in openclaw.calls()} == {str(config)}
 
     entry = _entry(config)
     assert entry["command"] == sys.executable
@@ -155,26 +276,101 @@ def test_install_delegates_the_documented_add_invocation(tmp_path, openclaw, cap
     assert "openclaw mcp doctor fidelis --probe" in out
 
 
-def test_install_never_rewrites_the_json5_config_itself(tmp_path, openclaw):
-    """A JSON5 config keeps its comments: Fidelis writes nothing, the CLI does."""
+def test_install_confirms_the_write_through_the_openclaw_cli(tmp_path, openclaw):
+    """The read-back is OpenClaw's own read-only surface, not a file parse."""
     config = tmp_path / "openclaw.json"
-    config.write_text('{\n  // hand-written note\n  "mcp": { "servers": {} },\n}\n')
+    config.write_text(JSON5_EMPTY)
+
+    assert cmd_mcp_install(_args(config)) == 0
+    argvs = openclaw.argvs()
+    add = argvs.index(openclaw_add_arguments())
+    assert openclaw_show_arguments() in argvs[add + 1 :], "must read back after writing"
+
+
+def test_install_and_uninstall_never_write_the_config_themselves(
+    tmp_path, openclaw, no_fidelis_writes
+):
+    """A JSON5 config is OpenClaw's to write; Fidelis only ever delegates."""
+    config = tmp_path / "openclaw.json"
+    config.write_text(JSON5_EMPTY)
+
+    assert cmd_mcp_install(_args(config)) == 0
+    assert cmd_mcp_uninstall(_args(config)) == 0
+
+
+def test_install_leaves_a_json5_config_untouched_when_the_cli_does_nothing(tmp_path, openclaw):
+    config = tmp_path / "openclaw.json"
+    config.write_text(JSON5_EMPTY)
     before = config.read_text()
 
-    openclaw.mode("noop")  # CLI accepts the call but leaves the file untouched
-    assert cmd_mcp_install(_args(config)) == 0
+    openclaw.mode("noop")  # CLI accepts the call but leaves the file alone
+    assert cmd_mcp_install(_args(config)) == 1, "an unconfirmed write is not a success"
     assert config.read_text() == before, "Fidelis must not rewrite a JSON5 config"
 
 
-def test_install_reports_unconfirmable_json5_readback(tmp_path, openclaw, capsys):
+def test_install_fails_when_a_json5_registration_does_not_land(tmp_path, openclaw, capsys):
+    """JSON5 is not a licence to claim success without a read-back."""
     config = tmp_path / "openclaw.json"
-    config.write_text('{ /* json5 */ "mcp": { "servers": {} } }')
+    config.write_text(JSON5_EMPTY)
     openclaw.mode("noop")
 
-    assert cmd_mcp_install(_args(config)) == 0
-    out = capsys.readouterr().out
-    assert "not strict JSON" in out
-    assert "could not be confirmed by read-back" in out
+    assert cmd_mcp_install(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "reported success but no 'fidelis' server" in err
+
+
+def test_install_refuses_a_foreign_json5_entry_without_force(tmp_path, openclaw, capsys):
+    """The pre-flight sees a foreign entry even when the config is JSON5."""
+    config = tmp_path / "openclaw.json"
+    foreign = {"command": "npx", "args": ["some-other-fidelis"], "enabled": True}
+    config.write_text(_json5_with_entry(foreign))
+    before = config.read_text()
+
+    assert cmd_mcp_install(_args(config)) == 1
+    assert config.read_text() == before
+    assert openclaw.writes() == [], "must not shell out to write before refusing"
+    assert "refusing to overwrite" in capsys.readouterr().err
+
+    assert cmd_mcp_install(_args(config, force=True)) == 0
+    assert _entry(config)["args"] == [str(MCP_SERVER_FILE)]
+
+
+def test_install_refuses_when_openclaw_cannot_report_the_state(tmp_path, openclaw, capsys):
+    """An unreadable config is 'unknown', never 'nothing there'."""
+    config = tmp_path / "openclaw.json"
+    config.write_text("{ this is not a config at all")
+    openclaw.mode("unreadable")
+
+    assert cmd_mcp_install(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "could not confirm what 'fidelis' is" in err
+    assert "Config file is invalid" in err
+    assert openclaw.writes() == [], "must not shell out to write before refusing"
+
+
+def test_install_refuses_when_the_cli_has_no_read_only_surface(tmp_path, openclaw, capsys):
+    """An openclaw that cannot be asked is 'unknown', even though it can write."""
+    config = tmp_path / "openclaw.json"
+    config.write_text(JSON5_EMPTY)
+    openclaw.mode("legacy")
+
+    assert cmd_mcp_install(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "could not confirm what 'fidelis' is" in err
+    assert openclaw.writes() == [], "must not shell out to write before refusing"
+
+
+def test_install_force_past_an_unknown_state_still_needs_a_read_back(tmp_path, openclaw, capsys):
+    """--force skips the pre-flight refusal; it does not buy a claimed success."""
+    config = tmp_path / "openclaw.json"
+    config.write_text(JSON5_EMPTY)
+    openclaw.mode("legacy")
+
+    assert cmd_mcp_install(_args(config, force=True)) == 1
+    assert openclaw.writes() == [openclaw_add_arguments()], "the write was attempted"
+    err = capsys.readouterr().err
+    assert "could not be confirmed" in err
+    assert "openclaw mcp show fidelis --json" in err
 
 
 def test_install_is_idempotent(tmp_path, openclaw):
@@ -207,7 +403,7 @@ def test_install_refuses_foreign_entry_without_force(tmp_path, openclaw, capsys)
 
     assert cmd_mcp_install(_args(config)) == 1
     assert _entry(config) == foreign
-    assert openclaw.calls() == [], "must not shell out before refusing"
+    assert openclaw.writes() == [], "must not shell out to write before refusing"
     assert "refusing to overwrite" in capsys.readouterr().err
 
     assert cmd_mcp_install(_args(config, force=True)) == 0
@@ -280,7 +476,17 @@ def test_uninstall_removes_only_fidelis(tmp_path, openclaw):
     servers = _config(config)["mcp"]["servers"]
     assert MCP_SERVER_NAME not in servers
     assert servers["docs"] == {"url": "https://mcp.example.com/mcp"}
-    assert openclaw.calls()[-1]["argv"] == ["mcp", "unset", "fidelis"]
+    assert openclaw.writes()[-1] == ["mcp", "unset", "fidelis"]
+
+
+def test_uninstall_confirms_the_removal_through_the_openclaw_cli(tmp_path, openclaw):
+    config = tmp_path / "openclaw.json"
+    assert cmd_mcp_install(_args(config)) == 0
+
+    assert cmd_mcp_uninstall(_args(config)) == 0
+    argvs = openclaw.argvs()
+    unset = argvs.index(["mcp", "unset", MCP_SERVER_NAME])
+    assert openclaw_show_arguments() in argvs[unset + 1 :], "must read back after removing"
 
 
 def test_uninstall_refuses_foreign_entry(tmp_path, openclaw, capsys):
@@ -290,22 +496,50 @@ def test_uninstall_refuses_foreign_entry(tmp_path, openclaw, capsys):
 
     assert cmd_mcp_uninstall(_args(config)) == 1
     assert _entry(config) == foreign
-    assert openclaw.calls() == []
+    assert openclaw.writes() == []
     assert "refusing to remove" in capsys.readouterr().err
 
     assert cmd_mcp_uninstall(_args(config, force=True)) == 0
     assert MCP_SERVER_NAME not in _config(config)["mcp"]["servers"]
 
 
+def test_uninstall_refuses_a_foreign_json5_entry_without_force(tmp_path, openclaw, capsys):
+    """The pre-flight sees a foreign entry even when the config is JSON5."""
+    config = tmp_path / "openclaw.json"
+    foreign = {"command": "npx", "args": ["some-other-fidelis"], "enabled": True}
+    config.write_text(_json5_with_entry(foreign))
+    before = config.read_text()
+
+    assert cmd_mcp_uninstall(_args(config)) == 1
+    assert config.read_text() == before
+    assert openclaw.writes() == []
+    assert "refusing to remove" in capsys.readouterr().err
+
+    assert cmd_mcp_uninstall(_args(config, force=True)) == 0
+    assert MCP_SERVER_NAME not in _config(config)["mcp"]["servers"]
+
+
+def test_uninstall_refuses_when_openclaw_cannot_report_the_state(tmp_path, openclaw, capsys):
+    config = tmp_path / "openclaw.json"
+    config.write_text("{ this is not a config at all")
+    openclaw.mode("unreadable")
+
+    assert cmd_mcp_uninstall(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "could not confirm what 'fidelis' is" in err
+    assert openclaw.writes() == []
+
+
 def test_uninstall_without_config_or_entry_is_a_noop(tmp_path, openclaw, capsys):
     config = tmp_path / "openclaw.json"
     assert cmd_mcp_uninstall(_args(config)) == 0
-    assert "nothing" in capsys.readouterr().out or True
-    assert openclaw.calls() == [], "a missing config must not shell out"
+    assert "nothing to uninstall" in capsys.readouterr().out
+    assert openclaw.calls() == [], "a missing config must not shell out at all"
 
     config.write_text(json.dumps({"mcp": {"servers": {}}}))
     assert cmd_mcp_uninstall(_args(config)) == 0
-    assert openclaw.calls() == []
+    assert "no 'fidelis' MCP server registered" in capsys.readouterr().out
+    assert openclaw.writes() == [], "nothing to remove must not shell out to write"
 
 
 def test_uninstall_fails_fast_when_removal_silently_does_nothing(tmp_path, openclaw, capsys):
@@ -317,6 +551,18 @@ def test_uninstall_fails_fast_when_removal_silently_does_nothing(tmp_path, openc
     assert "still registered" in capsys.readouterr().err
 
 
+def test_uninstall_fails_when_a_json5_removal_does_not_land(tmp_path, openclaw, capsys):
+    config = tmp_path / "openclaw.json"
+    entry = {"command": sys.executable, "args": [str(MCP_SERVER_FILE)], "enabled": True}
+    config.write_text(_json5_with_entry(entry))
+    before = config.read_text()
+    openclaw.mode("noop")
+
+    assert cmd_mcp_uninstall(_args(config)) == 1
+    assert "still registered" in capsys.readouterr().err
+    assert config.read_text() == before
+
+
 def test_uninstall_surfaces_cli_failure_verbatim(tmp_path, openclaw, capsys):
     config = tmp_path / "openclaw.json"
     assert cmd_mcp_install(_args(config)) == 0
@@ -324,6 +570,17 @@ def test_uninstall_surfaces_cli_failure_verbatim(tmp_path, openclaw, capsys):
     assert cmd_mcp_uninstall(_args(config)) == 3
     assert "openclaw: boom" in capsys.readouterr().err
     assert _entry(config)["args"] == [str(MCP_SERVER_FILE)]
+
+
+def test_uninstall_fails_fast_without_the_openclaw_cli(tmp_path, monkeypatch, capsys):
+    config = tmp_path / "openclaw.json"
+    config.write_text(JSON5_EMPTY)
+    monkeypatch.setattr(mcp_cmd, "_openclaw_cli", lambda: None)
+
+    assert cmd_mcp_uninstall(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "OpenClaw CLI not found on PATH" in err
+    assert "fidelis mcp uninstall --client openclaw" in err
 
 
 # --------------------------------------------------------------------------
@@ -339,6 +596,11 @@ def test_config_path_precedence(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENCLAW_CONFIG_PATH", str(tmp_path / "env.json"))
     assert openclaw_config_path(None) == tmp_path / "env.json"
     assert openclaw_config_path(str(tmp_path / "explicit.json")) == tmp_path / "explicit.json"
+
+
+def test_delegated_read_only_surface_is_the_documented_one():
+    assert openclaw_show_arguments() == ["mcp", "show", MCP_SERVER_NAME, "--json"]
+    assert openclaw_list_arguments() == ["mcp", "list", "--json"]
 
 
 def test_cli_accepts_openclaw_client(tmp_path, openclaw, monkeypatch):

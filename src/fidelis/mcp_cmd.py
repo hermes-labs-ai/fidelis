@@ -7,9 +7,10 @@ CLI configuration is edited atomically with a backup in the documented
 ``mcp-config.json`` file (``~/.copilot`` by default, or ``$COPILOT_HOME``).
 Google Gemini CLI configuration is delegated to the native ``gemini mcp``
 subcommands, which round-trip the comments in a user's ``settings.json``.
-OpenClaw configuration is delegated to the supported ``openclaw mcp`` CLI:
-OpenClaw's config file is JSON5 (comments, trailing commas), so a strict-JSON
-rewrite of it would destroy user content.
+OpenClaw configuration is delegated to the supported ``openclaw mcp`` CLI, in
+both directions: OpenClaw's config file is JSON5 (comments, trailing commas),
+so a strict-JSON rewrite of it would destroy user content and a strict-JSON
+read of it cannot be trusted to say what is there.
 """
 
 from __future__ import annotations
@@ -795,14 +796,21 @@ def _cmd_gemini_uninstall(args) -> int:
 # OpenClaw reads an optional JSON5 config from ``~/.openclaw/openclaw.json``
 # and keeps outbound MCP servers under ``mcp.servers.<name>``. Because that
 # file is JSON5 -- comments and trailing commas are supported and common --
-# Fidelis never rewrites it. The documented ``openclaw mcp add`` CLI owns every
-# write:
+# Fidelis neither writes it nor parses it. OpenClaw's own read-only CLI is the
+# authority on what is in it:
+#
+#     openclaw mcp show fidelis --json   # that server's definition, or exit 1
+#     openclaw mcp list --json           # the whole mcp.servers map
+#
+# and its documented write path owns every mutation:
 #
 #     openclaw mcp add local-tools --command node --arg ./dist/mcp-server.js
+#     openclaw mcp unset local-tools
 #
 # ``$OPENCLAW_CONFIG_PATH`` is the documented way to point OpenClaw at a
-# specific config file. Fidelis always sets it for the delegated call, so the
-# file it reads back is provably the file the CLI just wrote.
+# specific config file. Fidelis pins it for every delegated call -- the reads
+# as well as the write -- so the state it reads back is provably the state of
+# the file the CLI just wrote.
 # ---------------------------------------------------------------------------
 
 
@@ -832,6 +840,16 @@ def openclaw_add_arguments() -> list[str]:
     ]
 
 
+def openclaw_show_arguments() -> list[str]:
+    """The documented read-only call that answers what our entry is."""
+    return ["mcp", "show", MCP_SERVER_NAME, "--json"]
+
+
+def openclaw_list_arguments() -> list[str]:
+    """The documented read-only call that answers which entries exist."""
+    return ["mcp", "list", "--json"]
+
+
 def _openclaw_cli() -> str | None:
     return shutil.which("openclaw")
 
@@ -840,9 +858,10 @@ def _mentions_fidelis_server(node: object) -> bool:
     """Whether any string anywhere in a config entry names our packaged server.
 
     Deliberately shape-agnostic. Fidelis has verified the ``openclaw mcp add``
-    invocation, not the exact field names OpenClaw serializes it into, so
-    ownership is decided by the one value we do control -- the path of the
-    bundled ``mcp_server.py`` -- wherever it lands in the entry."""
+    invocation, not the exact field names OpenClaw serializes it into -- and
+    OpenClaw normalizes a saved definition before handing it back -- so
+    ownership is decided by the one value we do control: the path of the
+    bundled ``mcp_server.py``, wherever it lands in the entry."""
     stack = [node]
     while stack:
         current = stack.pop()
@@ -862,40 +881,26 @@ def _mentions_fidelis_server(node: object) -> bool:
     return False
 
 
-# Pre-flight / read-back states for the OpenClaw config.
-_OC_ABSENT = "absent"        # no config, or no entry named 'fidelis'
+# What OpenClaw says about ``mcp.servers.fidelis``.
+_OC_ABSENT = "absent"        # no config file, or no entry under that name
 _OC_OURS = "ours"            # an entry naming our packaged MCP server
 _OC_FOREIGN = "foreign"      # an entry named 'fidelis' that is not ours
-_OC_UNREADABLE = "unreadable"  # present, but not strict JSON (JSON5) or malformed
+_OC_UNKNOWN = "unknown"      # OpenClaw could not tell us; never assume absent
 
 
-def _openclaw_entry(config_path: Path) -> tuple[str, object]:
-    """Inspect ``mcp.servers.fidelis`` without ever writing.
+def _openclaw_error_message(payload: object) -> str | None:
+    """The message inside OpenClaw's documented CLI failure envelope.
 
-    JSON5 is a superset of JSON, so a config using comments or trailing commas
-    fails ``json.loads``. That is reported as ``_OC_UNREADABLE`` rather than as
-    an error: the file is OpenClaw's to parse, and an unreadable pre-flight
-    must never be mistaken for 'no entry there'."""
-    try:
-        raw = config_path.read_text()
-    except FileNotFoundError:
-        return _OC_ABSENT, None
-    except OSError:
-        return _OC_UNREADABLE, None
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return _OC_UNREADABLE, None
-    if not isinstance(data, dict):
-        return _OC_UNREADABLE, None
-    mcp = data.get("mcp")
-    servers = mcp.get("servers") if isinstance(mcp, dict) else None
-    if not isinstance(servers, dict) or MCP_SERVER_NAME not in servers:
-        return _OC_ABSENT, None
-    entry = servers[MCP_SERVER_NAME]
-    if _mentions_fidelis_server(entry):
-        return _OC_OURS, entry
-    return _OC_FOREIGN, entry
+    Every ``--json`` command prints ``{"ok": false, "error": {"type":
+    "cli_error", "message": ...}}`` on stdout when it fails. Returns ``None``
+    when ``payload`` is not such an envelope, which is what tells a real answer
+    apart from a reported failure."""
+    if not isinstance(payload, dict) or payload.get("ok") is not False:
+        return None
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return ""
+    return str(error.get("message", ""))
 
 
 def _run_openclaw(openclaw_bin: str, arguments: list[str], config_path: Path):
@@ -910,11 +915,90 @@ def _run_openclaw(openclaw_bin: str, arguments: list[str], config_path: Path):
     )
 
 
+def _openclaw_json(openclaw_bin: str, arguments: list[str], config_path: Path):
+    """Run a read-only openclaw command and parse its ``--json`` stdout."""
+    result = _run_openclaw(openclaw_bin, arguments, config_path)
+    try:
+        payload = json.loads(result.stdout)
+    except ValueError:
+        payload = None
+    return result, payload
+
+
+def _openclaw_state(openclaw_bin: str, config_path: Path) -> tuple[str, object, str]:
+    """Ask OpenClaw what ``mcp.servers.fidelis`` currently is.
+
+    Fidelis never parses the config itself. JSON5 is a superset of JSON, so a
+    config carrying comments or a trailing comma is unreadable to
+    ``json.loads`` while being perfectly readable to OpenClaw -- and a check
+    that cannot read the file is exactly how a user's foreign ``fidelis`` entry
+    gets silently overwritten, or a write that never landed gets reported as a
+    success. OpenClaw's own read-only surface has no such blind spot.
+
+    ``mcp show <name> --json`` prints the server definition and exits 0, but it
+    exits 1 with the same failure envelope whether the server is merely not
+    configured or the config could not be loaded at all. Those two answers are
+    not interchangeable, so a non-zero ``show`` is resolved by ``mcp list
+    --json``, which exits 0 with the whole ``mcp.servers`` map for any config
+    OpenClaw can read. Whatever is left over is ``_OC_UNKNOWN`` -- never
+    ``_OC_ABSENT``, and never a success.
+
+    Returns the state, the entry behind it when there is one, and a diagnostic
+    line to show the user when the state is ``_OC_UNKNOWN``."""
+    if not config_path.exists():
+        # No file, no saved servers. That is a fact about the filesystem rather
+        # than a parse of a JSON5 document, and ``$OPENCLAW_CONFIG_PATH`` pins
+        # this exact path for every delegated call, so it is the file OpenClaw
+        # itself would read.
+        return _OC_ABSENT, None, ""
+
+    result, payload = _openclaw_json(openclaw_bin, openclaw_show_arguments(), config_path)
+    if (
+        result.returncode == 0
+        and isinstance(payload, dict)
+        and payload
+        and _openclaw_error_message(payload) is None
+    ):
+        state = _OC_OURS if _mentions_fidelis_server(payload) else _OC_FOREIGN
+        return state, payload, ""
+    show_detail = _openclaw_error_message(payload) or result.stderr.strip()
+
+    result, payload = _openclaw_json(openclaw_bin, openclaw_list_arguments(), config_path)
+    if (
+        result.returncode != 0
+        or not isinstance(payload, dict)
+        or _openclaw_error_message(payload) is not None
+    ):
+        detail = _openclaw_error_message(payload) or result.stderr.strip() or show_detail
+        return _OC_UNKNOWN, None, detail
+    if MCP_SERVER_NAME not in payload:
+        return _OC_ABSENT, None, ""
+    entry = payload[MCP_SERVER_NAME]
+    return (_OC_OURS if _mentions_fidelis_server(entry) else _OC_FOREIGN), entry, ""
+
+
 def _openclaw_missing_cli(action: str) -> int:
     print(
         "error: OpenClaw CLI not found on PATH\n"
-        "  OpenClaw owns every write to its JSON5 config, so its CLI is required.\n"
+        "  OpenClaw owns every write to its JSON5 config, and is the only thing\n"
+        "  that can read one back, so its CLI is required.\n"
         f"  install OpenClaw, then rerun: fidelis mcp {action} --client openclaw",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def _openclaw_unknown_state(config_path: Path, detail: str, action: str) -> int:
+    """Refuse to act on a config OpenClaw could not report on."""
+    print(
+        "\n".join(
+            [
+                f"error: could not confirm what '{MCP_SERVER_NAME}' is in {config_path}",
+                f"  openclaw could not report it{': ' + detail if detail else '.'}",
+                f"  an existing entry cannot be ruled out, so Fidelis will not {action} blindly.",
+                "  fix the config (openclaw doctor), or pass --force to proceed anyway.",
+            ]
+        ),
         file=sys.stderr,
     )
     return 1
@@ -935,7 +1019,7 @@ def _cmd_openclaw_install(args) -> int:
         return _openclaw_missing_cli("install")
 
     config_path = openclaw_config_path(getattr(args, "settings", None))
-    state, existing = _openclaw_entry(config_path)
+    state, existing, detail = _openclaw_state(openclaw_bin, config_path)
     if state == _OC_FOREIGN and not args.force:
         print(
             f"error: a non-fidelis OpenClaw MCP server named '{MCP_SERVER_NAME}' already exists "
@@ -945,11 +1029,8 @@ def _cmd_openclaw_install(args) -> int:
             file=sys.stderr,
         )
         return 1
-    if state == _OC_UNREADABLE:
-        print(
-            f"note: {config_path} is not strict JSON (OpenClaw reads JSON5), so an existing "
-            f"'{MCP_SERVER_NAME}' entry could not be pre-checked; openclaw mcp add owns the write"
-        )
+    if state == _OC_UNKNOWN and not args.force:
+        return _openclaw_unknown_state(config_path, detail, "register")
 
     result = _run_openclaw(openclaw_bin, openclaw_add_arguments(), config_path)
     if result.returncode != 0:
@@ -959,15 +1040,19 @@ def _cmd_openclaw_install(args) -> int:
         )
         return result.returncode
 
-    after, _ = _openclaw_entry(config_path)
-    if after == _OC_OURS:
-        print(f"registered OpenClaw MCP server '{MCP_SERVER_NAME}' in {config_path}")
-    elif after == _OC_UNREADABLE:
+    # A zero exit from the CLI is a claim, not a result. Only a read-back
+    # through OpenClaw's own surface proves the entry landed.
+    after, _, detail = _openclaw_state(openclaw_bin, config_path)
+    if after == _OC_UNKNOWN:
         print(
-            result.stdout.strip() or f"registered OpenClaw MCP server '{MCP_SERVER_NAME}'"
+            "error: openclaw reported success but the registration could not be confirmed "
+            f"in {config_path}\n"
+            f"  openclaw could not report it{': ' + detail if detail else '.'}\n"
+            f"  check with: openclaw mcp show {MCP_SERVER_NAME} --json",
+            file=sys.stderr,
         )
-        print(f"note: {config_path} is JSON5, so the entry could not be confirmed by read-back")
-    else:
+        return 1
+    if after != _OC_OURS:
         print(
             f"error: openclaw reported success but no '{MCP_SERVER_NAME}' server naming "
             f"{MCP_SERVER_FILE} is present in {config_path}",
@@ -975,6 +1060,7 @@ def _cmd_openclaw_install(args) -> int:
         )
         return 1
 
+    print(f"registered OpenClaw MCP server '{MCP_SERVER_NAME}' in {config_path}")
     print()
     print("next: openclaw mcp reload            # pick up the new server")
     print("  openclaw mcp status --verbose      # confirm the saved config")
@@ -984,11 +1070,20 @@ def _cmd_openclaw_install(args) -> int:
 
 def _cmd_openclaw_uninstall(args) -> int:
     config_path = openclaw_config_path(getattr(args, "settings", None))
-    state, existing = _openclaw_entry(config_path)
+    if not config_path.exists():
+        print(f"no OpenClaw config at {config_path}; nothing to uninstall")
+        return 0
+
+    openclaw_bin = _openclaw_cli()
+    if not openclaw_bin:
+        return _openclaw_missing_cli("uninstall")
+
+    force = getattr(args, "force", False)
+    state, existing, detail = _openclaw_state(openclaw_bin, config_path)
     if state == _OC_ABSENT:
         print(f"no '{MCP_SERVER_NAME}' MCP server registered in {config_path}")
         return 0
-    if state == _OC_FOREIGN and not getattr(args, "force", False):
+    if state == _OC_FOREIGN and not force:
         print(
             f"error: OpenClaw MCP server '{MCP_SERVER_NAME}' in {config_path} does not appear "
             "to belong to Fidelis; refusing to remove it\n"
@@ -997,16 +1092,13 @@ def _cmd_openclaw_uninstall(args) -> int:
             file=sys.stderr,
         )
         return 1
-
-    openclaw_bin = _openclaw_cli()
-    if not openclaw_bin:
-        return _openclaw_missing_cli("uninstall")
+    if state == _OC_UNKNOWN and not force:
+        return _openclaw_unknown_state(config_path, detail, "remove")
 
     # `unset` is the documented subcommand for removing an OpenClaw-managed
-    # mcp.servers entry. Its exact argument shape is not pinned by the public
-    # docs, so success is never inferred from the exit code alone: a wrong
-    # invocation exits non-zero and is surfaced verbatim, and a call that
-    # returns 0 without removing anything is caught by the read-back below.
+    # mcp.servers entry, and it fails when the named server does not exist. A
+    # zero exit is still only a claim: the read-back below is what proves the
+    # entry is gone.
     result = _run_openclaw(
         openclaw_bin, ["mcp", "unset", MCP_SERVER_NAME], config_path
     )
@@ -1017,17 +1109,19 @@ def _cmd_openclaw_uninstall(args) -> int:
         )
         return result.returncode
 
-    after, _ = _openclaw_entry(config_path)
+    after, _, detail = _openclaw_state(openclaw_bin, config_path)
     if after == _OC_ABSENT:
         print(f"removed '{MCP_SERVER_NAME}' MCP server from {config_path}")
         return 0
-    if after == _OC_UNREADABLE:
-        print(result.stdout.strip() or f"removed OpenClaw MCP server '{MCP_SERVER_NAME}'")
+    if after == _OC_UNKNOWN:
         print(
-            f"note: {config_path} is JSON5, so the removal could not be confirmed by read-back; "
-            "check with: openclaw mcp status --verbose"
+            "error: openclaw reported success but the removal could not be confirmed "
+            f"in {config_path}\n"
+            f"  openclaw could not report it{': ' + detail if detail else '.'}\n"
+            f"  check with: openclaw mcp show {MCP_SERVER_NAME} --json",
+            file=sys.stderr,
         )
-        return 0
+        return 1
     print(
         f"error: openclaw reported success but '{MCP_SERVER_NAME}' is still registered in "
         f"{config_path}",

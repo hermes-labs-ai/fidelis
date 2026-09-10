@@ -190,9 +190,11 @@ Recall happens when the agent calls the `fidelis_recall`, `fidelis_orient`, or
 
 OpenClaw keeps outbound MCP servers under `mcp.servers` in its JSON5 config
 (`~/.openclaw/openclaw.json`, or `$OPENCLAW_CONFIG_PATH`). Because JSON5 allows
-comments and trailing commas, Fidelis never rewrites that file — it delegates
-every write to the documented `openclaw mcp add` CLI and then reads the file
-back to confirm what landed.
+comments and trailing commas, Fidelis neither writes that file nor parses it:
+it delegates every write to the documented `openclaw mcp add` CLI, and asks
+OpenClaw's own read-only surface — `openclaw mcp show fidelis --json`, falling
+back to `openclaw mcp list --json` — both before writing and afterwards to
+confirm what landed.
 
 > **Unreleased.** `--client openclaw` is on `main` and not in the pinned
 > 0.0.95 package installed in the [Quickstart](#quickstart); it ships in the
@@ -206,15 +208,19 @@ openclaw mcp doctor fidelis --probe      # verify it connects
 fidelis mcp uninstall --client openclaw  # removes only the fidelis entry
 ```
 
-The `openclaw` binary **is** required here, because it owns the write. Use
+The `openclaw` binary **is** required here, because it owns the write and is the
+only reader that can be trusted with a JSON5 config. Use
 `--settings /path/to/openclaw.json` to target a different config; Fidelis passes
-it to the delegated call as `$OPENCLAW_CONFIG_PATH`, so the file it reads back is
-the file OpenClaw just wrote. If you prefer to run the host CLI yourself, the
+it as `$OPENCLAW_CONFIG_PATH` on every delegated call, reads included, so the
+state it reads back is the state of the file OpenClaw just wrote. If you prefer
+to run the host CLI yourself, the
 equivalent registration is
 `openclaw mcp add fidelis --command "$(python3 -c 'import sys;print(sys.executable)')" --arg "$(python3 -c 'import fidelis.mcp_cmd as m;print(m.MCP_SERVER_FILE)')"`.
-Install refuses to overwrite an `mcp.servers.fidelis` entry that is not ours
-unless you pass `--force`, and reports a non-zero exit if the registration does
-not show up on read-back.
+Install and uninstall refuse to touch an `mcp.servers.fidelis` entry that is not
+ours unless you pass `--force`, and exit non-zero rather than claiming success
+whenever the read-back does not prove the change landed — including when
+OpenClaw cannot report the entry at all, which is treated as unknown, never as
+"nothing there".
 
 ## Use cases & ROI
 

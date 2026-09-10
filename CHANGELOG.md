@@ -23,15 +23,21 @@
 - Add `fidelis mcp install --client openclaw` and `fidelis mcp uninstall
   --client openclaw`. OpenClaw keeps outbound MCP servers under `mcp.servers`
   in a JSON5 config (`~/.openclaw/openclaw.json`, or `$OPENCLAW_CONFIG_PATH`),
-  so Fidelis never rewrites that file — a strict-JSON rewrite would drop the
-  user's comments and trailing commas. Every write is delegated to the
-  documented `openclaw mcp add` / `openclaw mcp unset` CLI with
-  `$OPENCLAW_CONFIG_PATH` pinned, and the result is confirmed by reading the
-  same file back: a registration the CLI reports as successful but that does
-  not appear on read-back exits non-zero rather than claiming success. Install
-  and uninstall refuse to touch an `mcp.servers.fidelis` entry that does not
-  name the bundled server unless `--force` is passed, and never shell out
-  before refusing. The `openclaw` binary is required, because it owns the write.
+  so Fidelis neither rewrites that file nor parses it — a strict-JSON rewrite
+  would drop the user's comments and trailing commas, and a strict-JSON *read*
+  of the same file cannot say what is in it at all. Both directions are
+  delegated to OpenClaw's own CLI with `$OPENCLAW_CONFIG_PATH` pinned: writes
+  to the documented `openclaw mcp add` / `openclaw mcp unset`, and every
+  ownership check and read-back to `openclaw mcp show fidelis --json`, falling
+  back to `openclaw mcp list --json` to tell "no such server" apart from "could
+  not be read". Install and uninstall refuse to touch an `mcp.servers.fidelis`
+  entry that does not name the bundled server unless `--force` is passed, and
+  never shell out to write before refusing. Success is never inferred from an
+  exit code: a change the CLI reports as successful but that the read-back does
+  not prove exits non-zero, and a state OpenClaw cannot report is treated as
+  unknown — never as "no entry there", and never as a success, even under
+  `--force`. The `openclaw` binary is required, because it owns the write and
+  is the only reader that can be trusted with a JSON5 config.
 - Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
   --client copilot`, which register the bundled stdio MCP server in GitHub
   Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)
