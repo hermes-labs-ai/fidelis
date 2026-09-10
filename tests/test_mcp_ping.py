@@ -42,8 +42,10 @@ def _converse(requests: list[dict], env_extra: dict | None = None) -> list[dict]
     env = {
         "PATH": "/usr/bin:/bin",
         "PYTHONPATH": SRC,
-        # A port nothing listens on: `ping` must never touch fidelis-server.
-        "FIDELIS_PORT": "19419",
+        # Port 0 can never be connected to: `ping` must never touch
+        # fidelis-server, and this can't flake if some other process happens
+        # to be listening on a fixed port.
+        "FIDELIS_PORT": "0",
     }
     env.update(env_extra or {})
     proc = subprocess.run(
