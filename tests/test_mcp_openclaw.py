@@ -410,6 +410,26 @@ def test_install_refuses_foreign_entry_without_force(tmp_path, openclaw, capsys)
     assert _entry(config)["args"] == [str(MCP_SERVER_FILE)]
 
 
+def test_install_refusal_does_not_leak_the_foreign_entrys_credentials(tmp_path, openclaw, capsys):
+    """The refused entry is echoed for recognition, but never its secrets."""
+    config = tmp_path / "openclaw.json"
+    foreign = {
+        "command": "npx",
+        "args": ["some-other-fidelis"],
+        "env": {"API_TOKEN": "sk-live-should-not-appear"},
+        "headers": {"Authorization": "Bearer should-not-appear-either"},
+    }
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: foreign}}}))
+
+    assert cmd_mcp_install(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "refusing to overwrite" in err
+    assert "sk-live-should-not-appear" not in err
+    assert "should-not-appear-either" not in err
+    assert '"command": "npx"' in err
+    assert "withheld: env, headers" in err
+
+
 def test_install_refreshes_a_stale_fidelis_entry(tmp_path, openclaw):
     config = tmp_path / "openclaw.json"
     stale = {"command": "/old/python", "args": [str(MCP_SERVER_FILE)], "enabled": False}
@@ -421,6 +441,24 @@ def test_install_refreshes_a_stale_fidelis_entry(tmp_path, openclaw):
         "args": [str(MCP_SERVER_FILE)],
         "enabled": True,
     }
+
+
+def test_install_fails_when_a_stale_owned_entry_is_not_actually_refreshed(tmp_path, openclaw, capsys):
+    """Ownership already matching is not enough to claim success.
+
+    The pre-existing entry already names our script (so it already reads
+    back as ours), but is stale -- a different interpreter, left disabled.
+    If `openclaw mcp add` silently no-ops, ownership alone would still read
+    back as `_OC_OURS` and the install would wrongly report success."""
+    config = tmp_path / "openclaw.json"
+    stale = {"command": "/old/python", "args": [str(MCP_SERVER_FILE)], "enabled": False}
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: stale}}}))
+    openclaw.mode("noop")
+
+    assert cmd_mcp_install(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "does not match what Fidelis requested" in err
+    assert _entry(config) == stale, "the stale entry must be left exactly alone"
 
 
 def test_install_surfaces_cli_failure_verbatim(tmp_path, openclaw, capsys):
@@ -501,6 +539,22 @@ def test_uninstall_refuses_foreign_entry(tmp_path, openclaw, capsys):
 
     assert cmd_mcp_uninstall(_args(config, force=True)) == 0
     assert MCP_SERVER_NAME not in _config(config)["mcp"]["servers"]
+
+
+def test_uninstall_refusal_does_not_leak_the_foreign_entrys_credentials(tmp_path, openclaw, capsys):
+    config = tmp_path / "openclaw.json"
+    foreign = {
+        "command": "npx",
+        "args": ["other"],
+        "env": {"API_TOKEN": "sk-live-should-not-appear"},
+    }
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: foreign}}}))
+
+    assert cmd_mcp_uninstall(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "refusing to remove" in err
+    assert "sk-live-should-not-appear" not in err
+    assert "withheld: env" in err
 
 
 def test_uninstall_refuses_a_foreign_json5_entry_without_force(tmp_path, openclaw, capsys):
@@ -637,3 +691,27 @@ def test_ownership_check_survives_hostile_config_strings(tmp_path, openclaw, cap
     assert cmd_mcp_install(_args(config)) == 1  # foreign, not ours
     assert "refusing to overwrite" in capsys.readouterr().err
     assert _entry(config) == hostile
+
+
+def test_ownership_check_ignores_our_path_outside_the_launch_fields(tmp_path, openclaw, capsys):
+    """Our script path as *data* in env/headers/url does not make an entry
+    ours -- only its own command/args do.
+
+    A foreign server is free to reference the Fidelis script path in
+    metadata unrelated to what it launches (an env var passed through to a
+    child process, a header, a URL). Recognizing that as ownership would let
+    Fidelis silently overwrite -- or, on uninstall, delete -- a server that
+    was never its own."""
+    config = tmp_path / "openclaw.json"
+    foreign = {
+        "command": "node",
+        "args": ["./dist/mcp-server.js"],
+        "env": {"FIDELIS_SCRIPT_HINT": str(MCP_SERVER_FILE)},
+        "headers": {"X-Origin": str(MCP_SERVER_FILE)},
+    }
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: foreign}}}))
+
+    assert cmd_mcp_install(_args(config)) == 1  # foreign, not ours
+    assert _entry(config) == foreign
+    assert openclaw.writes() == [], "must not shell out to write before refusing"
+    assert "refusing to overwrite" in capsys.readouterr().err

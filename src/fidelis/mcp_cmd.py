@@ -416,6 +416,33 @@ def _trim(text: str) -> str:
     return text[:UNTRUSTED_ECHO_LIMIT] + " ...(truncated)"
 
 
+# Fields of an MCP client entry that only ever describe what gets launched,
+# never a credential. Anything else -- ``env``, ``headers``, a remote ``url``
+# with an embedded token -- is withheld by name, not by guessing which values
+# look secret.
+_SAFE_ENTRY_FIELDS = ("command", "args", "arguments", "type", "transport", "enabled")
+
+
+def _safe_entry_summary(entry: object) -> str:
+    """Render an untrusted client MCP entry for a diagnostic without leaking
+    secrets.
+
+    A refused or unexpected entry is echoed back so the user can recognize
+    it, but the entry can carry arbitrary transport metadata -- an API
+    token in ``env``, an ``Authorization`` header, a signed ``url`` -- that a
+    full ``json.dumps`` would put straight into stderr and any log capturing
+    it. Only the launch-shaped fields are ever safe to print; every other
+    key is named, so nothing is silently missing, but its value is not."""
+    if not isinstance(entry, dict):
+        return _trim(json.dumps(entry))
+    safe = {key: entry[key] for key in _SAFE_ENTRY_FIELDS if key in entry}
+    withheld = sorted(key for key in entry if key not in _SAFE_ENTRY_FIELDS)
+    summary = _trim(json.dumps(safe))
+    if withheld:
+        summary += f" (withheld: {', '.join(withheld)})"
+    return summary
+
+
 def _strip_json_comments(text: str) -> str:
     """Blank out `//` and `/* */` comments outside string literals.
 
@@ -679,7 +706,7 @@ def _cmd_gemini_install(args) -> int:
             print(
                 f"error: a non-fidelis Gemini CLI MCP server named '{MCP_SERVER_NAME}' already "
                 f"exists in {config_path} ({scope} scope)\n"
-                f"  entry: {_trim(json.dumps(existing))}\n"
+                f"  entry: {_safe_entry_summary(existing)}\n"
                 "  refusing to overwrite. Use --force to replace it.",
                 file=sys.stderr,
             )
@@ -723,7 +750,7 @@ def _cmd_gemini_install(args) -> int:
             f"error: gemini mcp add wrote an unexpected '{MCP_SERVER_NAME}' entry to "
             f"{config_path} ({scope} scope)\n"
             f"  expected: {json.dumps(gemini_server_entry())}\n"
-            f"  found:    {_trim(json.dumps(written))}",
+            f"  found:    {_safe_entry_summary(written)}",
             file=sys.stderr,
         )
         return 1
@@ -758,7 +785,7 @@ def _cmd_gemini_uninstall(args) -> int:
         print(
             f"error: Gemini CLI MCP server '{MCP_SERVER_NAME}' in {config_path} "
             f"({scope} scope) does not appear to belong to Fidelis; refusing to remove it\n"
-            f"  entry: {_trim(json.dumps(existing))}\n"
+            f"  entry: {_safe_entry_summary(existing)}\n"
             "  use --force to remove it anyway.",
             file=sys.stderr,
         )
@@ -861,27 +888,39 @@ def _openclaw_cli() -> str | None:
     return shutil.which("openclaw")
 
 
-def _mentions_fidelis_server(node: object) -> bool:
-    """Whether any string anywhere in a config entry names our packaged server.
+# The fields of an OpenClaw entry that describe what actually gets launched,
+# per ``openclaw mcp add --command/--arg`` (see ``openclaw_add_arguments``).
+# Ownership is decided by these alone -- never by ``env``, ``headers``, a
+# remote ``url``, or any other field a *foreign* server is free to fill with
+# our script path as unrelated data.
+_OPENCLAW_LAUNCH_KEYS = ("command", "args", "arguments")
 
-    Deliberately shape-agnostic. Fidelis has verified the ``openclaw mcp add``
-    invocation, not the exact field names OpenClaw serializes it into -- and
-    OpenClaw normalizes a saved definition before handing it back -- so
-    ownership is decided by the one value we do control: the path of the
-    bundled ``mcp_server.py``, wherever it lands in the entry."""
-    stack = [node]
-    while stack:
-        current = stack.pop()
-        if isinstance(current, dict):
-            stack.extend(current.values())
-        elif isinstance(current, list):
-            stack.extend(current)
-        elif isinstance(current, str):
-            # Every string in the entry is user data -- a URL, a token, a
-            # header. Path resolution on one of those can raise (embedded
-            # NUL, an unresolvable ``~user``); that just means "not our path".
+
+def _mentions_fidelis_server(node: object) -> bool:
+    """Whether an entry's own launch definition names our packaged server.
+
+    Restricted to the launch-defining fields rather than every string in the
+    entry: an entry's metadata -- ``env``, ``headers``, a remote ``url`` --
+    is user data that can legitimately hold our script path as a *value*
+    (some unrelated server referencing it) without that entry being ours to
+    launch. Matching on it would let a foreign server be recognized as
+    Fidelis's own, and then get installed over or uninstalled without
+    ``--force``. A shape with none of these fields is never ours -- it fails
+    closed as foreign, not as a false match."""
+    if not isinstance(node, dict):
+        return False
+    for key, value in node.items():
+        if key not in _OPENCLAW_LAUNCH_KEYS:
+            continue
+        candidates = [value] if isinstance(value, str) else value if isinstance(value, list) else []
+        for candidate in candidates:
+            if not isinstance(candidate, str):
+                continue
+            # The value is still user data -- path resolution on it can raise
+            # (embedded NUL, an unresolvable ``~user``); that just means
+            # "not our path".
             try:
-                if _is_fidelis_server_path(current):
+                if _is_fidelis_server_path(candidate):
                     return True
             except (OSError, ValueError, RuntimeError):
                 continue
@@ -984,6 +1023,26 @@ def _openclaw_state(openclaw_bin: str, config_path: Path) -> tuple[str, object, 
     return (_OC_OURS if _mentions_fidelis_server(entry) else _OC_FOREIGN), entry, ""
 
 
+def _openclaw_entry_matches(entry: object) -> bool:
+    """Whether a read-back OpenClaw entry is exactly the launch we asked for.
+
+    Stricter than ``_mentions_fidelis_server``: ownership only proves the
+    entry is Fidelis's, not that this particular install landed. A prior
+    install's entry -- a stale interpreter from a since-rebuilt venv, or
+    left ``enabled: false`` -- still names our script and so still reads
+    back as ``_OC_OURS`` even when ``openclaw mcp add`` silently did
+    nothing. This is what catches that: the interpreter, the script
+    argument, and that the entry was not left disabled."""
+    if not isinstance(entry, dict):
+        return False
+    if str(entry.get("command", "")) != sys.executable:
+        return False
+    args = entry.get("args")
+    if not isinstance(args, list) or [str(value) for value in args] != [str(MCP_SERVER_FILE)]:
+        return False
+    return entry.get("enabled", True) is not False
+
+
 def _openclaw_missing_cli(action: str) -> int:
     print(
         "error: OpenClaw CLI not found on PATH\n"
@@ -1031,7 +1090,7 @@ def _cmd_openclaw_install(args) -> int:
         print(
             f"error: a non-fidelis OpenClaw MCP server named '{MCP_SERVER_NAME}' already exists "
             f"in {config_path}\n"
-            f"  entry: {json.dumps(existing)}\n"
+            f"  entry: {_safe_entry_summary(existing)}\n"
             "  refusing to overwrite. Use --force to replace it.",
             file=sys.stderr,
         )
@@ -1049,7 +1108,7 @@ def _cmd_openclaw_install(args) -> int:
 
     # A zero exit from the CLI is a claim, not a result. Only a read-back
     # through OpenClaw's own surface proves the entry landed.
-    after, _, detail = _openclaw_state(openclaw_bin, config_path)
+    after, entry, detail = _openclaw_state(openclaw_bin, config_path)
     if after == _OC_UNKNOWN:
         print(
             "error: openclaw reported success but the registration could not be confirmed "
@@ -1063,6 +1122,21 @@ def _cmd_openclaw_install(args) -> int:
         print(
             f"error: openclaw reported success but no '{MCP_SERVER_NAME}' server naming "
             f"{MCP_SERVER_FILE} is present in {config_path}",
+            file=sys.stderr,
+        )
+        return 1
+    if not _openclaw_entry_matches(entry):
+        # Ownership alone is not enough: a pre-existing entry can already
+        # name our script and so already read back as ours, while still
+        # being the stale registration `add` was supposed to replace (a
+        # silent no-op, per test_install_leaves_a_json5_config_untouched...
+        # for the config-untouched case; this is the same failure for a
+        # config that already has a stale entry under our name).
+        print(
+            f"error: openclaw reported success but the '{MCP_SERVER_NAME}' entry in "
+            f"{config_path} does not match what Fidelis requested\n"
+            f"  expected: {json.dumps({'command': sys.executable, 'args': [str(MCP_SERVER_FILE)]})}\n"
+            f"  found:    {_safe_entry_summary(entry)}",
             file=sys.stderr,
         )
         return 1
@@ -1094,7 +1168,7 @@ def _cmd_openclaw_uninstall(args) -> int:
         print(
             f"error: OpenClaw MCP server '{MCP_SERVER_NAME}' in {config_path} does not appear "
             "to belong to Fidelis; refusing to remove it\n"
-            f"  entry: {json.dumps(existing)}\n"
+            f"  entry: {_safe_entry_summary(existing)}\n"
             "  use --force to remove it anyway.",
             file=sys.stderr,
         )

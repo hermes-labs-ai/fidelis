@@ -213,6 +213,27 @@ def test_install_refuses_a_foreign_entry_of_the_same_name(gemini, capsys):
     assert "--force" in err
 
 
+def test_install_refusal_does_not_leak_the_foreign_entrys_credentials(gemini, capsys):
+    """The refused entry is echoed for recognition, but never its secrets."""
+    foreign = {
+        "command": "npx",
+        "args": ["-y", "@someone/fidelis-mcp"],
+        "env": {"API_TOKEN": "sk-live-should-not-appear"},
+        "headers": {"Authorization": "Bearer should-not-appear-either"},
+    }
+    gemini.path.parent.mkdir(parents=True)
+    gemini.path.write_text(json.dumps({"mcpServers": {"fidelis": foreign}}))
+
+    assert cmd_mcp_install(_args()) == 1
+    err = capsys.readouterr().err
+    assert "refusing to overwrite" in err
+    assert "sk-live-should-not-appear" not in err
+    assert "should-not-appear-either" not in err
+    # The user can still recognize what was refused and why.
+    assert '"command": "npx"' in err
+    assert "withheld: env, headers" in err
+
+
 def test_install_force_replaces_a_foreign_entry(gemini):
     foreign = {"command": "npx", "args": ["-y", "@someone/fidelis-mcp"]}
     gemini.path.parent.mkdir(parents=True)
@@ -391,6 +412,22 @@ def test_uninstall_refuses_a_foreign_entry(gemini, capsys):
     assert not [c for c in gemini.calls if c[1:3] == ["mcp", "remove"]]
     assert _read(gemini.path)["mcpServers"]["fidelis"] == foreign
     assert "refusing to remove it" in capsys.readouterr().err
+
+
+def test_uninstall_refusal_does_not_leak_the_foreign_entrys_credentials(gemini, capsys):
+    foreign = {
+        "command": "npx",
+        "args": ["-y", "@someone/fidelis-mcp"],
+        "env": {"API_TOKEN": "sk-live-should-not-appear"},
+    }
+    gemini.path.parent.mkdir(parents=True)
+    gemini.path.write_text(json.dumps({"mcpServers": {"fidelis": foreign}}))
+
+    assert cmd_mcp_uninstall(_args()) == 1
+    err = capsys.readouterr().err
+    assert "refusing to remove it" in err
+    assert "sk-live-should-not-appear" not in err
+    assert "withheld: env" in err
 
 
 def test_uninstall_force_removes_a_foreign_entry(gemini):
