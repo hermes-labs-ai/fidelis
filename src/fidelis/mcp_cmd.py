@@ -923,49 +923,57 @@ def _openclaw_cli() -> str | None:
 _OPENCLAW_LAUNCH_LIST_KEYS = ("args", "arguments")
 
 
+def _looks_like_python_interpreter(command: str) -> bool:
+    """Whether `command`'s own name -- not a fixed, exact path -- reads as a
+    Python interpreter.
+
+    A ``.py`` entry point has no other way to run, so this is what tells
+    "an interpreter launching our script" apart from "an unrelated tool
+    that merely accepts our script's path as its one input": a name check,
+    not a path check, so a differently-rooted venv, a pyenv shim, or a
+    pipx-managed Python are all still recognized -- CPython and PyPy
+    binaries are named for it wherever they are installed."""
+    return "python" in Path(command).name.lower()
+
+
 def _mentions_fidelis_server(node: object) -> bool:
     """Whether an entry's command and argument *layout* is our own launch,
     not merely a value somewhere that happens to match it.
 
-    Fidelis's own ``openclaw mcp add`` writes exactly one shape: an
+    Fidelis's own ``openclaw mcp add`` writes exactly one shape: a Python
     interpreter in ``command`` and a single positional script argument.
-    Checking ``command`` or an argument in isolation is not enough to prove
-    that -- an entry's metadata (``env``, ``headers``, a remote ``url``) is
-    user data that can legitimately hold our script path as a *value*
-    without the entry being ours to launch, and so can an argument that
-    isn't alone: a foreign executable can take our script path as one input
-    among several (e.g. ``--input-file``) while launching its own code at
-    ``command``, or in a different argument. Only a command with no other
-    arguments, or a single argument with no unrelated command, matches the
-    layout Fidelis itself ever writes. Matching a looser shape would let a
-    foreign server be recognized as Fidelis's own, and then get installed
-    over or uninstalled without ``--force``. A shape that matches neither
-    layout is never ours -- it fails closed as foreign, not as a false
-    match."""
+    Checking the script argument alone is not enough to prove that -- an
+    entry's metadata (``env``, ``headers``, a remote ``url``) is user data
+    that can legitimately hold our script path as a *value* without the
+    entry being ours to launch, and so can a single argument on its own:
+    an unrelated executable can accept our script path as its one input
+    (e.g. reading it, not running it) while ``command`` names something
+    else entirely. Only that whole shape -- a Python-named ``command`` with
+    exactly one argument naming our script -- is what Fidelis itself ever
+    writes. Matching a looser one would let a foreign server be recognized
+    as Fidelis's own, and then get installed over or uninstalled without
+    ``--force``. A shape that doesn't match it is never ours -- it fails
+    closed as foreign, not as a false match."""
     if not isinstance(node, dict):
         return False
     command = node.get("command")
+    if not isinstance(command, str) or not _looks_like_python_interpreter(command):
+        return False
     args: list | None = None
     for list_key in _OPENCLAW_LAUNCH_LIST_KEYS:
         values = node.get(list_key)
         if isinstance(values, list):
             args = values
             break
-
-    def _matches(path_value: str) -> bool:
-        # The value is still user data -- path resolution on it can raise
-        # (embedded NUL, an unresolvable ``~user``); that just means "not
-        # our path".
-        try:
-            return _is_fidelis_server_path(path_value)
-        except (OSError, ValueError, RuntimeError):
-            return False
-
-    if isinstance(command, str) and not args and _matches(command):
-        return True
-    if args is not None and len(args) == 1 and isinstance(args[0], str) and _matches(args[0]):
-        return True
-    return False
+    if args is None or len(args) != 1 or not isinstance(args[0], str):
+        return False
+    # The value is still user data -- path resolution on it can raise
+    # (embedded NUL, an unresolvable ``~user``); that just means "not our
+    # path".
+    try:
+        return _is_fidelis_server_path(args[0])
+    except (OSError, ValueError, RuntimeError):
+        return False
 
 
 # What OpenClaw says about ``mcp.servers.fidelis``.

@@ -772,3 +772,20 @@ def test_ownership_check_ignores_our_path_used_as_input_not_as_the_launch(
     assert _entry(config) == foreign
     assert openclaw.writes() == [], "must not shell out to write before refusing"
     assert "refusing to overwrite" in capsys.readouterr().err
+
+
+def test_ownership_check_requires_a_python_command_not_just_a_matching_argument(
+    tmp_path, openclaw, capsys
+):
+    """A single argument naming our script is not ownership on its own --
+    only a Python interpreter can actually execute it. An unrelated tool
+    that merely accepts the path as its one input (reads it, rather than
+    running it) must not be recognized as Fidelis's own."""
+    config = tmp_path / "openclaw.json"
+    foreign = {"command": "cat", "args": [str(MCP_SERVER_FILE)]}
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: foreign}}}))
+
+    assert cmd_mcp_install(_args(config)) == 1  # foreign, not ours
+    assert _entry(config) == foreign
+    assert openclaw.writes() == [], "must not shell out to write before refusing"
+    assert "refusing to overwrite" in capsys.readouterr().err
