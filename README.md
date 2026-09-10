@@ -111,9 +111,9 @@ The 3600s window is non-configurable in our current contract.
 
 The non-configurable qualifier survives. So does every other detail you wrote down.
 
-## What this enables in Codex, Claude Code, GitHub Copilot CLI, and Gemini CLI
+## What this enables in Codex, Claude Code, GitHub Copilot CLI, Gemini CLI, and OpenClaw
 
-Once `fidelis mcp install --client codex`, `--client copilot`, `--client gemini`, or the default Claude install is run, ask your agent:
+Once `fidelis mcp install --client codex`, `--client copilot`, `--client gemini`, `--client openclaw`, or the default Claude install is run, ask your agent:
 
 - *"What did we decide about auth?"*
 - *"What failed last time we tried this migration?"*
@@ -185,6 +185,36 @@ left as they were.
 
 Recall happens when the agent calls the `fidelis_recall`, `fidelis_orient`, or
 `fidelis_health` tools.
+
+### OpenClaw
+
+OpenClaw keeps outbound MCP servers under `mcp.servers` in its JSON5 config
+(`~/.openclaw/openclaw.json`, or `$OPENCLAW_CONFIG_PATH`). Because JSON5 allows
+comments and trailing commas, Fidelis never rewrites that file — it delegates
+every write to the documented `openclaw mcp add` CLI and then reads the file
+back to confirm what landed.
+
+> **Unreleased.** `--client openclaw` is on `main` and not in the pinned
+> 0.0.95 package installed in the [Quickstart](#quickstart); it ships in the
+> next release. Install from source to use it today.
+
+```bash
+fidelis mcp install --client openclaw    # openclaw mcp add fidelis --command … --arg …
+openclaw mcp reload                      # pick up the new server
+openclaw mcp status --verbose            # confirm the saved config
+openclaw mcp doctor fidelis --probe      # verify it connects
+fidelis mcp uninstall --client openclaw  # removes only the fidelis entry
+```
+
+The `openclaw` binary **is** required here, because it owns the write. Use
+`--settings /path/to/openclaw.json` to target a different config; Fidelis passes
+it to the delegated call as `$OPENCLAW_CONFIG_PATH`, so the file it reads back is
+the file OpenClaw just wrote. If you prefer to run the host CLI yourself, the
+equivalent registration is
+`openclaw mcp add fidelis --command "$(python3 -c 'import sys;print(sys.executable)')" --arg "$(python3 -c 'import fidelis.mcp_cmd as m;print(m.MCP_SERVER_FILE)')"`.
+Install refuses to overwrite an `mcp.servers.fidelis` entry that is not ours
+unless you pass `--force`, and reports a non-zero exit if the registration does
+not show up on read-back.
 
 ## Use cases & ROI
 

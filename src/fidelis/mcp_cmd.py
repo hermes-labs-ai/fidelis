@@ -7,6 +7,9 @@ CLI configuration is edited atomically with a backup in the documented
 ``mcp-config.json`` file (``~/.copilot`` by default, or ``$COPILOT_HOME``).
 Google Gemini CLI configuration is delegated to the native ``gemini mcp``
 subcommands, which round-trip the comments in a user's ``settings.json``.
+OpenClaw configuration is delegated to the supported ``openclaw mcp`` CLI:
+OpenClaw's config file is JSON5 (comments, trailing commas), so a strict-JSON
+rewrite of it would destroy user content.
 """
 
 from __future__ import annotations
@@ -78,6 +81,7 @@ def _backup(path: Path) -> Path:
 DEFAULT_SETTINGS = Path.home() / ".claude" / "settings.local.json"
 MCP_SERVER_NAME = "fidelis"
 COPILOT_MCP_CONFIG_NAME = "mcp-config.json"
+OPENCLAW_CONFIG_NAME = "openclaw.json"
 
 # Bundled MCP server file lives alongside this module
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -118,7 +122,7 @@ def _codex_get(codex_bin: str) -> tuple[int, dict | None, str]:
 def _cmd_codex_install(args) -> int:
     if getattr(args, "settings", None):
         print(
-            "error: --settings is only supported for the Claude Code and Copilot CLI clients; "
+            "error: --settings is only supported for the Claude Code, Copilot CLI, and OpenClaw clients; "
             "Codex uses its shared config through the codex mcp CLI",
             file=sys.stderr,
         )
@@ -785,13 +789,260 @@ def _cmd_gemini_uninstall(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# OpenClaw
+#
+# OpenClaw reads an optional JSON5 config from ``~/.openclaw/openclaw.json``
+# and keeps outbound MCP servers under ``mcp.servers.<name>``. Because that
+# file is JSON5 -- comments and trailing commas are supported and common --
+# Fidelis never rewrites it. The documented ``openclaw mcp add`` CLI owns every
+# write:
+#
+#     openclaw mcp add local-tools --command node --arg ./dist/mcp-server.js
+#
+# ``$OPENCLAW_CONFIG_PATH`` is the documented way to point OpenClaw at a
+# specific config file. Fidelis always sets it for the delegated call, so the
+# file it reads back is provably the file the CLI just wrote.
+# ---------------------------------------------------------------------------
+
+
+def openclaw_config_path(settings: str | None = None) -> Path:
+    """Resolve the OpenClaw config file.
+
+    Explicit ``settings`` wins, then ``$OPENCLAW_CONFIG_PATH``, then the
+    documented default ``~/.openclaw/openclaw.json``."""
+    if settings:
+        return Path(settings).expanduser()
+    configured = os.environ.get("OPENCLAW_CONFIG_PATH")
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / ".openclaw" / OPENCLAW_CONFIG_NAME
+
+
+def openclaw_add_arguments() -> list[str]:
+    """The exact documented ``openclaw mcp add`` arguments Fidelis delegates."""
+    return [
+        "mcp",
+        "add",
+        MCP_SERVER_NAME,
+        "--command",
+        sys.executable,
+        "--arg",
+        str(MCP_SERVER_FILE),
+    ]
+
+
+def _openclaw_cli() -> str | None:
+    return shutil.which("openclaw")
+
+
+def _mentions_fidelis_server(node: object) -> bool:
+    """Whether any string anywhere in a config entry names our packaged server.
+
+    Deliberately shape-agnostic. Fidelis has verified the ``openclaw mcp add``
+    invocation, not the exact field names OpenClaw serializes it into, so
+    ownership is decided by the one value we do control -- the path of the
+    bundled ``mcp_server.py`` -- wherever it lands in the entry."""
+    stack = [node]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+        elif isinstance(current, str):
+            # Every string in the entry is user data -- a URL, a token, a
+            # header. Path resolution on one of those can raise (embedded
+            # NUL, an unresolvable ``~user``); that just means "not our path".
+            try:
+                if _is_fidelis_server_path(current):
+                    return True
+            except (OSError, ValueError, RuntimeError):
+                continue
+    return False
+
+
+# Pre-flight / read-back states for the OpenClaw config.
+_OC_ABSENT = "absent"        # no config, or no entry named 'fidelis'
+_OC_OURS = "ours"            # an entry naming our packaged MCP server
+_OC_FOREIGN = "foreign"      # an entry named 'fidelis' that is not ours
+_OC_UNREADABLE = "unreadable"  # present, but not strict JSON (JSON5) or malformed
+
+
+def _openclaw_entry(config_path: Path) -> tuple[str, object]:
+    """Inspect ``mcp.servers.fidelis`` without ever writing.
+
+    JSON5 is a superset of JSON, so a config using comments or trailing commas
+    fails ``json.loads``. That is reported as ``_OC_UNREADABLE`` rather than as
+    an error: the file is OpenClaw's to parse, and an unreadable pre-flight
+    must never be mistaken for 'no entry there'."""
+    try:
+        raw = config_path.read_text()
+    except FileNotFoundError:
+        return _OC_ABSENT, None
+    except OSError:
+        return _OC_UNREADABLE, None
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return _OC_UNREADABLE, None
+    if not isinstance(data, dict):
+        return _OC_UNREADABLE, None
+    mcp = data.get("mcp")
+    servers = mcp.get("servers") if isinstance(mcp, dict) else None
+    if not isinstance(servers, dict) or MCP_SERVER_NAME not in servers:
+        return _OC_ABSENT, None
+    entry = servers[MCP_SERVER_NAME]
+    if _mentions_fidelis_server(entry):
+        return _OC_OURS, entry
+    return _OC_FOREIGN, entry
+
+
+def _run_openclaw(openclaw_bin: str, arguments: list[str], config_path: Path):
+    env = dict(os.environ)
+    env["OPENCLAW_CONFIG_PATH"] = str(config_path)
+    return subprocess.run(
+        [openclaw_bin, *arguments],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+
+def _openclaw_missing_cli(action: str) -> int:
+    print(
+        "error: OpenClaw CLI not found on PATH\n"
+        "  OpenClaw owns every write to its JSON5 config, so its CLI is required.\n"
+        f"  install OpenClaw, then rerun: fidelis mcp {action} --client openclaw",
+        file=sys.stderr,
+    )
+    return 1
+
+
+def _cmd_openclaw_install(args) -> int:
+    if not MCP_SERVER_FILE.exists():
+        print(
+            f"error: bundled MCP server not found at {MCP_SERVER_FILE}\n"
+            "  this install appears incomplete; reinstall Hermes Labs Fidelis "
+            "from its tagged GitHub source (see README)",
+            file=sys.stderr,
+        )
+        return 1
+
+    openclaw_bin = _openclaw_cli()
+    if not openclaw_bin:
+        return _openclaw_missing_cli("install")
+
+    config_path = openclaw_config_path(getattr(args, "settings", None))
+    state, existing = _openclaw_entry(config_path)
+    if state == _OC_FOREIGN and not args.force:
+        print(
+            f"error: a non-fidelis OpenClaw MCP server named '{MCP_SERVER_NAME}' already exists "
+            f"in {config_path}\n"
+            f"  entry: {json.dumps(existing)}\n"
+            "  refusing to overwrite. Use --force to replace it.",
+            file=sys.stderr,
+        )
+        return 1
+    if state == _OC_UNREADABLE:
+        print(
+            f"note: {config_path} is not strict JSON (OpenClaw reads JSON5), so an existing "
+            f"'{MCP_SERVER_NAME}' entry could not be pre-checked; openclaw mcp add owns the write"
+        )
+
+    result = _run_openclaw(openclaw_bin, openclaw_add_arguments(), config_path)
+    if result.returncode != 0:
+        print(
+            result.stderr.strip() or "error: OpenClaw MCP registration failed",
+            file=sys.stderr,
+        )
+        return result.returncode
+
+    after, _ = _openclaw_entry(config_path)
+    if after == _OC_OURS:
+        print(f"registered OpenClaw MCP server '{MCP_SERVER_NAME}' in {config_path}")
+    elif after == _OC_UNREADABLE:
+        print(
+            result.stdout.strip() or f"registered OpenClaw MCP server '{MCP_SERVER_NAME}'"
+        )
+        print(f"note: {config_path} is JSON5, so the entry could not be confirmed by read-back")
+    else:
+        print(
+            f"error: openclaw reported success but no '{MCP_SERVER_NAME}' server naming "
+            f"{MCP_SERVER_FILE} is present in {config_path}",
+            file=sys.stderr,
+        )
+        return 1
+
+    print()
+    print("next: openclaw mcp reload            # pick up the new server")
+    print("  openclaw mcp status --verbose      # confirm the saved config")
+    print(f"  openclaw mcp doctor {MCP_SERVER_NAME} --probe   # verify it connects")
+    return 0
+
+
+def _cmd_openclaw_uninstall(args) -> int:
+    config_path = openclaw_config_path(getattr(args, "settings", None))
+    state, existing = _openclaw_entry(config_path)
+    if state == _OC_ABSENT:
+        print(f"no '{MCP_SERVER_NAME}' MCP server registered in {config_path}")
+        return 0
+    if state == _OC_FOREIGN and not getattr(args, "force", False):
+        print(
+            f"error: OpenClaw MCP server '{MCP_SERVER_NAME}' in {config_path} does not appear "
+            "to belong to Fidelis; refusing to remove it\n"
+            f"  entry: {json.dumps(existing)}\n"
+            "  use --force to remove it anyway.",
+            file=sys.stderr,
+        )
+        return 1
+
+    openclaw_bin = _openclaw_cli()
+    if not openclaw_bin:
+        return _openclaw_missing_cli("uninstall")
+
+    # `unset` is the documented subcommand for removing an OpenClaw-managed
+    # mcp.servers entry. Its exact argument shape is not pinned by the public
+    # docs, so success is never inferred from the exit code alone: a wrong
+    # invocation exits non-zero and is surfaced verbatim, and a call that
+    # returns 0 without removing anything is caught by the read-back below.
+    result = _run_openclaw(
+        openclaw_bin, ["mcp", "unset", MCP_SERVER_NAME], config_path
+    )
+    if result.returncode != 0:
+        print(
+            result.stderr.strip() or "error: OpenClaw MCP removal failed",
+            file=sys.stderr,
+        )
+        return result.returncode
+
+    after, _ = _openclaw_entry(config_path)
+    if after == _OC_ABSENT:
+        print(f"removed '{MCP_SERVER_NAME}' MCP server from {config_path}")
+        return 0
+    if after == _OC_UNREADABLE:
+        print(result.stdout.strip() or f"removed OpenClaw MCP server '{MCP_SERVER_NAME}'")
+        print(
+            f"note: {config_path} is JSON5, so the removal could not be confirmed by read-back; "
+            "check with: openclaw mcp status --verbose"
+        )
+        return 0
+    print(
+        f"error: openclaw reported success but '{MCP_SERVER_NAME}' is still registered in "
+        f"{config_path}",
+        file=sys.stderr,
+    )
+    return 1
+
+
 def _reject_scope(client: str) -> bool:
     """--scope selects a Gemini settings file; it means nothing elsewhere."""
     if client == "gemini":
         return False
     print(
         "error: --scope is only supported for the Gemini CLI client; "
-        "Claude Code and Copilot CLI use --settings",
+        "Claude Code, Copilot CLI, and OpenClaw use --settings",
         file=sys.stderr,
     )
     return True
@@ -807,6 +1058,8 @@ def cmd_mcp_install(args) -> int:
         return _cmd_copilot_install(args)
     if client == "gemini":
         return _cmd_gemini_install(args)
+    if client == "openclaw":
+        return _cmd_openclaw_install(args)
 
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 
@@ -875,7 +1128,7 @@ def cmd_mcp_uninstall(args) -> int:
     if client == "codex":
         if getattr(args, "settings", None):
             print(
-                "error: --settings is only supported for the Claude Code and Copilot CLI clients; "
+                "error: --settings is only supported for the Claude Code, Copilot CLI, and OpenClaw clients; "
                 "Codex uses its shared config through the codex mcp CLI",
                 file=sys.stderr,
             )
@@ -883,6 +1136,8 @@ def cmd_mcp_uninstall(args) -> int:
         return _cmd_codex_uninstall()
     if client == "copilot":
         return _cmd_copilot_uninstall(args)
+    if client == "openclaw":
+        return _cmd_openclaw_uninstall(args)
 
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 

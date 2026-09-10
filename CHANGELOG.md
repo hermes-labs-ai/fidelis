@@ -20,6 +20,18 @@
   so a silent no-op or an unexpected entry is reported as a failure rather
   than as success.
 
+- Add `fidelis mcp install --client openclaw` and `fidelis mcp uninstall
+  --client openclaw`. OpenClaw keeps outbound MCP servers under `mcp.servers`
+  in a JSON5 config (`~/.openclaw/openclaw.json`, or `$OPENCLAW_CONFIG_PATH`),
+  so Fidelis never rewrites that file — a strict-JSON rewrite would drop the
+  user's comments and trailing commas. Every write is delegated to the
+  documented `openclaw mcp add` / `openclaw mcp unset` CLI with
+  `$OPENCLAW_CONFIG_PATH` pinned, and the result is confirmed by reading the
+  same file back: a registration the CLI reports as successful but that does
+  not appear on read-back exits non-zero rather than claiming success. Install
+  and uninstall refuse to touch an `mcp.servers.fidelis` entry that does not
+  name the bundled server unless `--force` is passed, and never shell out
+  before refusing. The `openclaw` binary is required, because it owns the write.
 - Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
   --client copilot`, which register the bundled stdio MCP server in GitHub
   Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)

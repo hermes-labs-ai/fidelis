@@ -158,6 +158,9 @@ If the upstream LLM (Ollama / extraction model) is unreachable, `/store` and `/a
    `fidelis mcp install --client copilot` for GitHub Copilot CLI,
    `fidelis mcp install --client gemini` for Gemini CLI, or
    `fidelis mcp install` for Claude Code
+   `fidelis mcp install --client openclaw` for OpenClaw — this one delegates
+   to `openclaw mcp add` (OpenClaw's config is JSON5, so Fidelis never rewrites
+   it) and requires the `openclaw` binary on PATH
 
 If extraction is broken (zer0lint score < 80%), fix that before deploying fidelis. No point filtering garbage.
 

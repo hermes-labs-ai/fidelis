@@ -14,6 +14,7 @@ fidelis watch ~/notes         # auto-ingests markdown/text, polls for new files
 fidelis mcp install           # wires Claude Code MCP integration
 fidelis mcp install --client codex     # wires Codex MCP integration
 # --client copilot wires GitHub Copilot CLI; it is on main, not in 0.0.95
+# --client openclaw wires OpenClaw via `openclaw mcp add`; on main, not in 0.0.95
 # Done. Restart Claude Code. Memory is on.
 ```
 
