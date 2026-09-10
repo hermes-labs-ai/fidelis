@@ -69,7 +69,7 @@ src/fidelis/cli.py        — CLI: recall, query, add, store, seed, snapshot, ca
 src/fidelis/degrade.py    — graceful-degradation queue: atomic writes, per-item retry budget, dead-letter at MAX_ATTEMPTS=5
 src/fidelis/init_cmd.py   — `fidelis init`: installs background service (launchd on macOS, systemd on Linux)
 src/fidelis/watch_cmd.py  — `fidelis watch`: file-system watcher that auto-ingests markdown into the store
-src/fidelis/mcp_cmd.py    — `fidelis mcp install`: wires the MCP server into Claude Code, Codex, GitHub Copilot CLI, or OpenClaw (--client)
+src/fidelis/mcp_cmd.py    — `fidelis mcp install`: wires the MCP server into Claude Code, Codex, GitHub Copilot CLI, Gemini CLI, or OpenClaw (--client)
 src/fidelis/augment.py    — Python helper: `augment(question=..., qtype=..., llm_call=...)` for direct integration
 
 ## Key Config Keys
@@ -100,6 +100,9 @@ fidelis watch <dir>                  auto-ingest markdown from a directory
 fidelis mcp install                  wire fidelis MCP tools into Claude Code
 fidelis mcp install --client codex   wire fidelis MCP tools into Codex
 fidelis mcp install --client copilot wire fidelis MCP tools into GitHub Copilot CLI (~/.copilot/mcp-config.json)
+                                     [unreleased: on main, not in 0.0.95]
+fidelis mcp install --client gemini  wire fidelis MCP tools into Gemini CLI via `gemini mcp add` (v0.1.19+;
+                                     ~/.gemini/settings.json, or ./.gemini/settings.json with --scope project)
                                      [unreleased: on main, not in 0.0.95]
 fidelis mcp install --client openclaw wire fidelis MCP tools into OpenClaw via `openclaw mcp add`, confirmed
                                      by `openclaw mcp show fidelis --json` (mcp.servers in

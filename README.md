@@ -57,6 +57,11 @@ fidelis mcp serve             # runs the MCP server over stdio
 > The import name and CLI remain `fidelis`. The separate PyPI project named
 > `fidelis` belongs to [NGdust/fidelis](https://github.com/NGdust/fidelis).
 
+> **Unreleased clients.** `--client copilot`, `--client gemini`, and
+> `--client openclaw` are on `main` but not in 0.0.95. Until the next release,
+> install from source instead of step 1's pinned package:
+> `python3 -m pip install "git+https://github.com/hermes-labs-ai/fidelis.git"`.
+
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
 Fidelis Memory 0.0.95 is also published in the

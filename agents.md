@@ -156,12 +156,12 @@ If the upstream LLM (Ollama / extraction model) is unreachable, `/store` and `/a
 4. `fidelis init` — install background service (launchd / systemd)
 5. `fidelis mcp install --client codex` — wire Codex as an MCP client,
    `fidelis mcp install --client copilot` for GitHub Copilot CLI,
-   `fidelis mcp install --client gemini` for Gemini CLI, or
-   `fidelis mcp install` for Claude Code
+   `fidelis mcp install --client gemini` for Gemini CLI,
    `fidelis mcp install --client openclaw` for OpenClaw — this one delegates
    writes to `openclaw mcp add` and reads to `openclaw mcp show --json`
    (OpenClaw's config is JSON5, so Fidelis neither rewrites nor parses it), and
-   requires the `openclaw` binary on PATH
+   requires the `openclaw` binary on PATH — or
+   `fidelis mcp install` for Claude Code
 
 If extraction is broken (zer0lint score < 80%), fix that before deploying fidelis. No point filtering garbage.
 
@@ -204,6 +204,7 @@ Env-var aliases of note (set without touching config files):
 - Writes `vocab_map` to `.cogito.json` (via `fidelis calibrate`)
 - On `fidelis init`: writes a launchd plist at `~/Library/LaunchAgents/ai.hermeslabs.fidelis-server.plist` (macOS) or systemd unit at `~/.config/systemd/user/fidelis-server.service` (Linux)
 - On `fidelis mcp install --client gemini`: shells out to `gemini mcp add`, which writes `~/.gemini/settings.json` (or `./.gemini/settings.json` under `--scope project`). Fidelis only reads that file back to verify the result
+- On `fidelis mcp install --client openclaw`: shells out to `openclaw mcp add`, which writes `mcp.servers.fidelis` in `~/.openclaw/openclaw.json` (or `$OPENCLAW_CONFIG_PATH` / `--settings`). Fidelis never parses or rewrites that JSON5 file; it verifies through `openclaw mcp show fidelis --json`
 - Never modifies source files, configs outside its own, or external systems
 
 ---
