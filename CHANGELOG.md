@@ -2,6 +2,15 @@
 
 # Unreleased
 
+- Package Fidelis as a native Gemini CLI extension: `gemini-extension.json`
+  at the repository root launches the MCP Registry package
+  (`uvx --from fidelis-memory==0.0.96 fidelis mcp serve`) and `GEMINI.md`
+  tells the model when to call `fidelis_orient` and `fidelis_recall`.
+  `gemini extensions install https://github.com/hermes-labs-ai/fidelis`
+  registers the server without a manual `pip install`.
+  `tests/test_gemini_extension.py` binds the manifest to `server.json` and
+  `pyproject.toml` so a release bump cannot leave it on an older wheel.
+
 ## v0.0.96 — 2026-09-10
 
 - The bundled MCP server now answers the base-protocol `ping` request with an

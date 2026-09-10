@@ -1,0 +1,19 @@
+{
+  "name": "fidelis",
+  "version": "0.0.96",
+  "description": "Local-first, zero-LLM agent memory. Adds fidelis_recall, fidelis_query, fidelis_orient, and fidelis_health MCP tools backed by the Fidelis Memory server on your machine.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "fidelis": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "fidelis-memory==0.0.96",
+        "fidelis",
+        "mcp",
+        "serve"
+      ],
+      "timeout": 60000
+    }
+  }
+}

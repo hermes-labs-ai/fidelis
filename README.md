@@ -266,6 +266,31 @@ current state. The returned orientation is a derived index; retrieved records
 remain verbatim evidence with their existing IDs and metadata. Unrelated turns
 explicitly abstain without calling the memory server.
 
+### Gemini CLI extension
+
+Fidelis is also packaged as a native
+[Gemini CLI extension](https://geminicli.com/docs/extensions/): the
+`gemini-extension.json` at the repository root registers the same stdio MCP
+server that the [MCP Registry](#quickstart) entry launches, plus a `GEMINI.md`
+context file that tells the model when to call `fidelis_orient` and
+`fidelis_recall`. It needs [`uv`](https://docs.astral.sh/uv/) on `PATH` and a
+running Fidelis server (`fidelis init`, see [Requirements](#requirements)),
+but not a manual `pip install`:
+
+```bash
+gemini extensions install https://github.com/hermes-labs-ai/fidelis
+gemini extensions list      # fidelis, with its GEMINI.md and MCP server
+gemini extensions uninstall fidelis
+```
+
+The extension pins `fidelis-memory==0.0.96`; `gemini extensions update fidelis`
+follows the repository's tagged releases. The first launch lets `uvx` download
+the wheel and its dependencies, which can outlast the 5-second probe behind
+`gemini mcp list`; run `uvx --from fidelis-memory==0.0.96 fidelis --help` once
+to warm the cache, after which the row reads *Connected*. If you also register Fidelis with
+`gemini mcp add`, the `settings.json` entry takes precedence over the
+extension's, so the two do not conflict.
+
 ## Requirements
 
 - macOS or Linux (Windows not yet supported)
