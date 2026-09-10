@@ -10,7 +10,7 @@ authors:
     affiliation: "Hermes Labs"
 license: MIT
 repository-code: "https://github.com/hermes-labs-ai/fidelis"
-version: "0.0.95"
+version: "0.0.96"
 keywords:
   - "agent memory"
   - "zero-LLM retrieval"
