@@ -2,6 +2,12 @@
 
 # Unreleased
 
+- The bundled MCP server now answers the base-protocol `ping` request with an
+  empty result instead of `-32601 method not found`. Gemini CLI's `gemini mcp
+  list` pings after connecting, so a healthy Fidelis server — tools listed,
+  tools working — was reported as `Disconnected`. No tool, lifecycle, or
+  transport behaviour changed; unknown methods are still refused.
+
 - Add `fidelis mcp install --client gemini` and `fidelis mcp uninstall
   --client gemini`, which register the bundled stdio MCP server through
   Gemini CLI's native `gemini mcp add` / `gemini mcp remove` (v0.1.19+).
