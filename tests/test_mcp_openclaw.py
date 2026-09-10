@@ -450,6 +450,18 @@ def test_install_refusal_does_not_leak_a_credential_passed_as_a_launch_argument(
     assert "2 argument(s) withheld" in err
 
 
+def test_install_refusal_does_not_leak_a_malformed_non_object_entry(tmp_path, openclaw, capsys):
+    """Neither reader validates an entry's shape -- a hand-edited config can
+    put a credential directly where an object is expected."""
+    config = tmp_path / "openclaw.json"
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: "sk-live-should-not-appear"}}}))
+
+    assert cmd_mcp_install(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "sk-live-should-not-appear" not in err
+    assert "non-object entry" in err
+
+
 def test_install_refreshes_a_stale_fidelis_entry(tmp_path, openclaw):
     config = tmp_path / "openclaw.json"
     stale = {"command": "/old/python", "args": [str(MCP_SERVER_FILE)], "enabled": False}

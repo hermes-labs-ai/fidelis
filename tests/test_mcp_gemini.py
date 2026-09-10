@@ -249,6 +249,33 @@ def test_install_refusal_does_not_leak_a_credential_passed_as_a_launch_argument(
     assert "2 argument(s) withheld" in err
 
 
+def test_install_refusal_does_not_leak_a_malformed_non_object_entry(gemini, capsys):
+    """The Gemini settings.json reader does not validate an entry's shape --
+    a hand-edited config can put a credential directly where an object is
+    expected, and the diagnostic must not echo it just because it isn't a
+    dict Fidelis knows how to check ownership on."""
+    gemini.path.parent.mkdir(parents=True)
+    gemini.path.write_text(json.dumps({"mcpServers": {"fidelis": "sk-live-should-not-appear"}}))
+
+    assert cmd_mcp_install(_args()) == 1
+    err = capsys.readouterr().err
+    assert "sk-live-should-not-appear" not in err
+    assert "non-object entry" in err
+
+
+def test_install_refusal_withholds_a_non_scalar_safe_field(gemini, capsys):
+    """A "safe" field is only safe once its value is actually confirmed to be
+    a scalar -- a malformed config can nest a credential under `command`."""
+    foreign = {"command": {"nested": "sk-live-should-not-appear"}, "args": []}
+    gemini.path.parent.mkdir(parents=True)
+    gemini.path.write_text(json.dumps({"mcpServers": {"fidelis": foreign}}))
+
+    assert cmd_mcp_install(_args()) == 1
+    err = capsys.readouterr().err
+    assert "sk-live-should-not-appear" not in err
+    assert "withheld: command" in err
+
+
 def test_install_force_replaces_a_foreign_entry(gemini):
     foreign = {"command": "npx", "args": ["-y", "@someone/fidelis-mcp"]}
     gemini.path.parent.mkdir(parents=True)

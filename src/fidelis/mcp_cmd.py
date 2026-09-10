@@ -423,6 +423,12 @@ def _trim(text: str) -> str:
 # being a launch field does not make a value safe to print.
 _SAFE_ENTRY_SCALAR_FIELDS = ("command", "type", "transport", "enabled")
 _ENTRY_ARGUMENT_LIST_FIELDS = ("args", "arguments")
+# A value is only ever shown outright when it is one of these JSON scalar
+# types. Neither Gemini's settings.json reader nor OpenClaw's own config
+# validates what an entry (or a "safe" field within it) actually contains --
+# a hand-edited or malformed config can put a credential-bearing string
+# directly where a dict, or a nested object, is expected.
+_JSON_SCALAR_TYPES = (str, int, float, bool, type(None))
 
 
 def _safe_entry_summary(entry: object) -> str:
@@ -431,23 +437,39 @@ def _safe_entry_summary(entry: object) -> str:
 
     A refused or unexpected entry is echoed back so the user can recognize
     it, but the entry can carry a credential almost anywhere: an API token
-    in ``env``, an ``Authorization`` header, a signed ``url``, or a bare
-    token passed as one of its own launch arguments. Only a fixed set of
-    small, structural scalars is ever printed outright; every argument
-    value -- and every other field -- is named, so nothing is silently
-    missing, but its value never is."""
+    in ``env``, an ``Authorization`` header, a signed ``url``, a bare token
+    passed as one of its own launch arguments -- or, since neither reader
+    validates an entry's shape, a credential sitting directly where a dict
+    was expected (the entry itself, or one of its "safe" fields). Only a
+    fixed set of small, structural scalars is ever printed outright, and
+    only once confirmed to actually be a scalar; every argument value --
+    and every other field -- is named, so nothing is silently missing, but
+    its value never is."""
     if not isinstance(entry, dict):
-        return _trim(json.dumps(entry))
-    safe = {key: entry[key] for key in _SAFE_ENTRY_SCALAR_FIELDS if key in entry}
+        return f"<non-object entry ({type(entry).__name__}), withheld>"
+    safe: dict[str, object] = {}
+    withheld: list[str] = []
+    for key in _SAFE_ENTRY_SCALAR_FIELDS:
+        if key not in entry:
+            continue
+        value = entry[key]
+        if isinstance(value, _JSON_SCALAR_TYPES):
+            safe[key] = value
+        else:
+            withheld.append(key)
     for list_field in _ENTRY_ARGUMENT_LIST_FIELDS:
-        values = entry.get(list_field)
+        if list_field not in entry:
+            continue
+        values = entry[list_field]
         if isinstance(values, list):
             safe[list_field] = f"<{len(values)} argument(s) withheld>"
+        else:
+            withheld.append(list_field)
     shown = set(_SAFE_ENTRY_SCALAR_FIELDS) | set(_ENTRY_ARGUMENT_LIST_FIELDS)
-    withheld = sorted(key for key in entry if key not in shown)
+    withheld.extend(key for key in entry if key not in shown)
     summary = _trim(json.dumps(safe))
     if withheld:
-        summary += f" (withheld: {', '.join(withheld)})"
+        summary += f" (withheld: {', '.join(sorted(set(withheld)))})"
     return summary
 
 
