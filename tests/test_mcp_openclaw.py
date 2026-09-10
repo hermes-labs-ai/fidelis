@@ -774,6 +774,34 @@ def test_ownership_check_ignores_our_path_used_as_input_not_as_the_launch(
     assert "refusing to overwrite" in capsys.readouterr().err
 
 
+def test_ownership_check_recognizes_the_current_interpreter_however_it_is_named(
+    tmp_path, openclaw, monkeypatch
+):
+    """Whatever this process's own interpreter is named, it is what
+    `openclaw mcp add --command` actually writes -- so it must always be
+    recognized as ours, even when its name doesn't look Python-ish at all
+    (a custom build, a wrapper script)."""
+    fake_interpreter = tmp_path / "my-custom-interpreter"
+    fake_interpreter.write_text("#!/bin/sh\n")
+    fake_interpreter.chmod(0o755)
+    monkeypatch.setattr(sys, "executable", str(fake_interpreter))
+
+    config = tmp_path / "openclaw.json"
+    assert cmd_mcp_install(_args(config)) == 0
+    assert _entry(config)["command"] == str(fake_interpreter)
+
+
+def test_ownership_check_recognizes_a_stale_pypy_entry_by_name(tmp_path, openclaw):
+    """A prior install under PyPy, from a since-removed venv, is still ours
+    to refresh -- recognized by name, not by an exact path match."""
+    config = tmp_path / "openclaw.json"
+    stale = {"command": "/old/venv/bin/pypy3", "args": [str(MCP_SERVER_FILE)], "enabled": False}
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: stale}}}))
+
+    assert cmd_mcp_install(_args(config)) == 0  # no --force needed
+    assert _entry(config)["command"] == sys.executable
+
+
 def test_ownership_check_requires_a_python_command_not_just_a_matching_argument(
     tmp_path, openclaw, capsys
 ):

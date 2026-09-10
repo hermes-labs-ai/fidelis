@@ -924,16 +924,26 @@ _OPENCLAW_LAUNCH_LIST_KEYS = ("args", "arguments")
 
 
 def _looks_like_python_interpreter(command: str) -> bool:
-    """Whether `command`'s own name -- not a fixed, exact path -- reads as a
-    Python interpreter.
+    """Whether `command` is -- or, by name, plausibly is -- a Python
+    interpreter.
 
     A ``.py`` entry point has no other way to run, so this is what tells
     "an interpreter launching our script" apart from "an unrelated tool
-    that merely accepts our script's path as its one input": a name check,
-    not a path check, so a differently-rooted venv, a pyenv shim, or a
-    pipx-managed Python are all still recognized -- CPython and PyPy
-    binaries are named for it wherever they are installed."""
-    return "python" in Path(command).name.lower()
+    that merely accepts our script's path as its one input". This exact
+    process's own interpreter always counts, whatever it is named --
+    that is the one Fidelis itself has ever actually written via
+    ``openclaw mcp add --command``. Beyond that, only the executable's own
+    name is checked, not a fixed path, so a differently-rooted venv, a
+    pyenv shim, or a pipx-managed Python from a past install are also
+    recognized: CPython and PyPy binaries are named for it wherever they
+    are installed."""
+    try:
+        if Path(command).expanduser().resolve() == Path(sys.executable).resolve():
+            return True
+    except (OSError, ValueError, RuntimeError):
+        pass
+    name = Path(command).name.lower()
+    return "python" in name or "pypy" in name
 
 
 def _mentions_fidelis_server(node: object) -> bool:
