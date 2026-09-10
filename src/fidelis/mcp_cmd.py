@@ -918,48 +918,53 @@ def _openclaw_cli() -> str | None:
     return shutil.which("openclaw")
 
 
-# The fields of an OpenClaw entry that name what actually gets launched, per
-# ``openclaw mcp add --command/--arg`` (see ``openclaw_add_arguments``): the
-# executable itself, or the first positional argument -- the one script or
-# module position an interpreter is launched with, exactly like Fidelis's
-# own single ``--arg``. Never a later argument: a foreign server can take our
-# script path as *input* (e.g. ``--input-file``) while launching its own
-# code, and a later position is where that would land.
+# The fields naming an OpenClaw entry's launch arguments, per
+# ``openclaw mcp add --command/--arg`` (see ``openclaw_add_arguments``).
 _OPENCLAW_LAUNCH_LIST_KEYS = ("args", "arguments")
 
 
 def _mentions_fidelis_server(node: object) -> bool:
-    """Whether an entry's own launch position names our packaged server.
+    """Whether an entry's command and argument *layout* is our own launch,
+    not merely a value somewhere that happens to match it.
 
-    Restricted to the command and the first launch argument, not every
-    string in the entry, and not even every element of ``args``: an entry's
-    metadata -- ``env``, ``headers``, a remote ``url`` -- is user data that
-    can legitimately hold our script path as a *value* without the entry
-    being ours to launch, and so can a later argument (a foreign server can
-    pass our script path as its own input while launching something else
-    entirely at position 0). Matching on either would let a foreign server
-    be recognized as Fidelis's own, and then get installed over or
-    uninstalled without ``--force``. A shape that matches neither is never
-    ours -- it fails closed as foreign, not as a false match."""
+    Fidelis's own ``openclaw mcp add`` writes exactly one shape: an
+    interpreter in ``command`` and a single positional script argument.
+    Checking ``command`` or an argument in isolation is not enough to prove
+    that -- an entry's metadata (``env``, ``headers``, a remote ``url``) is
+    user data that can legitimately hold our script path as a *value*
+    without the entry being ours to launch, and so can an argument that
+    isn't alone: a foreign executable can take our script path as one input
+    among several (e.g. ``--input-file``) while launching its own code at
+    ``command``, or in a different argument. Only a command with no other
+    arguments, or a single argument with no unrelated command, matches the
+    layout Fidelis itself ever writes. Matching a looser shape would let a
+    foreign server be recognized as Fidelis's own, and then get installed
+    over or uninstalled without ``--force``. A shape that matches neither
+    layout is never ours -- it fails closed as foreign, not as a false
+    match."""
     if not isinstance(node, dict):
         return False
-    candidates: list[str] = []
     command = node.get("command")
-    if isinstance(command, str):
-        candidates.append(command)
+    args: list | None = None
     for list_key in _OPENCLAW_LAUNCH_LIST_KEYS:
         values = node.get(list_key)
-        if isinstance(values, list) and values and isinstance(values[0], str):
-            candidates.append(values[0])
-    for candidate in candidates:
+        if isinstance(values, list):
+            args = values
+            break
+
+    def _matches(path_value: str) -> bool:
         # The value is still user data -- path resolution on it can raise
         # (embedded NUL, an unresolvable ``~user``); that just means "not
         # our path".
         try:
-            if _is_fidelis_server_path(candidate):
-                return True
+            return _is_fidelis_server_path(path_value)
         except (OSError, ValueError, RuntimeError):
-            continue
+            return False
+
+    if isinstance(command, str) and not args and _matches(command):
+        return True
+    if args is not None and len(args) == 1 and isinstance(args[0], str) and _matches(args[0]):
+        return True
     return False
 
 
