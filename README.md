@@ -111,9 +111,9 @@ The 3600s window is non-configurable in our current contract.
 
 The non-configurable qualifier survives. So does every other detail you wrote down.
 
-## What this enables in Codex, Claude Code, and GitHub Copilot CLI
+## What this enables in Codex, Claude Code, GitHub Copilot CLI, and Gemini CLI
 
-Once `fidelis mcp install --client codex`, `--client copilot`, or the default Claude install is run, ask your agent:
+Once `fidelis mcp install --client codex`, `--client copilot`, `--client gemini`, or the default Claude install is run, ask your agent:
 
 - *"What did we decide about auth?"*
 - *"What failed last time we tried this migration?"*
@@ -149,6 +149,42 @@ the equivalent registration is
 Copilot does not currently expose a hook or automatic-recall mechanism to
 third-party servers, so recall happens when the agent calls the
 `fidelis_recall`, `fidelis_orient`, or `fidelis_health` tools.
+
+### Gemini CLI
+
+Gemini CLI has native MCP management — `gemini mcp add|remove|list`, shipped
+in v0.1.19 — and Fidelis registers itself through it rather than editing
+`settings.json`. That matters: Gemini reads `settings.json` as
+JSON-with-comments and its own writer round-trips your `//` and `/* */`
+comments. A rewrite by Fidelis would silently delete them.
+
+> **Unreleased.** `--client gemini` is on `main` and not in the pinned
+> 0.0.95 package installed in the [Quickstart](#quickstart); it ships in the
+> next release. Install from source to use it today.
+
+```bash
+fidelis mcp install --client gemini      # gemini mcp add → ~/.gemini/settings.json
+gemini                                   # restart, or run /mcp reload in a live session
+gemini mcp list                          # shows "fidelis" and whether it connects
+fidelis mcp uninstall --client gemini    # gemini mcp remove, verified
+```
+
+`--scope project` targets `./.gemini/settings.json` instead of the default
+`--scope user` (`~/.gemini/settings.json`); Fidelis refuses `--scope project`
+in your home directory, where Gemini collapses the two to the same file.
+Requires Gemini CLI v0.1.19 or newer on `PATH`, and an auth method already
+configured — Gemini refuses every `gemini mcp` subcommand until one is.
+
+Because `gemini mcp add` overwrites a same-named entry without asking and
+`gemini mcp remove` exits 0 even when the name is absent, Fidelis reads the
+targeted `settings.json` back after every run. It refuses to touch a `fidelis`
+entry it does not recognize (`--force` overrides), and reports a silent no-op
+or an unexpected entry as a failure rather than as success. Unrelated servers,
+their `env` secrets, other settings keys, and the file's permission bits are
+left as they were.
+
+Recall happens when the agent calls the `fidelis_recall`, `fidelis_orient`, or
+`fidelis_health` tools.
 
 ## Use cases & ROI
 

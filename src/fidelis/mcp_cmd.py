@@ -5,12 +5,15 @@ configuration is delegated to the supported ``codex mcp`` CLI so the desktop
 app, CLI, and IDE extension share the same registered server. GitHub Copilot
 CLI configuration is edited atomically with a backup in the documented
 ``mcp-config.json`` file (``~/.copilot`` by default, or ``$COPILOT_HOME``).
+Google Gemini CLI configuration is delegated to the native ``gemini mcp``
+subcommands, which round-trip the comments in a user's ``settings.json``.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -347,12 +350,463 @@ def _cmd_copilot_uninstall(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Google Gemini CLI
+#
+# Gemini CLI has a native MCP management surface — `gemini mcp add|remove|list`,
+# shipped since v0.1.19 (google-gemini/gemini-cli#5481). Every write goes
+# through it, for one concrete reason: Gemini reads settings.json as JSON *with
+# comments* (`JSON.parse(stripJsonComments(content))` in
+# packages/cli/src/config/settings.ts) and its own writer round-trips a user's
+# `//` and `/* */` comments. A rewrite of that file by Fidelis would silently
+# delete them. `gemini mcp add` also leaves every unrelated server and settings
+# key alone and preserves the file's permission bits.
+#
+# What the native surface does NOT give us:
+#   - there is no `gemini mcp get`, and `gemini mcp list` has no `--json`
+#   - `gemini mcp list` merges user + project + extension scopes into one
+#     ANSI-coloured line per server, space-joining command and args (so an
+#     argument containing a space is unrecoverable), and it opens a transport
+#     to every configured server to report liveness
+#   - `gemini mcp add` overwrites an existing entry of the same name without
+#     being asked (add.ts), and `gemini mcp remove` exits 0 when the name is
+#     absent (remove.ts) — neither exit code proves what actually changed
+#
+# So ownership, no-op detection, and post-write verification read the exact
+# scope's settings.json directly, read-only, through a JSONC-tolerant parser
+# that mirrors Gemini's own. Fidelis never writes that file itself.
+# ---------------------------------------------------------------------------
+
+GEMINI_DIR_NAME = ".gemini"
+GEMINI_SETTINGS_NAME = "settings.json"
+GEMINI_SCOPES = ("user", "project")
+
+# `gemini mcp add|remove|list` first shipped in v0.1.19. Below that there is no
+# native surface to delegate to, and we will not hand-edit settings.json.
+GEMINI_MCP_MIN_VERSION = (0, 1, 19)
+
+# Gemini CLI refuses every subcommand, `mcp` included, until an auth method is
+# configured, and exits with this code.
+GEMINI_AUTH_EXIT_CODE = 41
+
+# Gemini's stdout/stderr and the entries inside settings.json are untrusted
+# input. We echo them for diagnostics, so they are bounded first.
+UNTRUSTED_ECHO_LIMIT = 2000
+
+_GEMINI_VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+
+
+def _trim(text: str) -> str:
+    """Bound untrusted text before echoing it into our own diagnostics."""
+    text = text.strip()
+    if len(text) <= UNTRUSTED_ECHO_LIMIT:
+        return text
+    return text[:UNTRUSTED_ECHO_LIMIT] + " ...(truncated)"
+
+
+def _strip_json_comments(text: str) -> str:
+    """Blank out `//` and `/* */` comments outside string literals.
+
+    Mirrors the `strip-json-comments` pass Gemini CLI runs before
+    `JSON.parse`, so we accept exactly the files Gemini accepts — including
+    a commented settings.json, and excluding trailing commas, which Gemini
+    rejects too. Newlines inside a block comment are kept so a decoder error
+    still reports the line the user has to fix."""
+    out: list[str] = []
+    index = 0
+    length = len(text)
+    in_string = False
+    while index < length:
+        char = text[index]
+        if in_string:
+            out.append(char)
+            if char == "\\" and index + 1 < length:
+                out.append(text[index + 1])
+                index += 2
+                continue
+            if char == '"':
+                in_string = False
+            index += 1
+            continue
+        if char == '"':
+            in_string = True
+            out.append(char)
+            index += 1
+            continue
+        if char == "/" and index + 1 < length and text[index + 1] == "/":
+            while index < length and text[index] not in "\r\n":
+                index += 1
+            continue
+        if char == "/" and index + 1 < length and text[index + 1] == "*":
+            end = text.find("*/", index + 2)
+            chunk = text[index:] if end == -1 else text[index : end + 2]
+            out.append("\n" * chunk.count("\n"))
+            index = length if end == -1 else end + 2
+            continue
+        out.append(char)
+        index += 1
+    return "".join(out)
+
+
+def gemini_settings_path(scope: str) -> Path:
+    """Resolve the settings.json that `gemini mcp --scope <scope>` writes.
+
+    Mirrors Gemini's own Storage helpers: user scope is
+    ``~/.gemini/settings.json`` (getGlobalSettingsPath), project scope is
+    ``<cwd>/.gemini/settings.json`` (getWorkspaceSettingsPath, whose target
+    directory is the process working directory)."""
+    base = Path.home() if scope == "user" else Path.cwd()
+    return base / GEMINI_DIR_NAME / GEMINI_SETTINGS_NAME
+
+
+def _project_scope_collides_with_user(scope: str) -> bool:
+    """Whether `--scope project` resolves to the user settings file.
+
+    Gemini treats a workspace whose real path is the home directory as the
+    user scope (Storage.isWorkspaceHomeDir). Running the project scope there
+    would write one file while claiming to write another, so we refuse it
+    rather than report an ambiguous result."""
+    if scope != "project":
+        return False
+    try:
+        return Path.cwd().resolve() == Path.home().resolve()
+    except OSError:
+        return False
+
+
+def gemini_server_entry() -> dict:
+    """The exact stdio entry `gemini mcp add` writes for Fidelis.
+
+    Passing no --env/--timeout/--trust/--description flags makes Gemini write
+    command and args and nothing else."""
+    return {"command": sys.executable, "args": [str(MCP_SERVER_FILE)]}
+
+
+def _read_gemini_servers(path: Path) -> tuple[dict | None, str | None]:
+    """Read one scope's mcpServers block. Returns ``({}, None)`` when the file
+    or the block is absent.
+
+    The file is untrusted and hand-editable: a non-object document, a
+    non-object mcpServers, or anything Gemini's own parser would reject is an
+    error we surface, never something to write over."""
+    try:
+        raw = path.read_text()
+    except FileNotFoundError:
+        return {}, None
+    except OSError as exc:
+        return None, f"error: could not read {path}: {exc}"
+    try:
+        data = json.loads(_strip_json_comments(raw))
+    except json.JSONDecodeError as exc:
+        return None, (
+            f"error: {path} is not valid Gemini settings JSON: {exc}\n"
+            "  Gemini CLI reads this file as JSON-with-comments and rejects it too\n"
+            "  (a trailing comma is the usual cause). Fix it, then rerun."
+        )
+    if not isinstance(data, dict):
+        return None, f"error: {path} must contain a JSON object at the top level"
+    servers = data.get("mcpServers")
+    if servers is None:
+        return {}, None
+    if not isinstance(servers, dict):
+        return None, f"error: 'mcpServers' in {path} is not a JSON object"
+    return servers, None
+
+
+def _is_fidelis_gemini_entry(entry: object) -> bool:
+    """Return whether a Gemini MCP entry launches a Fidelis MCP server."""
+    if not isinstance(entry, dict):
+        return False
+    args = entry.get("args")
+    if not isinstance(args, list) or len(args) != 1:
+        return False
+    return _is_fidelis_server_path(args[0])
+
+
+def _gemini_entry_matches(entry: object) -> bool:
+    """Return whether a read-back entry is exactly the launch we asked for.
+
+    Stricter than ownership: this is what proves the write landed, so the
+    interpreter path must match this install, not merely some Fidelis one."""
+    if not isinstance(entry, dict):
+        return False
+    if str(entry.get("command", "")) != sys.executable:
+        return False
+    args = entry.get("args")
+    if not isinstance(args, list):
+        return False
+    return [str(value) for value in args] == [str(MCP_SERVER_FILE)]
+
+
+def _gemini_version(gemini_bin: str) -> tuple[tuple[int, ...] | None, bool]:
+    """Read `gemini --version` as ``(version, answered)``.
+
+    `--version` is answered before the auth check, so this works on a host
+    that has never signed in. It does *not* survive a broken settings.json:
+    Gemini exits non-zero there, which is why a failed probe is reported as
+    ``answered=False`` and left alone — the caller reads the same file a
+    moment later and can say what is actually wrong with it."""
+    try:
+        result = subprocess.run(
+            [gemini_bin, "--version"], capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return None, False
+    if result.returncode != 0:
+        return None, False
+    match = _GEMINI_VERSION_RE.search(result.stdout)
+    if not match:
+        return None, True
+    return tuple(int(part) for part in match.groups()), True
+
+
+def _gemini_failure(result) -> str:
+    """Render a failed `gemini mcp` run, with the auth hint when that is why."""
+    message = _trim(result.stderr) or _trim(result.stdout) or "error: gemini mcp command failed"
+    blob = f"{result.stdout}\n{result.stderr}"
+    if result.returncode == GEMINI_AUTH_EXIT_CODE or "set an Auth method" in blob:
+        message += (
+            "\n  Gemini CLI refuses every `gemini mcp` subcommand until an auth method is set.\n"
+            "  Run `gemini` once and sign in, or export GEMINI_API_KEY, then rerun."
+        )
+    return message
+
+
+def _explicit_gemini_scope(args) -> str | None:
+    """The --scope the caller actually passed, or None.
+
+    argparse hands us None or one of its two choices. Anything else — an
+    absent attribute, a hand-built Namespace, a test double whose attributes
+    autovivify — counts as not passed, so it can never be mistaken for a
+    deliberate scope selection."""
+    scope = getattr(args, "scope", None)
+    return scope if scope in GEMINI_SCOPES else None
+
+
+def _gemini_preflight(args) -> tuple[str, str, Path] | None:
+    """Resolve the Gemini binary, scope, and settings path, or explain why not."""
+    if getattr(args, "settings", None):
+        print(
+            "error: --settings is not supported for the Gemini CLI client; use "
+            "--scope user|project, which selects the settings.json that "
+            "`gemini mcp` itself writes",
+            file=sys.stderr,
+        )
+        return None
+
+    scope = _explicit_gemini_scope(args) or "user"
+
+    gemini_bin = shutil.which("gemini")
+    if not gemini_bin:
+        print(
+            "error: Gemini CLI not found on PATH\n"
+            "  install it (npm install -g @google/gemini-cli), then rerun: "
+            "fidelis mcp install --client gemini",
+            file=sys.stderr,
+        )
+        return None
+
+    version, answered = _gemini_version(gemini_bin)
+    minimum = ".".join(str(part) for part in GEMINI_MCP_MIN_VERSION)
+    if version is not None and version < GEMINI_MCP_MIN_VERSION:
+        print(
+            f"error: Gemini CLI {'.'.join(str(part) for part in version)} has no "
+            "`gemini mcp` subcommand\n"
+            f"  `gemini mcp add|remove|list` first shipped in v{minimum}; upgrade and rerun.",
+            file=sys.stderr,
+        )
+        return None
+    if version is None and answered:
+        print(
+            "warning: could not read `gemini --version`; continuing. "
+            f"`gemini mcp` needs v{minimum} or newer and will fail loudly below if it is older.",
+            file=sys.stderr,
+        )
+
+    if _project_scope_collides_with_user(scope):
+        print(
+            "error: --scope project resolves to the user settings file in your home "
+            f"directory ({gemini_settings_path('user')})\n"
+            "  rerun with --scope user, or change into a project directory first.",
+            file=sys.stderr,
+        )
+        return None
+
+    return gemini_bin, scope, gemini_settings_path(scope)
+
+
+def _cmd_gemini_install(args) -> int:
+    if not MCP_SERVER_FILE.exists():
+        print(
+            f"error: bundled MCP server not found at {MCP_SERVER_FILE}\n"
+            "  this install appears incomplete; reinstall Hermes Labs Fidelis "
+            "from its tagged GitHub source (see README)",
+            file=sys.stderr,
+        )
+        return 1
+
+    preflight = _gemini_preflight(args)
+    if preflight is None:
+        return 1
+    gemini_bin, scope, config_path = preflight
+
+    servers, error = _read_gemini_servers(config_path)
+    if error:
+        print(error, file=sys.stderr)
+        return 1
+
+    existing = servers.get(MCP_SERVER_NAME)
+    if existing is not None:
+        if _gemini_entry_matches(existing):
+            print(
+                f"Gemini CLI MCP server '{MCP_SERVER_NAME}' is already configured in "
+                f"{config_path} ({scope} scope); nothing to change"
+            )
+            return 0
+        if not _is_fidelis_gemini_entry(existing) and not args.force:
+            print(
+                f"error: a non-fidelis Gemini CLI MCP server named '{MCP_SERVER_NAME}' already "
+                f"exists in {config_path} ({scope} scope)\n"
+                f"  entry: {_trim(json.dumps(existing))}\n"
+                "  refusing to overwrite. Use --force to replace it.",
+                file=sys.stderr,
+            )
+            return 1
+
+    result = subprocess.run(
+        [
+            gemini_bin, "mcp", "add", MCP_SERVER_NAME,
+            sys.executable, str(MCP_SERVER_FILE),
+            "--scope", scope,
+            "--transport", "stdio",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(_gemini_failure(result), file=sys.stderr)
+        return result.returncode
+
+    # `gemini mcp add` exits 0 whether it created, replaced, or (in a future
+    # version) declined to write. Only the file proves what happened.
+    servers, error = _read_gemini_servers(config_path)
+    if error:
+        print(
+            "error: gemini mcp add reported success but its config no longer reads back\n"
+            f"{error}",
+            file=sys.stderr,
+        )
+        return 1
+    written = servers.get(MCP_SERVER_NAME)
+    if written is None:
+        print(
+            f"error: gemini mcp add reported success but no '{MCP_SERVER_NAME}' server is "
+            f"present in {config_path} ({scope} scope); nothing was installed",
+            file=sys.stderr,
+        )
+        return 1
+    if not _gemini_entry_matches(written):
+        print(
+            f"error: gemini mcp add wrote an unexpected '{MCP_SERVER_NAME}' entry to "
+            f"{config_path} ({scope} scope)\n"
+            f"  expected: {json.dumps(gemini_server_entry())}\n"
+            f"  found:    {_trim(json.dumps(written))}",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(_trim(result.stdout) or f"registered Gemini CLI MCP server '{MCP_SERVER_NAME}'")
+    print(f"verified '{MCP_SERVER_NAME}' in {config_path} ({scope} scope)")
+    print()
+    print("next: restart Gemini CLI, or run /mcp reload in an open session")
+    print("  gemini mcp list shows the server and whether it connects")
+    return 0
+
+
+def _cmd_gemini_uninstall(args) -> int:
+    preflight = _gemini_preflight(args)
+    if preflight is None:
+        return 1
+    gemini_bin, scope, config_path = preflight
+
+    servers, error = _read_gemini_servers(config_path)
+    if error:
+        print(error, file=sys.stderr)
+        return 1
+
+    existing = servers.get(MCP_SERVER_NAME)
+    if existing is None:
+        print(
+            f"no '{MCP_SERVER_NAME}' MCP server registered in {config_path} "
+            f"({scope} scope); nothing to uninstall"
+        )
+        return 0
+    if not _is_fidelis_gemini_entry(existing) and not getattr(args, "force", False):
+        print(
+            f"error: Gemini CLI MCP server '{MCP_SERVER_NAME}' in {config_path} "
+            f"({scope} scope) does not appear to belong to Fidelis; refusing to remove it\n"
+            f"  entry: {_trim(json.dumps(existing))}\n"
+            "  use --force to remove it anyway.",
+            file=sys.stderr,
+        )
+        return 1
+
+    result = subprocess.run(
+        [gemini_bin, "mcp", "remove", MCP_SERVER_NAME, "--scope", scope],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(_gemini_failure(result), file=sys.stderr)
+        return result.returncode
+
+    # `gemini mcp remove` exits 0 for an absent name too, so the exit code
+    # cannot distinguish a removal from a no-op. Read the file back.
+    servers, error = _read_gemini_servers(config_path)
+    if error:
+        print(
+            "error: gemini mcp remove reported success but its config no longer reads back\n"
+            f"{error}",
+            file=sys.stderr,
+        )
+        return 1
+    if MCP_SERVER_NAME in servers:
+        print(
+            f"error: gemini mcp remove exited 0 but '{MCP_SERVER_NAME}' is still present in "
+            f"{config_path} ({scope} scope); nothing was removed",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(_trim(result.stdout) or f"removed Gemini CLI MCP server '{MCP_SERVER_NAME}'")
+    print(f"verified '{MCP_SERVER_NAME}' is gone from {config_path} ({scope} scope)")
+    return 0
+
+
+def _reject_scope(client: str) -> bool:
+    """--scope selects a Gemini settings file; it means nothing elsewhere."""
+    if client == "gemini":
+        return False
+    print(
+        "error: --scope is only supported for the Gemini CLI client; "
+        "Claude Code and Copilot CLI use --settings",
+        file=sys.stderr,
+    )
+    return True
+
+
 def cmd_mcp_install(args) -> int:
     client = getattr(args, "client", "claude")
+    if _explicit_gemini_scope(args) and _reject_scope(client):
+        return 1
     if client == "codex":
         return _cmd_codex_install(args)
     if client == "copilot":
         return _cmd_copilot_install(args)
+    if client == "gemini":
+        return _cmd_gemini_install(args)
 
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 
@@ -414,6 +868,10 @@ def cmd_mcp_install(args) -> int:
 
 def cmd_mcp_uninstall(args) -> int:
     client = getattr(args, "client", "claude")
+    if _explicit_gemini_scope(args) and _reject_scope(client):
+        return 1
+    if client == "gemini":
+        return _cmd_gemini_uninstall(args)
     if client == "codex":
         if getattr(args, "settings", None):
             print(

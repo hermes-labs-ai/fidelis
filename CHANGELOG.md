@@ -2,6 +2,18 @@
 
 # Unreleased
 
+- Add `fidelis mcp install --client gemini` and `fidelis mcp uninstall
+  --client gemini`, which register the bundled stdio MCP server through
+  Gemini CLI's native `gemini mcp add` / `gemini mcp remove` (v0.1.19+).
+  `--scope user` (default) targets `~/.gemini/settings.json`, `--scope
+  project` targets `./.gemini/settings.json`. Gemini owns the write because it
+  reads that file as JSON-with-comments and round-trips a user's comments;
+  Fidelis only reads it back, to check ownership before replacing or removing
+  an entry and to prove what the run changed. `gemini mcp add` overwrites a
+  same-named entry unasked and `gemini mcp remove` exits 0 for an absent name,
+  so a silent no-op or an unexpected entry is reported as a failure rather
+  than as success.
+
 - Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
   --client copilot`, which register the bundled stdio MCP server in GitHub
   Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)
