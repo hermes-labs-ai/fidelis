@@ -234,6 +234,21 @@ def test_install_refusal_does_not_leak_the_foreign_entrys_credentials(gemini, ca
     assert "withheld: env, headers" in err
 
 
+def test_install_refusal_does_not_leak_a_credential_passed_as_a_launch_argument(gemini, capsys):
+    """A credential can arrive as a bare launch argument, not just env/headers
+    -- being a launch field does not make a value safe to print."""
+    foreign = {"command": "npx", "args": ["--api-key", "sk-live-should-not-appear-in-args"]}
+    gemini.path.parent.mkdir(parents=True)
+    gemini.path.write_text(json.dumps({"mcpServers": {"fidelis": foreign}}))
+
+    assert cmd_mcp_install(_args()) == 1
+    err = capsys.readouterr().err
+    assert "refusing to overwrite" in err
+    assert "sk-live-should-not-appear-in-args" not in err
+    assert "--api-key" not in err
+    assert "2 argument(s) withheld" in err
+
+
 def test_install_force_replaces_a_foreign_entry(gemini):
     foreign = {"command": "npx", "args": ["-y", "@someone/fidelis-mcp"]}
     gemini.path.parent.mkdir(parents=True)

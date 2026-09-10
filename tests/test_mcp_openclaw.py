@@ -430,6 +430,26 @@ def test_install_refusal_does_not_leak_the_foreign_entrys_credentials(tmp_path, 
     assert "withheld: env, headers" in err
 
 
+def test_install_refusal_does_not_leak_a_credential_passed_as_a_launch_argument(
+    tmp_path, openclaw, capsys
+):
+    """A credential can arrive as a bare launch argument, not just env/headers
+    -- being a launch field does not make a value safe to print."""
+    config = tmp_path / "openclaw.json"
+    foreign = {
+        "command": "npx",
+        "args": ["--api-key", "sk-live-should-not-appear-in-args"],
+    }
+    config.write_text(json.dumps({"mcp": {"servers": {MCP_SERVER_NAME: foreign}}}))
+
+    assert cmd_mcp_install(_args(config)) == 1
+    err = capsys.readouterr().err
+    assert "refusing to overwrite" in err
+    assert "sk-live-should-not-appear-in-args" not in err
+    assert "--api-key" not in err
+    assert "2 argument(s) withheld" in err
+
+
 def test_install_refreshes_a_stale_fidelis_entry(tmp_path, openclaw):
     config = tmp_path / "openclaw.json"
     stale = {"command": "/old/python", "args": [str(MCP_SERVER_FILE)], "enabled": False}

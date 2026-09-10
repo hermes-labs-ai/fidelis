@@ -416,11 +416,13 @@ def _trim(text: str) -> str:
     return text[:UNTRUSTED_ECHO_LIMIT] + " ...(truncated)"
 
 
-# Fields of an MCP client entry that only ever describe what gets launched,
-# never a credential. Anything else -- ``env``, ``headers``, a remote ``url``
-# with an embedded token -- is withheld by name, not by guessing which values
-# look secret.
-_SAFE_ENTRY_FIELDS = ("command", "args", "arguments", "type", "transport", "enabled")
+# Scalar fields of an MCP client entry that are never a credential by
+# themselves -- an executable name/path, a transport tag, a flag. Anything
+# else, ``args``/``arguments`` included, is withheld: a launch argument is
+# exactly where a bare ``--api-key <token>`` or a token-bearing URL lives, so
+# being a launch field does not make a value safe to print.
+_SAFE_ENTRY_SCALAR_FIELDS = ("command", "type", "transport", "enabled")
+_ENTRY_ARGUMENT_LIST_FIELDS = ("args", "arguments")
 
 
 def _safe_entry_summary(entry: object) -> str:
@@ -428,15 +430,21 @@ def _safe_entry_summary(entry: object) -> str:
     secrets.
 
     A refused or unexpected entry is echoed back so the user can recognize
-    it, but the entry can carry arbitrary transport metadata -- an API
-    token in ``env``, an ``Authorization`` header, a signed ``url`` -- that a
-    full ``json.dumps`` would put straight into stderr and any log capturing
-    it. Only the launch-shaped fields are ever safe to print; every other
-    key is named, so nothing is silently missing, but its value is not."""
+    it, but the entry can carry a credential almost anywhere: an API token
+    in ``env``, an ``Authorization`` header, a signed ``url``, or a bare
+    token passed as one of its own launch arguments. Only a fixed set of
+    small, structural scalars is ever printed outright; every argument
+    value -- and every other field -- is named, so nothing is silently
+    missing, but its value never is."""
     if not isinstance(entry, dict):
         return _trim(json.dumps(entry))
-    safe = {key: entry[key] for key in _SAFE_ENTRY_FIELDS if key in entry}
-    withheld = sorted(key for key in entry if key not in _SAFE_ENTRY_FIELDS)
+    safe = {key: entry[key] for key in _SAFE_ENTRY_SCALAR_FIELDS if key in entry}
+    for list_field in _ENTRY_ARGUMENT_LIST_FIELDS:
+        values = entry.get(list_field)
+        if isinstance(values, list):
+            safe[list_field] = f"<{len(values)} argument(s) withheld>"
+    shown = set(_SAFE_ENTRY_SCALAR_FIELDS) | set(_ENTRY_ARGUMENT_LIST_FIELDS)
+    withheld = sorted(key for key in entry if key not in shown)
     summary = _trim(json.dumps(safe))
     if withheld:
         summary += f" (withheld: {', '.join(withheld)})"
