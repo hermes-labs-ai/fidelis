@@ -564,6 +564,11 @@ def _read_gemini_servers(path: Path) -> tuple[dict | None, str | None]:
         return {}, None
     except OSError as exc:
         return None, f"error: could not read {path}: {exc}"
+    except UnicodeDecodeError as exc:
+        # ``UnicodeDecodeError`` is a ``ValueError``, not an ``OSError``: a
+        # settings file that is not valid text must surface like any other
+        # unreadable file instead of escaping install/uninstall as a traceback.
+        return None, f"error: {path} is not valid text: {exc}"
     try:
         data = json.loads(_strip_json_comments(raw))
     except json.JSONDecodeError as exc:

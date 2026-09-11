@@ -398,6 +398,27 @@ def test_install_refuses_a_malformed_settings_file(gemini, capsys):
     assert "trailing comma" in err
 
 
+def test_install_refuses_a_settings_file_that_is_not_valid_text(gemini, capsys):
+    gemini.path.parent.mkdir(parents=True)
+    # Invalid UTF-8: ``Path.read_text()`` raises ``UnicodeDecodeError`` (a
+    # ``ValueError``), which must be reported, not escape as a traceback.
+    gemini.path.write_bytes(b'{"mcpServers": {"a": {"command": "\xff\xfe"}}}')
+
+    assert cmd_mcp_install(_args()) == 1
+    assert not [c for c in gemini.calls if c[1:3] == ["mcp", "add"]]
+    assert "is not valid text" in capsys.readouterr().err
+
+
+def test_uninstall_refuses_a_settings_file_that_is_not_valid_text(gemini, capsys):
+    gemini.path.parent.mkdir(parents=True)
+    gemini.path.write_bytes(b'{"mcpServers": {"fidelis": {"command": "\xff\xfe"}}}')
+
+    assert cmd_mcp_uninstall(_args()) == 1
+    assert not [c for c in gemini.calls if c[1:3] == ["mcp", "remove"]]
+    assert "is not valid text" in capsys.readouterr().err
+    assert gemini.path.read_bytes() == b'{"mcpServers": {"fidelis": {"command": "\xff\xfe"}}}'
+
+
 def test_install_refuses_a_non_object_mcp_servers_block(gemini, capsys):
     gemini.path.parent.mkdir(parents=True)
     gemini.path.write_text('{"mcpServers": ["not", "an", "object"]}')
