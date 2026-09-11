@@ -206,6 +206,11 @@ def _handle(req: dict) -> dict | None:
                 "serverInfo": {"name": "fidelis", "version": __version__},
             },
         }
+    if method == "ping":
+        # MCP's liveness check: an empty result is the whole response. Gemini
+        # CLI's `gemini mcp list` pings after connecting and reports a server
+        # that answers anything else as Disconnected.
+        return {"jsonrpc": "2.0", "id": rid, "result": {}}
     if method == "tools/list":
         return {"jsonrpc": "2.0", "id": rid, "result": {"tools": TOOLS}}
     if method == "tools/call":

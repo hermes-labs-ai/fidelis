@@ -287,6 +287,8 @@ def test_a_fidelis_install_from_another_environment_is_recognized_as_ours(path):
         "/opt/other-server/mcp_server.py",
         "/opt/fidelis/server.py",
         "some-other-fidelis",
+        "\x00mcp_server.py",              # Path.resolve raises on an embedded NUL
+        "~nosuchuser000/mcp_server.py",   # Path.expanduser raises on an unknown user
     ],
 )
 def test_foreign_servers_are_not_mistaken_for_ours(path):

@@ -4,6 +4,65 @@
 
 ## v0.0.96 — 2026-09-10
 
+- The bundled MCP server now answers the base-protocol `ping` request with an
+  empty result instead of `-32601 method not found`. Gemini CLI's `gemini mcp
+  list` pings after connecting, so a healthy Fidelis server — tools listed,
+  tools working — was reported as `Disconnected`. No tool, lifecycle, or
+  transport behaviour changed; unknown methods are still refused.
+
+- Add `fidelis mcp install --client gemini` and `fidelis mcp uninstall
+  --client gemini`, which register the bundled stdio MCP server through
+  Gemini CLI's native `gemini mcp add` / `gemini mcp remove` (v0.1.19+).
+  `--scope user` (default) targets `~/.gemini/settings.json`, `--scope
+  project` targets `./.gemini/settings.json`. Gemini owns the write because it
+  reads that file as JSON-with-comments and round-trips a user's comments;
+  Fidelis only reads it back, to check ownership before replacing or removing
+  an entry and to prove what the run changed. `gemini mcp add` overwrites a
+  same-named entry unasked and `gemini mcp remove` exits 0 for an absent name,
+  so a silent no-op or an unexpected entry is reported as a failure rather
+  than as success.
+
+- Add `fidelis mcp install --client openclaw` and `fidelis mcp uninstall
+  --client openclaw`. OpenClaw keeps outbound MCP servers under `mcp.servers`
+  in a JSON5 config (`~/.openclaw/openclaw.json`, or `$OPENCLAW_CONFIG_PATH`),
+  so Fidelis neither rewrites that file nor parses it — a strict-JSON rewrite
+  would drop the user's comments and trailing commas, and a strict-JSON *read*
+  of the same file cannot say what is in it at all. Both directions are
+  delegated to OpenClaw's own CLI with `$OPENCLAW_CONFIG_PATH` pinned: writes
+  to the documented `openclaw mcp add` / `openclaw mcp unset`, and every
+  ownership check and read-back to `openclaw mcp show fidelis --json`, falling
+  back to `openclaw mcp list --json` to tell "no such server" apart from "could
+  not be read". Install and uninstall refuse to touch an `mcp.servers.fidelis`
+  entry that does not name the bundled server unless `--force` is passed, and
+  never shell out to write before refusing. Success is never inferred from an
+  exit code: a change the CLI reports as successful but that the read-back does
+  not prove exits non-zero, and a state OpenClaw cannot report is treated as
+  unknown — never as "no entry there", and never as a success, even under
+  `--force`. The `openclaw` binary is required, because it owns the write and
+  is the only reader that can be trusted with a JSON5 config.
+
+- The Gemini CLI and GitHub Copilot CLI ownership check no longer crashes on a
+  hostile string in a hand-edited config: an embedded NUL (`\u0000` is valid
+  JSON) or an unresolvable `~user` in the entry's arguments used to escape
+  install and uninstall as a traceback instead of the ownership refusal. Such
+  an entry is now treated as foreign, and left alone unless `--force` is
+  passed, the way OpenClaw entries already were.
+
+- OpenClaw ownership no longer matches on any string anywhere in an entry —
+  only on `command` naming a Python interpreter (this process's own, by exact
+  path, or a plausible name like `pypy3` elsewhere) paired with exactly one
+  argument naming the bundled script, the one shape `openclaw mcp add`
+  actually writes. A foreign server that merely references the script path in
+  `env`, a header, a URL, or an unrelated argument is no longer recognized as
+  Fidelis's own and installed over or removed without `--force`. Install also
+  verifies the read-back entry's command, argument, and enabled state match
+  what was requested, not just that it belongs to Fidelis — a stale entry
+  from a prior install (wrong interpreter, left disabled) could otherwise read
+  back as "ours" even when `openclaw mcp add` silently left it untouched.
+  Diagnostics for a refused or unexpected entry now show only its
+  launch-shaped fields (never argument values, `env`, or headers), so a
+  credential on the entry is never echoed to stderr.
+
 - Add `fidelis mcp install --client copilot` and `fidelis mcp uninstall
   --client copilot`, which register the bundled stdio MCP server in GitHub
   Copilot CLI's documented `mcp-config.json` (`~/.copilot` or `$COPILOT_HOME`)

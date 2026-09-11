@@ -5,6 +5,8 @@ fidelis CLI
   fidelis watch  ~/notes             auto-ingest a directory
   fidelis mcp install --client codex wire Codex MCP integration
   fidelis mcp install --client copilot wire GitHub Copilot CLI MCP integration
+  fidelis mcp install --client gemini wire Gemini CLI MCP integration
+  fidelis mcp install --client openclaw wire OpenClaw MCP integration
   fidelis recall "query"             two-stage recall via running server
   fidelis query  "query"             simple vector query (no filter)
   fidelis add    "text"              add a memory
@@ -312,28 +314,38 @@ def main():
     p_watch.set_defaults(func=lambda a: sys.exit(_cmd_watch(a)))
 
     # mcp — manage agent-client MCP integration
-    p_mcp = sub.add_parser("mcp", help="Manage Claude Code, Codex, or GitHub Copilot CLI MCP integration")
+    p_mcp = sub.add_parser("mcp", help="Manage Claude Code, Codex, GitHub Copilot CLI, Gemini CLI, or OpenClaw MCP integration")
     mcp_sub = p_mcp.add_subparsers(dest="mcp_command", required=True)
     p_mcp_serve = mcp_sub.add_parser("serve", help="Run the MCP server over stdio")
     p_mcp_serve.set_defaults(func=lambda a: sys.exit(_cmd_mcp_serve(a)))
     p_mcp_install = mcp_sub.add_parser("install", help="Install the fidelis MCP server into an agent client")
-    p_mcp_install.add_argument("--client", choices=("claude", "codex", "copilot"), default="claude",
+    p_mcp_install.add_argument("--client", choices=("claude", "codex", "copilot", "gemini", "openclaw"), default="claude",
                                help="MCP client to configure (default: claude)")
     p_mcp_install.add_argument("--settings",
                                help="Config file to edit: Claude Code settings.local.json "
                                     "(default ~/.claude/settings.local.json) or Copilot CLI mcp-config.json "
-                                    "(default ~/.copilot/mcp-config.json, or $COPILOT_HOME)")
+                                    "(default ~/.copilot/mcp-config.json, or $COPILOT_HOME). For OpenClaw this "
+                                    "is the config the delegated openclaw CLI writes, via $OPENCLAW_CONFIG_PATH "
+                                    "(default ~/.openclaw/openclaw.json)")
+    p_mcp_install.add_argument("--scope", choices=("user", "project"), default=None,
+                               help="Gemini CLI only: which settings.json `gemini mcp` writes — "
+                                    "user (~/.gemini/settings.json, the fidelis default) or "
+                                    "project (./.gemini/settings.json)")
     p_mcp_install.add_argument("--force", action="store_true",
                                help="Overwrite an existing 'fidelis' entry even if it doesn't look like ours")
     p_mcp_install.set_defaults(func=lambda a: sys.exit(_cmd_mcp_install(a)))
     p_mcp_uninstall = mcp_sub.add_parser("uninstall", help="Remove the fidelis MCP server from an agent client")
-    p_mcp_uninstall.add_argument("--client", choices=("claude", "codex", "copilot"), default="claude",
+    p_mcp_uninstall.add_argument("--client", choices=("claude", "codex", "copilot", "gemini", "openclaw"), default="claude",
                                  help="MCP client to configure (default: claude)")
     p_mcp_uninstall.add_argument("--settings",
-                                 help="Config file to edit (Claude Code settings.local.json or Copilot CLI mcp-config.json)")
+                                 help="Config file to edit (Claude Code settings.local.json, Copilot CLI "
+                                      "mcp-config.json, or OpenClaw openclaw.json)")
+    p_mcp_uninstall.add_argument("--scope", choices=("user", "project"), default=None,
+                                 help="Gemini CLI only: which settings.json to remove from "
+                                      "(default: user)")
     p_mcp_uninstall.add_argument("--force", action="store_true",
                                  help="Remove an entry named 'fidelis' even if it doesn't look like ours "
-                                      "(Copilot CLI)")
+                                      "(Copilot CLI, Gemini CLI, OpenClaw)")
     p_mcp_uninstall.set_defaults(func=lambda a: sys.exit(_cmd_mcp_uninstall(a)))
 
     args = parser.parse_args()

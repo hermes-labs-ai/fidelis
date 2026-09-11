@@ -1,6 +1,6 @@
 # Fidelis Memory
 
-> **Package release v0.0.95.** Install the Hermes Labs distribution from PyPI
+> **Package release v0.0.96.** Install the Hermes Labs distribution from PyPI
 > as `fidelis-memory`; the import name and CLI remain `fidelis`. The separately
 > versioned Fidelis Scaffold protocol remains v0.1.0 in the API and examples
 > below. The separate PyPI project named `fidelis` is unrelated.
@@ -8,12 +8,14 @@
 ## 60-second quickstart
 
 ```bash
-python3 -m pip install "fidelis-memory==0.0.95"
+python3 -m pip install "fidelis-memory==0.0.96"
 fidelis init                  # installs + starts the service (launchd/systemd)
 fidelis watch ~/notes         # auto-ingests markdown/text, polls for new files
 fidelis mcp install           # wires Claude Code MCP integration
 fidelis mcp install --client codex     # wires Codex MCP integration
-# --client copilot wires GitHub Copilot CLI; it is on main, not in 0.0.95
+fidelis mcp install --client copilot   # wires GitHub Copilot CLI MCP integration
+fidelis mcp install --client gemini    # wires Gemini CLI via `gemini mcp add`
+fidelis mcp install --client openclaw  # wires OpenClaw via `openclaw mcp add`
 # Done. Restart Claude Code. Memory is on.
 ```
 
@@ -263,7 +265,7 @@ Key results:
 **1. Install**
 
 ```bash
-python3 -m pip install "fidelis-memory==0.0.95"
+python3 -m pip install "fidelis-memory==0.0.96"
 ```
 
 **2. Pull Ollama models**
@@ -417,7 +419,7 @@ Query
 
 ```bash
 # Optional dependency for best BM25 fusion (zero deps fallback if absent)
-python3 -m pip install "fidelis-memory[hybrid]==0.0.95"
+python3 -m pip install "fidelis-memory[hybrid]==0.0.96"
 
 # Opt-in: set a filter endpoint (any OpenAI-compatible API)
 export COGITO_FILTER_ENDPOINT=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
