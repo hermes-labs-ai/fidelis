@@ -189,8 +189,7 @@ We claim: **a small, auditable, drift-detectable scaffold that lifts QA accuracy
 ## 6. Reproducibility
 
 ```bash
-# Install scaffold package
-git clone https://github.com/hermes-labs-ai/fidelis-scaffold
+# Install scaffold package (the fidelis-scaffold repository is not published; use the internal scaffold checkout)
 cd fidelis-scaffold && pip install -e .
 
 # Run preflight (validates scaffold cleanliness)
