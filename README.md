@@ -285,9 +285,11 @@ gemini extensions uninstall fidelis
 
 The extension pins `fidelis-memory==0.0.96`; `gemini extensions update fidelis`
 follows the repository's tagged releases. The first launch lets `uvx` download
-the wheel and its dependencies, which can outlast the 5-second probe behind
-`gemini mcp list`; run `uvx --from fidelis-memory==0.0.96 fidelis --help` once
-to warm the cache, after which the row reads *Connected*. If you also register Fidelis with
+the wheel and its dependencies. Gemini CLI 0.32.1 probes `gemini mcp list`
+with a fixed 5-second timeout that ignores the manifest's 60-second `timeout`,
+so that first launch can read *Disconnected*; run
+`uvx --from fidelis-memory==0.0.96 fidelis --help` once to warm the cache,
+after which the row reads *Connected*. If you also register Fidelis with
 `gemini mcp add`, the `settings.json` entry takes precedence over the
 extension's, so the two do not conflict.
 
