@@ -8,13 +8,13 @@
     "url": "https://github.com/hermes-labs-ai/fidelis",
     "source": "github"
   },
-  "version": "0.0.96",
+  "version": "0.0.97",
   "packages": [
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "fidelis-memory",
-      "version": "0.0.96",
+      "version": "0.0.97",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {

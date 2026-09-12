@@ -2,9 +2,18 @@
 
 # Unreleased
 
+## v0.0.97 — 2026-09-12
+
+- Release the Gemini CLI extension: v0.0.96 was tagged before
+  `gemini-extension.json` landed, so the bare-URL install resolved the latest
+  GitHub release and failed with "Configuration file not found". v0.0.97 is the
+  first tag and release archive that carry the manifest.
+- Pin the `user_id` namespace boundary in tests and document that it is not an
+  identity; add `glama.json` for the Glama registry ownership claim.
+
 - Package Fidelis as a native Gemini CLI extension: `gemini-extension.json`
   at the repository root launches the MCP Registry package
-  (`uvx --from fidelis-memory==0.0.96 fidelis mcp serve`) and `GEMINI.md`
+  (`uvx --from fidelis-memory==0.0.97 fidelis mcp serve`) and `GEMINI.md`
   tells the model when to call `fidelis_orient` and `fidelis_recall`.
   `gemini extensions install https://github.com/hermes-labs-ai/fidelis`
   registers the server without a manual `pip install`.

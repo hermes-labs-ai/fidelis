@@ -11,7 +11,7 @@ Stop re-explaining context to your agent. fidelis returns your original notes ve
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
 [![CI tests: 368 passing](https://img.shields.io/badge/CI%20tests-368%20passing-brightgreen)](tests/)
-[![Official MCP Registry](https://img.shields.io/badge/MCP%20Registry-active-5b5bd6)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.96)
+[![Official MCP Registry](https://img.shields.io/badge/MCP%20Registry-active-5b5bd6)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.97)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
 ```
@@ -45,7 +45,7 @@ brew install ollama && ollama serve &
 ollama pull nomic-embed-text
 
 # 1. install Fidelis Memory from PyPI
-python3 -m pip install "fidelis-memory==0.0.96"
+python3 -m pip install "fidelis-memory==0.0.97"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
 fidelis mcp install --client codex   # or omit for Claude Code
@@ -59,19 +59,20 @@ fidelis mcp serve             # runs the MCP server over stdio
 
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
-Fidelis Memory 0.0.96 is also published in the
-[official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.96)
+Fidelis Memory 0.0.97 is also published in the
+[official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.97)
 as `io.github.hermes-labs-ai/fidelis-memory`. Registry-aware clients can launch
 the same released server directly from PyPI:
 
 ```bash
-uvx --from "fidelis-memory==0.0.96" fidelis mcp serve
+uvx --from "fidelis-memory==0.0.97" fidelis mcp serve
 ```
 
 This starts the MCP stdio process; run `fidelis init` first when the local
 Fidelis service and store have not already been configured. Version 0.0.94
 introduced supported Codex MCP installation and context-sensitive orientation;
-0.0.96 added the independently discoverable registry release.
+0.0.96 added the independently discoverable registry release; 0.0.97 is the
+first tagged release that carries the Gemini CLI extension manifest.
 
 ## What you notice immediately
 
@@ -283,12 +284,12 @@ gemini extensions list      # fidelis, with its GEMINI.md and MCP server
 gemini extensions uninstall fidelis
 ```
 
-The extension pins `fidelis-memory==0.0.96`; `gemini extensions update fidelis`
+The extension pins `fidelis-memory==0.0.97`; `gemini extensions update fidelis`
 follows the repository's tagged releases. The first launch lets `uvx` download
 the wheel and its dependencies. Gemini CLI 0.32.1 probes `gemini mcp list`
 with a fixed 5-second timeout that ignores the manifest's 60-second `timeout`,
 so that first launch can read *Disconnected*; run
-`uvx --from fidelis-memory==0.0.96 fidelis --help` once to warm the cache,
+`uvx --from fidelis-memory==0.0.97 fidelis --help` once to warm the cache,
 after which the row reads *Connected*. If you also register Fidelis with
 `gemini mcp add`, the `settings.json` entry takes precedence over the
 extension's, so the two do not conflict.
@@ -359,7 +360,7 @@ After `fidelis init`:
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.96)
+## Known limitations (v0.0.97)
 
 - **Pre-release.** Python function names and CLI commands may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.
