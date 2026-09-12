@@ -4,7 +4,7 @@
 
 ## Local-first, zero-LLM memory for Codex, Claude Code, and AI agents.
 
-**73.0% end-to-end QA on LongMemEval-S. 83.2% R@1 retrieval. $0/query. No LLM in the default retrieval path.**
+**73.0% end-to-end QA on LongMemEval-S (LLM-answered over Fidelis retrieval; the retrieval path is zero-LLM by default, with opt-in LLM tiers used only for pointer selection). 83.2% R@1 retrieval. $0/query.**
 
 Stop re-explaining context to your agent. fidelis returns your original notes verbatim, local-first, fast, about 60 seconds to install. Your agent already calls an LLM to think; it should not need another one just to remember. Designed for developers. The default zero-LLM retrieval path does not send memory content to an LLM. The documented `fidelis init` service configuration also disables mem0 and Chroma telemetry. That can reduce third-party data exposure, but deployments still own their security and compliance assessment.
 
@@ -234,7 +234,7 @@ LongMemEval-S, 470 questions, public benchmark.
 | Cost per query (retrieval) | **$0** (local) |
 | Mean retrieval latency | 216 ms (zero-LLM hybrid: BM25 + dense + RRF) |
 
-For context: published Mem0 results on LongMemEval-S are in the ~66–70% end-to-end QA range; Zep is 71.2%; Supermemory is 81.6%; full GPT-4o on raw context (no memory system) is 60.2%. fidelis reaches 73.0% with no LLM in the default retrieval path.
+For context: published Mem0 results on LongMemEval-S are in the ~66–70% end-to-end QA range; Zep is 71.2%; Supermemory is 81.6%; full GPT-4o on raw context (no memory system) is 60.2%. fidelis reaches 73.0% with an LLM answering over its retrieval; the default retrieval path makes no LLM call, and the opt-in tiers call one only to select pointers.
 
 Raw evidence: [retrieval aggregate](bench/runs/runP-v35/aggregate.json) ·
 [end-to-end QA summary](experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json)
@@ -373,7 +373,7 @@ MIT. Built by Hermes Labs (Roli Bosch). Issues + PRs welcome.
 ## About Hermes Labs
 
 Hermes Labs develops open-source reliability, evaluation, memory, and
-containment tools for AI agents. Fidelis is its local-first memory project.
+runtime-guard tools for AI agents. Fidelis is its local-first memory project.
 Other public software is listed at
 [github.com/hermes-labs-ai](https://github.com/hermes-labs-ai), with research
 artifacts published separately on [Zenodo](https://zenodo.org).

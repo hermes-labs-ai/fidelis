@@ -1,5 +1,5 @@
 # fidelis
-> Zero-LLM memory for AI agents and Claude Code. Integer-pointer fidelity guarantee — original passages returned verbatim, never paraphrased. 73.0% end-to-end QA on LongMemEval-S (470 questions, 2026-04-24); 83.2% R@1 zero-LLM retrieval (runP-v35 stage 1, 2026-04-18). Local, $0/query, fully private. By Hermes Labs. (Internal codename during development: cogito-ergo.)
+> Zero-LLM retrieval memory for AI agents and Claude Code. Integer-pointer fidelity guarantee — original passages returned verbatim, never paraphrased. 73.0% end-to-end QA on LongMemEval-S (470 questions, 2026-04-24; LLM-answered over the retrieval, with opt-in LLM tiers used only for pointer selection); 83.2% R@1 zero-LLM retrieval (runP-v35 stage 1, 2026-04-18). Local, $0/query, fully private. By Hermes Labs. (Internal codename during development: cogito-ergo.)
 
 ## What it is
 
@@ -160,7 +160,6 @@ Filter LLM (external, opt-in) — any OpenAI-compatible endpoint or direct ANTHR
 
 zer0lint (roli-lpci/zer0lint) — ingestion diagnostics; run before benchmarking
 zer0dex (roli-lpci/zer0dex)   — architecture pattern fidelis implements (dual-layer retrieval)
-hermes-seal (hermes-labs-ai/hermes-seal) — cryptographic containment for agents
 
 All by Hermes Labs (https://hermes-labs.ai).
 
@@ -174,9 +173,9 @@ Author: Hermes Labs (roli@hermes-labs.ai)
 
 ## About Hermes Labs
 
-Hermes Labs develops open-source reliability, evaluation, memory, and containment tools for AI agents. Fidelis is its local-first memory project. Other public software: https://github.com/hermes-labs-ai
+Hermes Labs develops open-source reliability, evaluation, memory, and runtime-guard tools for AI agents. Fidelis is its local-first memory project. Other public software: https://github.com/hermes-labs-ai
 
-Public technical receipts. The flagship open-source release is fidelis — zero-LLM agent memory with integer-pointer fidelity. 73.0% end-to-end QA on LongMemEval-S, Wilson 95% CI [68.7%, 77.0%], at $0 per query, fully local. Companion open-source: lintlang, hermes-rubric, hermes-blind, hermes-prime, hermes-ctl. Published research at zenodo.org and the Hermes Labs paper line. The OSS surface is the proof; the commercial work is enterprise deployments.
+Public technical receipts. The flagship open-source release is fidelis — zero-LLM retrieval memory with integer-pointer fidelity. 73.0% end-to-end QA on LongMemEval-S (LLM-answered over the retrieval; opt-in LLM tiers used only for pointer selection), Wilson 95% CI [68.7%, 77.0%], retrieval at $0 per query, fully local. Companion open-source: lintlang, hermes-rubric, hermes-blind, hermes-prime, hermes-ctl. Published research at zenodo.org and the Hermes Labs paper line. The OSS surface is the proof; the commercial work is enterprise deployments.
 
 For enterprise deployments and AI-reliability engagements: roli@hermes-labs.ai · hermes-labs.ai
 
