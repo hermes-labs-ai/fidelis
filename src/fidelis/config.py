@@ -43,6 +43,10 @@ _TECHNICAL_EXTRACTION_PROMPT = (
 
 _DEFAULTS: dict[str, Any] = {
     "port": 19420,
+    # Storage namespace, not an authenticated identity. The server binds one
+    # user_id per process (server.make_handler) and never reads one from a
+    # request, so this partitions a local store — it is not an access control
+    # boundary and does not make fidelis multi-user. See agents.md.
     "user_id": "agent",
     "recall_limit": 50,
     "recall_threshold": 400.0,

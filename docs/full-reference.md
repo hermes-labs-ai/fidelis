@@ -722,7 +722,7 @@ Config file is searched at `./.cogito.json` (cwd) then `~/.cogito/config.json`.
 | Env var | Config key | Default | Description |
 |---|---|---|---|
 | `COGITO_PORT` | `port` | `19420` | Server port |
-| `COGITO_USER_ID` | `user_id` | `"agent"` | Memory namespace (isolates stores) |
+| `COGITO_USER_ID` | `user_id` | `"agent"` | Local memory namespace selector; not authentication or access control |
 | `COGITO_FILTER_ENDPOINT` | `filter_endpoint` | — | OpenAI-compatible base URL for filter LLM |
 | `COGITO_FILTER_TOKEN` | `filter_token` | — | Bearer token for filter endpoint |
 | `COGITO_FILTER_MODEL` | `filter_model` | `anthropic/claude-haiku-4-5` | Filter LLM model name |
@@ -746,6 +746,32 @@ Config file is searched at `./.cogito.json` (cwd) then `~/.cogito/config.json`.
 `filter_endpoint` accepts any OpenAI-compatible API: Anthropic gateway, LM Studio, Ollama's `/v1` compat layer, OpenClaw, etc.
 
 For Ollama qwen3/qwen3.5 models used as filter, fidelis automatically switches to the native Ollama `/api/chat` endpoint with `think: false` to suppress thinking mode.
+
+### Namespaces are not identities
+
+`user_id` partitions records inside a single store: every retrieval endpoint
+(`/query`, `/recall`, `/recall_b`, `/recall_hybrid`) filters on it, so records
+written under one `user_id` are not returned under another — `/query` is pinned
+by `tests/test_user_id_namespace_isolation.py`.
+
+Two endpoints are deliberately not namespace-scoped: `/health` reports a
+whole-collection count across every namespace, and `/snapshot` is keyed by
+config directory rather than by `user_id`.
+
+That is a **namespace** boundary, not a security one. Specifically:
+
+- The server binds one `user_id` per process, from config, at startup. No
+  endpoint accepts a `user_id` from a request body, so callers cannot select or
+  spoof a namespace over the wire.
+- There is no authentication. Anything that can reach the port reads and writes
+  the configured namespace, which is why the server binds `127.0.0.1` by default.
+- Namespaces share one collection and one on-disk store. Separation is a query
+  filter, not an encryption or access boundary — anyone with read access to
+  `store_path` can read every namespace.
+
+Treat `user_id` as you would a directory name for keeping an agent's memories
+apart from your own, not as a login. Fidelis is single-namespace by design; see
+`agents.md` for when that makes it the wrong tool.
 
 ---
 
