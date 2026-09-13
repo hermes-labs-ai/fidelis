@@ -9,7 +9,7 @@
 Stop re-explaining context to your agent. fidelis returns your original notes verbatim through a local-first service. Your agent already calls an LLM to think; it should not need another one just to remember. Designed for developers. The default zero-LLM retrieval path does not send memory content to an LLM. The documented `fidelis init` service configuration also disables mem0 and Chroma telemetry. That can reduce third-party data exposure, but deployments still own their security and compliance assessment.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
+[![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations-v010)
 [![CI](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml)
 [![Official MCP Registry](https://img.shields.io/badge/MCP%20Registry-active-5b5bd6)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.1.0)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
@@ -57,11 +57,30 @@ fidelis mcp serve             # runs the MCP server over stdio
 # Restart your agent client. Memory is on.
 ```
 
+Verify the installed release and the local service before configuring a client:
+
+```bash
+python3 -c 'import fidelis; print(fidelis.__version__)'
+# expected: 0.1.0
+fidelis health
+# expected prefix: status: ok  |  memories:
+```
+
+Then verify one real retrieval without relying on a fixed memory count:
+
+```bash
+mkdir -p /tmp/fidelis-verify
+printf '%s\n' 'Fidelis verification phrase: amber heron.' > /tmp/fidelis-verify/note.md
+fidelis watch /tmp/fidelis-verify --once
+fidelis query 'amber heron'
+# success: the result contains "Fidelis verification phrase: amber heron."
+```
+
 Using Gemini CLI? After the local prerequisites and `fidelis init`, install
 the native v0.1.0 extension directly:
 
 ```bash
-gemini extensions install https://github.com/hermes-labs-ai/fidelis
+gemini extensions install https://github.com/hermes-labs-ai/fidelis --ref=v0.1.0
 ```
 
 The extension launches the released MCP package through `uvx` and includes the
