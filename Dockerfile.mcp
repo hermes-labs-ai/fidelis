@@ -1,0 +1,36 @@
+# Fidelis MCP image — stdio MCP server for the Docker MCP Catalog.
+# Build: docker build -f Dockerfile.mcp -t fidelis-memory-mcp .
+# Run:   docker run -i --rm -v fidelis-data:/data fidelis-memory-mcp
+#
+# Starts fidelis-server on 127.0.0.1 inside the container (logs go to stderr so
+# the MCP stdio channel stays clean), then serves MCP over stdin/stdout.
+# Embeddings use Ollama at OLLAMA_URL (default: the Docker host).
+
+FROM python:3.12-slim
+
+LABEL org.opencontainers.image.title="fidelis-memory"
+LABEL org.opencontainers.image.description="Fidelis Memory MCP server: recall locally stored agent memories"
+LABEL org.opencontainers.image.source="https://github.com/hermes-labs-ai/fidelis"
+LABEL org.opencontainers.image.licenses="MIT"
+
+WORKDIR /app
+
+COPY pyproject.toml README.md LICENSE ./
+COPY src/ ./src/
+RUN pip install --no-cache-dir . \
+    && useradd --create-home --uid 10001 fidelis \
+    && mkdir -p /data \
+    && chown fidelis:fidelis /data
+
+COPY docker/mcp-entrypoint.sh /usr/local/bin/fidelis-mcp-entrypoint
+RUN chmod 0755 /usr/local/bin/fidelis-mcp-entrypoint
+
+VOLUME ["/data"]
+ENV HOME=/data \
+    FIDELIS_HOME=/data \
+    FIDELIS_PORT=19420 \
+    OLLAMA_URL=http://host.docker.internal:11434
+
+USER fidelis
+
+ENTRYPOINT ["fidelis-mcp-entrypoint"]
