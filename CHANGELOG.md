@@ -2,6 +2,24 @@
 
 # Unreleased
 
+## v0.1.0 — 2026-09-13
+
+- Promote Fidelis Memory from the `0.0.x` sequence to its first minor release.
+  The supported product contract is local-first, verbatim memory retrieval for
+  Codex, Claude Code, GitHub Copilot CLI, Gemini CLI, and OpenClaw on the
+  currently gate-tested macOS and Ubuntu paths.
+- Coordinate package, Python, citation, CodeMeta, MCP Registry, Gemini
+  extension, installation-documentation, and public-install-test versions at
+  `0.1.0`.
+- Add a public [user-fit matrix](docs/user-fit.md), a release-readiness record
+  with explicit acceptance criteria, and an outcome-gated [0.2.0 roadmap](ROADMAP.md).
+- Replace the manually maintained passing-test-count badge with the live GitHub
+  Actions status badge so release documentation cannot advertise an obsolete
+  count.
+- Preserve the historical `v0.1.0` and `v0.2.0` changelog entries under the
+  clearly labeled `cogito-ergo` predecessor-package section so they cannot be
+  mistaken for current Fidelis package releases.
+
 ## v0.0.97 — 2026-09-12
 
 - Release the Gemini CLI extension: v0.0.96 was tagged before

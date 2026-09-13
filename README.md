@@ -4,14 +4,14 @@
 
 ## Local-first, zero-LLM memory for Codex, Claude Code, and AI agents.
 
-**73.0% end-to-end QA on LongMemEval-S (LLM-answered over Fidelis retrieval; the retrieval path is zero-LLM by default, with opt-in LLM tiers used only for pointer selection). 83.2% R@1 retrieval. $0/query.**
+**83.2% R@1 in a checked-in 470-question LongMemEval-S retrieval run. A separate checked-in run answered 317 of 434 graded questions correctly (73.0%, Wilson 95% CI [68.7%, 77.0%]) with an LLM reading Fidelis retrieval. The default retrieval path itself makes no LLM call.**
 
-Stop re-explaining context to your agent. fidelis returns your original notes verbatim, local-first, fast, about 60 seconds to install. Your agent already calls an LLM to think; it should not need another one just to remember. Designed for developers. The default zero-LLM retrieval path does not send memory content to an LLM. The documented `fidelis init` service configuration also disables mem0 and Chroma telemetry. That can reduce third-party data exposure, but deployments still own their security and compliance assessment.
+Stop re-explaining context to your agent. fidelis returns your original notes verbatim through a local-first service. Your agent already calls an LLM to think; it should not need another one just to remember. Designed for developers. The default zero-LLM retrieval path does not send memory content to an LLM. The documented `fidelis init` service configuration also disables mem0 and Chroma telemetry. That can reduce third-party data exposure, but deployments still own their security and compliance assessment.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange)](#known-limitations)
-[![CI tests: 368 passing](https://img.shields.io/badge/CI%20tests-368%20passing-brightgreen)](tests/)
-[![Official MCP Registry](https://img.shields.io/badge/MCP%20Registry-active-5b5bd6)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.97)
+[![CI](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml)
+[![Official MCP Registry](https://img.shields.io/badge/MCP%20Registry-active-5b5bd6)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.1.0)
 [![Made by Hermes Labs](https://img.shields.io/badge/made%20by-Hermes%20Labs-purple)](https://hermes-labs.ai)
 
 ```
@@ -28,12 +28,16 @@ Codex / Claude Code / your agent
 
 What fidelis is:
 
-- **fast** - ~216 ms local retrieval (full benchmark mean; vector-only path is faster)
-- **cheap** - $0/query retrieval cost
+- **model-API independent by default** - the default retrieval path makes no model API call; local compute and storage still have costs
 - **private** - local memory store by default
 - **faithful** - original stored passages returned, not paraphrases
-- **proven** - benchmarked on LongMemEval-S (470 questions, public benchmark), with raw evidence in [`experiments/zeroLLM-FLAGSHIP-evidence/`](experiments/zeroLLM-FLAGSHIP-evidence/)
-- **installable** - Codex or Claude Code via MCP in about 60 seconds
+- **measured** - checked-in LongMemEval-S retrieval and QA artifacts are linked below
+- **installable** - documented MCP paths for Codex, Claude Code, GitHub Copilot CLI, Gemini CLI, and OpenClaw
+
+Fidelis is deliberately narrower than a hosted memory platform. Check the
+[user-fit matrix](docs/user-fit.md) before installing: it names the workflows
+0.1.0 supports, the prerequisites it assumes, and the cases it does not yet
+serve.
 
 ---
 
@@ -45,7 +49,7 @@ brew install ollama && ollama serve &
 ollama pull nomic-embed-text
 
 # 1. install Fidelis Memory from PyPI
-python3 -m pip install "fidelis-memory==0.0.97"
+python3 -m pip install "fidelis-memory==0.1.0"
 fidelis init                  # background service (launchd / systemd)
 fidelis watch ~/notes         # auto-ingests markdown
 fidelis mcp install --client codex   # or omit for Claude Code
@@ -54,7 +58,7 @@ fidelis mcp serve             # runs the MCP server over stdio
 ```
 
 Using Gemini CLI? After the local prerequisites and `fidelis init`, install
-the native v0.0.97 extension directly:
+the native v0.1.0 extension directly:
 
 ```bash
 gemini extensions install https://github.com/hermes-labs-ai/fidelis
@@ -69,20 +73,21 @@ The extension launches the released MCP package through `uvx` and includes the
 
 Linux users swap `brew install ollama` for the equivalent install from [ollama.com](https://ollama.com). [See Requirements](#requirements).
 
-Fidelis Memory 0.0.97 is also published in the
-[official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.0.97)
+Fidelis Memory 0.1.0 is also published in the
+[official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.1.0)
 as `io.github.hermes-labs-ai/fidelis-memory`. Registry-aware clients can launch
 the same released server directly from PyPI:
 
 ```bash
-uvx --from "fidelis-memory==0.0.97" fidelis mcp serve
+uvx --from "fidelis-memory==0.1.0" fidelis mcp serve
 ```
 
 This starts the MCP stdio process; run `fidelis init` first when the local
 Fidelis service and store have not already been configured. Version 0.0.94
 introduced supported Codex MCP installation and context-sensitive orientation;
-0.0.96 added the independently discoverable registry release; 0.0.97 is the
-first tagged release that carries the Gemini CLI extension manifest.
+0.0.96 added the independently discoverable registry release; 0.0.97 was the
+first tagged release that carried the Gemini CLI extension manifest; and 0.1.0
+promotes the tested cross-client contract as the first minor Fidelis release.
 
 ## What you notice immediately
 
@@ -225,7 +230,7 @@ OpenClaw cannot report the entry at all, which is treated as unknown, never as
 
 Three concrete reasons teams pick fidelis over hosted memory:
 
-- **Cost reduction.** Stop paying for redundant context-window tokens on every turn. Memory lives on disk; the agent pulls only what's relevant per query. At a few thousand calls/day the math against per-query memory APIs adds up fast.
+- **Model-API independence for retrieval.** Memory lives on disk and the default retrieval path makes no model API call. Your agent still consumes its normal context and model resources when answering.
 - **Local data boundary.** The default zero-LLM path keeps notes and retrieval on the local machine, reducing third-party processor exposure. This architecture does not by itself confer SOC 2 or HIPAA compliance.
 - **Team context.** Agents that remember historical decisions, naming conventions, failed migrations, and the *qualifiers* on those decisions. The non-configurable detail you wrote down two months ago surfaces when relevant, in the founder's voice, not paraphrased.
 
@@ -235,17 +240,15 @@ The diagram is at the top. Codex and Claude Code are the fastest paths to value.
 
 ## Benchmarks
 
-LongMemEval-S, 470 questions, public benchmark.
+Checked-in LongMemEval-S observations; these are local project measurements,
+not independent replications.
 
 | Metric | Value |
 |---|---|
 | Retrieval R@1 | **83.2%** |
 | Retrieval R@5 | **98.3%** |
-| End-to-end QA accuracy | **73.0%**, Wilson 95% CI [68.7%, 77.0%] |
-| Cost per query (retrieval) | **$0** (local) |
-| Mean retrieval latency | 216 ms (zero-LLM hybrid: BM25 + dense + RRF) |
-
-For context: published Mem0 results on LongMemEval-S are in the ~66–70% end-to-end QA range; Zep is 71.2%; Supermemory is 81.6%; full GPT-4o on raw context (no memory system) is 60.2%. fidelis reaches 73.0% with an LLM answering over its retrieval; the default retrieval path makes no LLM call, and the opt-in tiers call one only to select pointers.
+| End-to-end QA accuracy | **73.0%** (317/434 graded questions), Wilson 95% CI [68.7%, 77.0%] |
+| Retrieval-time model API calls | **0** on the default stage-1 path |
 
 Raw evidence: [retrieval aggregate](bench/runs/runP-v35/aggregate.json) ·
 [end-to-end QA summary](experiments/zeroLLM-FLAGSHIP-evidence/SUMMARY.json)
@@ -294,12 +297,12 @@ gemini extensions list      # fidelis, with its GEMINI.md and MCP server
 gemini extensions uninstall fidelis
 ```
 
-The extension pins `fidelis-memory==0.0.97`; `gemini extensions update fidelis`
+The extension pins `fidelis-memory==0.1.0`; `gemini extensions update fidelis`
 follows the repository's tagged releases. The first launch lets `uvx` download
 the wheel and its dependencies. Gemini CLI 0.32.1 probes `gemini mcp list`
 with a fixed 5-second timeout that ignores the manifest's 60-second `timeout`,
 so that first launch can read *Disconnected*; run
-`uvx --from fidelis-memory==0.0.97 fidelis --help` once to warm the cache,
+`uvx --from fidelis-memory==0.1.0 fidelis --help` once to warm the cache,
 after which the row reads *Connected*. If you also register Fidelis with
 `gemini mcp add`, the `settings.json` entry takes precedence over the
 extension's, so the two do not conflict.
@@ -315,7 +318,9 @@ extension's, so the two do not conflict.
   ollama pull nomic-embed-text   # ~280 MB, one-time
   ```
 
-The full init-to-first-recall cycle is under 60 seconds once Ollama is up. No memory API keys required.
+Once Ollama and the embedding model are available, the quickstart covers the
+full init-to-first-recall path. The default retrieval path needs no memory API
+key.
 
 ## Quick reference
 
@@ -370,7 +375,7 @@ After `fidelis init`:
 
 To stop: `fidelis init --uninstall`. To wipe: `rm -rf ~/.cogito ~/.fidelis`.
 
-## Known limitations (v0.0.97)
+## Known limitations (v0.1.0)
 
 - **Pre-release.** Python function names and CLI commands may change. Pin the version if you build on it.
 - **Best on macOS Sequoia / Ubuntu 24.04 LTS.** Other OSes likely work but aren't gate-tested.
@@ -398,6 +403,9 @@ fidelis is open-source under MIT and free for any use, including commercial. If 
 
 ## For technical users
 
+- [`docs/user-fit.md`](docs/user-fit.md) - supported users, prerequisites, and explicit non-fits
+- [`docs/releases/0.1.0.md`](docs/releases/0.1.0.md) - 0.1.0 release scope and acceptance evidence
+- [`ROADMAP.md`](ROADMAP.md) - outcome gates for 0.2.0
 - [`docs/full-reference.md`](docs/full-reference.md) - full architecture, hybrid recall tiers, local server endpoints, troubleshooting
 - [`docs/scaffold.md`](docs/scaffold.md) - Fidelis Scaffold contract + drift-detection markers
 - [`experiments/zeroLLM-FLAGSHIP-evidence/`](experiments/zeroLLM-FLAGSHIP-evidence/) - raw eval JSONs + machine-readable SUMMARY (per-qtype breakdowns, Wilson CI, F1/F1B baselines)

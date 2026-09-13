@@ -1,6 +1,6 @@
 # Fidelis Memory
 
-> **Package release v0.0.97.** Install the Hermes Labs distribution from PyPI
+> **Package release v0.1.0.** Install the Hermes Labs distribution from PyPI
 > as `fidelis-memory`; the import name and CLI remain `fidelis`. The separately
 > versioned Fidelis Scaffold protocol remains v0.1.0 in the API and examples
 > below. The separate PyPI project named `fidelis` is unrelated.
@@ -8,7 +8,7 @@
 ## 60-second quickstart
 
 ```bash
-python3 -m pip install "fidelis-memory==0.0.97"
+python3 -m pip install "fidelis-memory==0.1.0"
 fidelis init                  # installs + starts the service (launchd/systemd)
 fidelis watch ~/notes         # auto-ingests markdown/text, polls for new files
 fidelis mcp install           # wires Claude Code MCP integration
@@ -42,15 +42,15 @@ answer = augment(
 
 `augment()` retrieves memory + wraps with the Fidelis Scaffold + invokes your LLM in one call.
 
-**Agent memory with zero-LLM retrieval and a $0-incremental-cost QA scaffold.** Fully local retrieval. No API keys required to get a working memory system.
+**Agent memory with a local-first retrieval path that makes no LLM call by default.** The optional QA scaffold uses the model your application already supplies.
 
 **Headline numbers (Fidelis v0.1.0):**
 
-- **83.2% R@1** on LongMemEval-S retrieval (470 questions) — pure retrieval, no LLM, fully local
-- **73.0% QA accuracy** on LongMemEval-S full eval (n=434/470, Wilson 95% CI [68.7%, 77.0%]) when the Fidelis scaffold wraps an Opus reader — **above Mem0 (~66–70%), above Zep (71.2%), above raw GPT-4o (60.2%)**
-- **$0 incremental cost** per query when paired with a Claude Pro/Max subscription — **10–50× cheaper than every published memory system at our accuracy tier or above**
+- **83.2% R@1** in the checked-in 470-question LongMemEval-S stage-1 retrieval run
+- **73.0% QA accuracy** (317/434 graded questions, Wilson 95% CI [68.7%, 77.0%]) in a separate checked-in run using an Opus reader and grader
 - **Per-qtype scaffold lifts** over a minimal-prompt LLM baseline (smoke n=60): **+20pp on knowledge-update, +16pp on preference, +8pp on multi-session**
-- **~90 ms retrieval latency** end-to-end
+
+These are local project observations, not independent replications.
 
 **Backend portability (LLM that consumes the scaffold):**
 - ✅ **Claude (Opus subscription via `claude` CLI):** 100% hedge + 100% answer compliance on a 10-Q sanity test
@@ -63,7 +63,7 @@ corrupt, rephrase, or hallucinate into the content returned to your agent.
 See [Hybrid recall](#hybrid-recall) for the tier table and the honest
 ceiling on the benchmark-tuned path.
 
-## Fidelis Scaffold (new in v0.1.0)
+## Fidelis Scaffold
 
 The QA scaffold technique: a 140–180-token versioned, hedge-calibrated, qtype-aware system prompt that sits between Fidelis retrieval and your existing LLM, lifting end-to-end QA accuracy on hard question types without modifying the LLM and at zero incremental inference cost.
 
@@ -88,20 +88,7 @@ The scaffold is **versioned** (`[FIDELIS-SCAFFOLD-vX.Y.Z]…[/FIDELIS-SCAFFOLD-v
 | single-session-user | 100% | 100% | 0pp (ceiling) |
 | single-session-assistant | 100% | 100% | 0pp (ceiling) |
 
-**Cost-frontier comparison on LongMemEval-S** (published numbers, 2026-04):
-
-| System | QA accuracy | Cost/query at inference | Local? |
-|---|---|---|---|
-| DMD | 96.4% | High (115K-token frontier API) | No |
-| Hindsight | 91.4% | High (multi-net ensemble) | No |
-| Supermemory | 81.6% | Medium (proprietary API) | No |
-| Fidelis E2 (paid LLM tier) | 75.5% | $0.02/query | No |
-| **Fidelis + scaffold (subscription)** | **73.0% (full 434/470, CI [68.7%, 77.0%])** | **$0 incremental** | **No (cloud reader, local retrieval+scaffold)** |
-| Zep | 71.2% | Medium | No |
-| Mem0 | ~66–70% | Medium | No |
-| Full GPT-4o (raw context) | 60.2% | High | No |
-
-Full 470-question evaluation in progress; smoke evidence + machine-readable summary in [`experiments/zeroLLM-FLAGSHIP-evidence/`](experiments/zeroLLM-FLAGSHIP-evidence/) (see `SUMMARY.json` for per-arm aggregates and per-qtype scaffold lift). Companion technical report lands when the full eval completes. See [`docs/scaffold.md`](docs/scaffold.md) for the full scaffold contract, preflight, and audit chain.
+The machine-readable summary in [`../experiments/zeroLLM-FLAGSHIP-evidence/`](../experiments/zeroLLM-FLAGSHIP-evidence/) records the 434 graded questions and the 36 ungraded questions from the 470-question set. See [`scaffold.md`](scaffold.md) for the scaffold contract and preflight.
 
 A separate `/recall` atomic path is purpose-built for short-fact lookup (not session retrieval); it scores 85% R@1 combined with the snapshot layer on a 31-case internal atomic-fact eval. This is a secondary surface; the headline retrieval number above (83.2% R@1 on the full 470-question LongMemEval-S) is the authoritative session-retrieval measurement.
 
@@ -116,20 +103,12 @@ graceful process shutdown. Set `MEM0_TELEMETRY=True` explicitly to opt in.
 
 ---
 
-## How this is different from mem0 / Zep / Letta
+## Architectural boundary
 
-Short version: **they call an LLM during retrieval; fidelis doesn't.**
-
-| | mem0 / Zep / Letta (typical) | fidelis (zero-LLM default) |
-|---|---|---|
-| LLM call on retrieval hot path | yes | **no** |
-| Cost per retrieval | ~$0.001–0.02 | **$0** |
-| Latency | ~1–3 s | **~90 ms** |
-| Works fully offline / air-gapped | no (cloud LLM required for headline numbers) | **yes** (local Ollama) |
-| API keys required to run | yes | **no** |
-| R@1 on LongMemEval_S | 92–96% (cloud LLM tier) | 83.2% (zero-LLM) |
-| LLM can rephrase / hallucinate into returned content | yes | **no** (integer-pointer contract on optional LLM tier) |
-| Write survives upstream LLM outage | mixed | **yes** (degrade queue) |
+Fidelis's default retrieval path makes no LLM call. The optional LLM tiers
+return integer indices; Fidelis dereferences those indices to stored passages
+instead of accepting generated memory text. This describes Fidelis's own
+contract and is not a claim about every configuration of another product.
 
 Your agent already calls an LLM. fidelis feeds that LLM the right memory
 without adding a second LLM call to retrieve it.
@@ -158,21 +137,19 @@ calibration miss (80% escalation vs 10% intended) is fixed — see
 
 Every retrieval system that uses an LLM to select or rank memories has the same failure mode: the LLM rephrases on the way out. You store `"auth tokens expire after 3600 seconds"` and get back `"authentication has a configurable timeout."` The specific fact is gone.
 
-- **Raw vector search** returns candidates by similarity, but precision plateaus at 50–60% R@1 on real workloads
+- **Raw vector search** returns candidates by similarity but does not preserve a task-specific relevance guarantee
 - **LLM-based re-rankers** improve relevance but generate text — they summarize, merge, or hallucinate into the content your agent receives
 - **Full RAG pipelines** add latency and cost without solving the fidelity problem
 
 fidelis fixes this structurally. The filter LLM outputs only integer pointers (`[3, 7, 12]`). The server dereferences them to verbatim stored text. The LLM never sees, generates, or touches memory content. Fidelity is architectural, not a prompting convention.
 
-**Headline retrieval (LongMemEval-S, 470 questions, zero-LLM tier, $0/q, fully local):**
+**Headline retrieval (checked-in local LongMemEval-S stage-1 run, 470 questions):**
 
 | Metric | Value |
 |---|---|
 | **R@1** | **83.2%** |
 | **R@5** | **98.3%** |
 | **R@10** | **99.1%** |
-| Cost | $0/query |
-| Latency | ~90 ms end-to-end |
 | Per-qtype R@1 | SSA 100% · KU 95.8% · SSU 95.3% · MS 83.5% · SSP 66.7% · TR 66.1% |
 
 **Secondary `/recall` atomic-fact surface** (purpose-built for short-fact lookup, not session retrieval; 31 internal test cases, qwen3.5:2b filter, fully local):
@@ -228,15 +205,13 @@ The filter LLM never generates memory text. Out-of-range integers are silently i
 
 ### Primary: LongMemEval-S (470 questions, public benchmark)
 
-Measured 2026-04-24. Zero-LLM retrieval pipeline (BM25 + turn-level + prefixes + temporal-boost + escalation), `runP-v35` configuration, fully local on Ollama. $0/query.
+Measured 2026-04-18. Stage-1 retrieval pipeline (BM25 + turn-level + prefixes + temporal boost), `runP-v35` configuration, on local Ollama.
 
 | Metric | Value | Notes |
 |---|---|---|
 | **R@1** | **83.2%** | top-1 contains gold |
 | **R@5** | **98.3%** | gold in top-5 across all qtypes |
 | **R@10** | **99.1%** | |
-| Cost | $0/query | no LLM in retrieval path |
-| Wallclock | 101.3 s for 470 questions | ~215 ms/question |
 
 Per-qtype R@1: single-session-assistant 100%, knowledge-update 95.8%, single-session-user 95.3%, multi-session 83.5%, single-session-preference 66.7%, temporal-reasoning 66.1%.
 
@@ -265,7 +240,7 @@ Key results:
 **1. Install**
 
 ```bash
-python3 -m pip install "fidelis-memory==0.0.97"
+python3 -m pip install "fidelis-memory==0.1.0"
 ```
 
 **2. Pull Ollama models**
@@ -324,14 +299,13 @@ curl -X POST http://127.0.0.1:19420/recall \
 
 `recall_hybrid` is the session-retrieval path. Three tiers, one contract:
 
-| Tier | Default? | R@1 on LongMemEval_S | Cost/query | Latency |
-|---|---|---|---|---|
-| `zero_llm` | **yes (v0.0.8 default)** | **83.2%** | **$0** | ~90 ms |
-| `filter` | no | ~92% (runO-v34) | ~$0.002–0.003 | ~1.3 s |
-| `flagship` | no | 96.4% (runP-v35, 2026-04-18) | higher, see below | ~3.5 s |
+| Tier | Default? | LLM call during retrieval? | Project observation |
+|---|---|---|---|
+| `zero_llm` | **yes (v0.0.8 default)** | no | 83.2% R@1, runP-v35 stage 1 |
+| `filter` | no | yes, integer-pointer output | ~92% R@1, runO-v34 |
+| `flagship` | no | yes, integer-pointer output | 96.4% R@1, runP-v35 stage 2 (2026-04-18) |
 
-The **zero-LLM tier is the production recommendation.** It's the one
-shipped by default and the one we stand behind as battle-ready.
+The **zero-LLM tier is the supported default.**
 
 The **filter and flagship tiers are benchmark-tuned and experimental.**
 They ported the architecture that reached 96.4% on LongMemEval_S, but that
@@ -419,7 +393,7 @@ Query
 
 ```bash
 # Optional dependency for best BM25 fusion (zero deps fallback if absent)
-python3 -m pip install "fidelis-memory[hybrid]==0.0.97"
+python3 -m pip install "fidelis-memory[hybrid]==0.1.0"
 
 # Opt-in: set a filter endpoint (any OpenAI-compatible API)
 export COGITO_FILTER_ENDPOINT=https://dashscope-intl.aliyuncs.com/compatible-mode/v1

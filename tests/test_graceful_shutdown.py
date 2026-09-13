@@ -75,7 +75,12 @@ def test_sigterm_triggers_clean_shutdown(tmp_path: Path):
     )
     try:
         if not _wait_health(port, timeout_s=60.0):
-            output = proc.stdout.read(2000) if proc.stdout else "(none)"
+            # Reading from a live child's stdout blocks until EOF. Terminate it
+            # first so a failed health check produces a bounded diagnostic
+            # instead of hanging the entire release suite indefinitely.
+            if proc.poll() is None:
+                proc.kill()
+            output, _ = proc.communicate(timeout=5)
             pytest.fail(f"server not healthy on :{port} within 60s. output:\n{output}")
 
         # Send SIGTERM and verify the process exits cleanly within 5s.
@@ -115,6 +120,37 @@ def test_signal_handlers_registered_in_main():
     assert "signal.SIGINT" in src, "SIGINT handler missing from server.main()"
     assert "httpd.shutdown" in src, "graceful httpd.shutdown call missing"
     assert "Stopped cleanly" in src, "clean-stop marker missing — friend will not see exit signal"
+
+
+def test_failed_health_probe_terminates_child_before_collecting_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    """A startup failure must diagnose and return, never block on live stdout."""
+
+    class FailedChild:
+        stdout = object()
+
+        def __init__(self):
+            self.killed = False
+
+        def poll(self):
+            return -9 if self.killed else None
+
+        def kill(self):
+            self.killed = True
+
+        def communicate(self, timeout):
+            assert self.killed, "communicate would wait forever while the child is live"
+            assert timeout == 5
+            return "startup failed", None
+
+    child = FailedChild()
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: child)
+    monkeypatch.setattr(sys.modules[__name__], "_wait_health", lambda *args, **kwargs: False)
+
+    with pytest.raises(pytest.fail.Exception, match="server not healthy"):
+        test_sigterm_triggers_clean_shutdown(tmp_path)
 
 
 @pytest.mark.parametrize(

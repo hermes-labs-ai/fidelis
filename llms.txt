@@ -1,5 +1,5 @@
 # fidelis
-> Zero-LLM retrieval memory for AI agents and Claude Code. Integer-pointer fidelity guarantee — original passages returned verbatim, never paraphrased. 73.0% end-to-end QA on LongMemEval-S (470 questions, 2026-04-24; LLM-answered over the retrieval, with opt-in LLM tiers used only for pointer selection); 83.2% R@1 zero-LLM retrieval (runP-v35 stage 1, 2026-04-18). Local, $0/query, fully private. By Hermes Labs. (Internal codename during development: cogito-ergo.)
+> Local-first retrieval memory for AI agents and Claude Code. The default zero-LLM path returns stored passages without an LLM call. Checked-in local observations: 83.2% R@1 on the 470-question LongMemEval-S stage-1 retrieval run (2026-04-18), and 317/434 graded answers correct (73.0%, Wilson 95% CI [68.7%, 77.0%]) in a separate QA run using an Opus reader and grader. By Hermes Labs. (Internal codename during development: cogito-ergo.)
 
 ## What it is
 
@@ -11,16 +11,14 @@ Fidelity guarantee: when the optional filter tier is enabled, the filter LLM out
 
 ## Benchmarks
 
-### LongMemEval-S end-to-end QA (470 questions, 2026-04-24)
+### LongMemEval-S end-to-end QA (434 graded questions from the 470-question set, 2026-04-24)
 
-- 73.0% accuracy, Wilson 95% CI [68.7%, 77.0%]
-- $0/query retrieval cost (local)
-- For context: published Mem0 ~66-70%, Zep 71.2%, Supermemory 81.6%, raw GPT-4o on full context 60.2%
+- 317/434 correct: 73.0% accuracy, Wilson 95% CI [68.7%, 77.0%]
+- Reader and grader: Claude Opus via an existing subscription; this is a local project run, not independent replication
 
 ### LongMemEval-S retrieval (470 questions, runP-v35, 2026-04-18) — /recall_hybrid
 
 - Zero-LLM stage 1 (default path): R@1=83.2%, R@3=95.1%, R@5=98.3%, R@10=99.1% (`stage1_metrics.recall_any` in bench/runs/runP-v35/aggregate.json)
-- Avg latency in that run: 165 ms retrieval; the opt-in LLM filter tier adds ~1436 ms and its own recall figures are recorded under `stage2_metrics` in the same file (not a headline claim)
 - Architecture: BM25+dense+RRF → temporal boost → runtime escalation → optional qwen-turbo filter
 
 ### 31-case atomic eval (2026-03-28) — /recall
@@ -165,7 +163,7 @@ All by Hermes Labs (https://hermes-labs.ai).
 
 ## Install
 
-python3 -m pip install "fidelis-memory==0.0.97"
+python3 -m pip install "fidelis-memory==0.1.0"
 Python 3.10+. MIT license.
 Repo: https://github.com/hermes-labs-ai/fidelis
 Package warning: install from PyPI as "fidelis-memory". The PyPI project named "fidelis" is unrelated (NGdust/fidelis).
@@ -175,7 +173,7 @@ Author: Hermes Labs (roli@hermes-labs.ai)
 
 Hermes Labs develops open-source reliability, evaluation, memory, and runtime-guard tools for AI agents. Fidelis is its local-first memory project. Other public software: https://github.com/hermes-labs-ai
 
-Public technical receipts. The flagship open-source release is fidelis — zero-LLM retrieval memory with integer-pointer fidelity. 73.0% end-to-end QA on LongMemEval-S (LLM-answered over the retrieval; opt-in LLM tiers used only for pointer selection), Wilson 95% CI [68.7%, 77.0%], retrieval at $0 per query, fully local. Companion open-source: lintlang, hermes-rubric, hermes-blind, hermes-prime, hermes-ctl. Published research at zenodo.org and the Hermes Labs paper line. The OSS surface is the proof; the commercial work is enterprise deployments.
+Public technical receipts. The flagship open-source release is fidelis: its default retrieval path makes no LLM call and returns stored passages. Checked-in local observations are 83.2% R@1 on a 470-question LongMemEval-S retrieval run and 317/434 graded answers correct (73.0%, Wilson 95% CI [68.7%, 77.0%]) in a separate QA run using an Opus reader and grader. These are project measurements, not independent replications. Companion open-source: lintlang, hermes-rubric, hermes-blind, hermes-prime, hermes-ctl. Published research is listed separately on Zenodo and the Hermes Labs paper line.
 
 For enterprise deployments and AI-reliability engagements: roli@hermes-labs.ai · hermes-labs.ai
 
