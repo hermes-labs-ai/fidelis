@@ -53,6 +53,16 @@ fidelis mcp serve             # runs the MCP server over stdio
 # Restart your agent client. Memory is on.
 ```
 
+Using Gemini CLI? After the local prerequisites and `fidelis init`, install
+the native v0.0.97 extension directly:
+
+```bash
+gemini extensions install https://github.com/hermes-labs-ai/fidelis
+```
+
+The extension launches the released MCP package through `uvx` and includes the
+[`GEMINI.md`](GEMINI.md) context file. [See the Gemini CLI extension details](#gemini-cli-extension).
+
 > **Package-name note:** install Hermes Labs' package as `fidelis-memory`.
 > The import name and CLI remain `fidelis`. The separate PyPI project named
 > `fidelis` belongs to [NGdust/fidelis](https://github.com/NGdust/fidelis).
