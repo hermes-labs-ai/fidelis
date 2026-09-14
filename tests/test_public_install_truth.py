@@ -29,7 +29,7 @@ def test_public_surfaces_do_not_install_unrelated_pypi_project():
         text = path.read_text()
         assert "pip install fidelis\n" not in text, path
         assert "pip install fidelis " not in text, path
-        assert "pypi.org/project/fidelis" not in text, path
+        assert not re.search(r"pypi\.org/project/fidelis(?!-memory)\b", text), path
 
 
 def test_primary_surfaces_install_the_fidelis_memory_distribution():
