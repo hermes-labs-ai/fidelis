@@ -29,7 +29,7 @@
   ],
   "author": [
     {
-      "@id": "https://orcid.org/0009-0005-4896-1112",
+      "identifier": "https://orcid.org/0009-0005-4896-1112",
       "@type": "Person",
       "givenName": "Rolando",
       "familyName": "Bosch Rodriguez",
