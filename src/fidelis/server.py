@@ -45,17 +45,88 @@ import json
 import logging
 import os
 import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from fidelis import __version__
 from fidelis.config import load, mem0_config
-from fidelis.degrade import queued_count, replay_queue, safe_add
+from fidelis.degrade import queue_write, queued_count, replay_queue, safe_add
 from fidelis.recall import recall as do_recall
 from fidelis.recall_b import recall_b as do_recall_b
 from fidelis.recall_hybrid import recall_hybrid as do_recall_hybrid
 from fidelis.snapshot import _read_snapshot, _snapshot_path
 
 logger = logging.getLogger("cogito.server")
+
+
+class MemoryHolder:
+    """Thread-safe, once-only, retry-on-failure lazy initializer for the mem0
+    Memory object.
+
+    Registry inspectors (Glama et al.) start the container's console-script
+    entry point without a reachable Ollama and only probe GET /health. The
+    real Memory object depends on mem0's ollama embedder, whose
+    `_ensure_model_exists()` raises a ConnectionError when Ollama is down
+    (server.py `_boot`, historically called eagerly before the HTTP server
+    even bound). This holder defers that call to first use by a request
+    handler that actually needs the store, caches a successful construction
+    forever, and caches the last failure only until the next request asks
+    for the memory again — so a transient outage does not permanently
+    poison the process; each request after a failure gets a fresh attempt.
+    """
+
+    def __init__(self, cfg: dict):
+        self._cfg = cfg
+        self._lock = threading.Lock()
+        self._memory: object | None = None
+        self._last_error: Exception | None = None
+        self._last_error_at: float = 0.0
+        # Minimum seconds between retry attempts after a failure. Prevents
+        # a burst of concurrent requests (or a registry inspector probing
+        # /query, /recall, etc. in a tight loop) from retrying `_boot` —
+        # which dials Ollama over the network — once per request. A single
+        # request past the cooldown gets the real retry (holding `_lock`);
+        # everything else in that window reuses the cached failure.
+        self._retry_cooldown_s: float = float(
+            os.environ.get("FIDELIS_MEMORY_RETRY_COOLDOWN_SECS", 5)
+        )
+
+    @property
+    def ready(self) -> bool:
+        return self._memory is not None
+
+    @property
+    def last_error(self) -> Exception | None:
+        return self._last_error
+
+    def get(self) -> object:
+        """Return the constructed Memory, building it on first call, or
+        retrying no more than once per cooldown window after a failure.
+        Raises the underlying exception (fresh or cached) on failure —
+        never caches a permanent poison state, but never hammers Ollama
+        on every single request either."""
+        with self._lock:
+            if self._memory is not None:
+                return self._memory
+            if (
+                self._last_error is not None
+                and time.monotonic() - self._last_error_at < self._retry_cooldown_s
+            ):
+                raise self._last_error
+            try:
+                memory = _boot(self._cfg)
+            except Exception as e:
+                self._last_error = e
+                # Timestamp the failure itself, not the moment we entered
+                # this call — _boot() dials Ollama over the network and can
+                # take a while to time out, so measuring from entry would
+                # under-count the cooldown window.
+                self._last_error_at = time.monotonic()
+                raise
+            self._memory = memory
+            self._last_error = None
+            return memory
 
 
 def _boot(cfg: dict) -> object:
@@ -82,6 +153,24 @@ def make_handler(memory: object, cfg: dict) -> type:
     # FIDELIS_DECOMPOSE_TIMEOUT_SECS: max seconds for /recall sub-query pipeline.
     # Default 8s preserves existing behavior in normal cases; kicks in only on slow-call edges.
     _decompose_timeout: float = float(os.environ.get("FIDELIS_DECOMPOSE_TIMEOUT_SECS", 8))
+
+    # `memory` is either a concrete mem0 Memory (existing call sites / tests —
+    # behavior is unchanged, identical to before this change) or a
+    # MemoryHolder (server.main's lazy path: Memory isn't built until a
+    # handler actually needs it). _get_memory() resolves either shape;
+    # _memory_unavailable_response() renders the 503 for lazy-init failures.
+    def _get_memory() -> object:
+        if isinstance(memory, MemoryHolder):
+            return memory.get()
+        return memory
+
+    def _memory_unavailable_response(e: Exception) -> dict:
+        return {
+            "error": "memory store unavailable",
+            "detail": str(e),
+            "embed_model": cfg.get("embed_model"),
+            "ollama_url": cfg.get("ollama_url"),
+        }
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):  # suppress default logging
@@ -114,6 +203,31 @@ def make_handler(memory: object, cfg: dict) -> type:
         def do_GET(self):
             try:
                 if self.path == "/health":
+                    # Never construct Memory here — this is the endpoint
+                    # registry inspectors (Glama et al.) probe immediately
+                    # after boot, with no Ollama reachable. When the store
+                    # isn't loaded yet (lazy path, not yet first-used), report
+                    # what we can without blocking or crashing: same top-level
+                    # shape as before, `count` degrades to -1 (the existing
+                    # "chroma unhealthy" signal) and a new `store_loaded` flag
+                    # says whether Memory has actually been constructed.
+                    if isinstance(memory, MemoryHolder) and not memory.ready:
+                        snap_path = _snapshot_path(cfg)
+                        self._json({
+                            # A prior lazy-construction attempt having failed
+                            # (Ollama unreachable, etc.) is real degradation —
+                            # report it rather than a blanket "ok", while
+                            # still never blocking on a fresh construction
+                            # attempt from this read-only endpoint.
+                            "status": "degraded" if memory.last_error is not None else "ok",
+                            "count": -1,
+                            "queued": queued_count(),
+                            "version": __version__,
+                            "calibrated": bool(cfg.get("vocab_map")),
+                            "snapshot": snap_path.exists(),
+                            "store_loaded": False,
+                        })
+                        return
                     # Read count directly from chroma. Previous code used
                     # get_all with top_k=10000 which (a) silently capped the
                     # reported count at 10000 and (b) hammered Ollama on
@@ -121,19 +235,23 @@ def make_handler(memory: object, cfg: dict) -> type:
                     # underlying chromadb.Collection as `.collection`; its
                     # `.count()` is O(1).
                     try:
-                        count = memory.vector_store.collection.count()  # type: ignore
+                        active_memory = _get_memory()
+                        count = active_memory.vector_store.collection.count()  # type: ignore
                     except Exception as e:
                         count = -1  # signal: chroma unhealthy
                         logger.warning("health: chroma count failed: %s", e)
                     snap_path = _snapshot_path(cfg)
-                    self._json({
+                    resp = {
                         "status": "ok" if count >= 0 else "degraded",
                         "count": count,
                         "queued": queued_count(),
                         "version": __version__,
                         "calibrated": bool(cfg.get("vocab_map")),
                         "snapshot": snap_path.exists(),
-                    })
+                    }
+                    if isinstance(memory, MemoryHolder):
+                        resp["store_loaded"] = memory.ready
+                    self._json(resp)
                 elif self.path == "/snapshot":
                     text = _read_snapshot(cfg)
                     if text is None:
@@ -144,7 +262,12 @@ def make_handler(memory: object, cfg: dict) -> type:
                     # Manually drain the queue. Useful to call after fixing a
                     # transient Ollama outage. The server also auto-drains on
                     # startup and periodically via the background thread.
-                    result = replay_queue(memory, user_id=user_id)  # type: ignore
+                    try:
+                        active_memory = _get_memory()
+                    except Exception as e:
+                        self._json(_memory_unavailable_response(e), 503)
+                        return
+                    result = replay_queue(active_memory, user_id=user_id)  # type: ignore
                     self._json(result)
                 else:
                     self._json({"error": "not found"}, 404)
@@ -164,11 +287,72 @@ def make_handler(memory: object, cfg: dict) -> type:
                     self._json({"error": "invalid json"}, 400)
                     return
 
+                # /store and /add are durable-write endpoints: they already
+                # have a local queue for the case where writing THROUGH mem0
+                # fails (Ollama down mid-write — see safe_add/degrade.py).
+                # The same queue absorbs the case where Memory can't be
+                # constructed AT ALL yet (Ollama unreachable since boot):
+                # queue directly and skip straight to the "queued" response,
+                # so a registry inspector's probe write is never lost and
+                # never sees a 503. Every other endpoint below is read-only
+                # against the store; each resolves Memory itself, after its
+                # own input validation, so a 404 (unknown path) or an
+                # empty/too-short query never triggers a memory-construction
+                # attempt.
+                if self.path in ("/store", "/add"):
+                    text = data.get("text", "")
+                    min_len = 3 if self.path == "/store" else 0
+                    if not text or len(text.strip()) < min_len:
+                        self._json({"error": "no text"}, 400)
+                        return
+                    try:
+                        active_memory = _get_memory()
+                    except Exception as e:
+                        mid = queue_write(text, user_id, kind="store" if self.path == "/store" else "add")
+                        self._json({
+                            "status": "queued",
+                            "id": mid,
+                            "reason": f"{type(e).__name__}: {e}",
+                            "queued_total": queued_count(),
+                        }, 202)
+                        return
+                    if self.path == "/store":
+                        # Verbatim write — agent decides content, no extraction LLM.
+                        # Uses safe_add: queues locally if dependency (Ollama) is down.
+                        result = safe_add(active_memory, text, user_id, kind="store")  # type: ignore
+                        self._json({**result, "queued_total": queued_count()})
+                    else:
+                        result = safe_add(active_memory, text, user_id, kind="add")  # type: ignore
+                        if result["status"] == "queued":
+                            self._json({
+                                "status": "queued",
+                                "id": result["id"],
+                                "reason": result["reason"],
+                                "queued_total": queued_count(),
+                            }, 202)  # 202 Accepted: write deferred
+                        else:
+                            extracted = result.get("extracted", [])
+                            response = {
+                                "status": "stored",
+                                "count": len(extracted),
+                                "memories": extracted,
+                            }
+                            if result.get("degraded"):
+                                response["degraded"] = result["degraded"]
+                                response["id"] = result.get("id")
+                            self._json(response)
+                    return
+
                 if self.path == "/query":
                     text = data.get("text", "")
                     limit = int(data.get("limit", 5))
                     if not text or len(text.strip()) < 3:
                         self._json({"memories": []})
+                        return
+                    try:
+                        active_memory = _get_memory()
+                    except Exception as e:
+                        self._json(_memory_unavailable_response(e), 503)
                         return
                     # Bypass mem0.Memory.search wrapper: it routes through
                     # score_and_rank which (in mem0 2.0.x) returns broken
@@ -176,8 +360,8 @@ def make_handler(memory: object, cfg: dict) -> type:
                     # Verified empirically — same query, when we go directly to
                     # vector_store.search, returns proper distances (the actual
                     # text-match record scores 0.5878 vs unrelated at 1.07+).
-                    qv = memory.embedding_model.embed(text, memory_action="search")  # type: ignore
-                    raw = memory.vector_store.search(  # type: ignore
+                    qv = active_memory.embedding_model.embed(text, memory_action="search")  # type: ignore
+                    raw = active_memory.vector_store.search(  # type: ignore
                         query=text, vectors=[qv], top_k=limit,
                         filters={"user_id": user_id},
                     )
@@ -198,13 +382,18 @@ def make_handler(memory: object, cfg: dict) -> type:
                     if not text or len(text.strip()) < 3:
                         self._json({"memories": [], "method": "empty_query"})
                         return
+                    try:
+                        active_memory = _get_memory()
+                    except Exception as e:
+                        self._json(_memory_unavailable_response(e), 503)
+                        return
                     limit = int(data.get("limit", cfg.get("recall_limit", 50)))
                     since = data.get("since")
                     degraded = False
                     try:
                         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
                             _fut = _pool.submit(
-                                do_recall, memory, text,
+                                do_recall, active_memory, text,
                                 user_id=user_id, cfg=cfg, limit=limit, since=since,
                             )
                             memories, method = _fut.result(timeout=_decompose_timeout)
@@ -216,8 +405,8 @@ def make_handler(memory: object, cfg: dict) -> type:
                             "[fidelis] /recall decompose timeout (>%ss) for query '%s'; returning vector-only fallback",
                             _decompose_timeout, text[:50],
                         )
-                        qv = memory.embedding_model.embed(text, memory_action="search")
-                        raw = memory.vector_store.search(
+                        qv = active_memory.embedding_model.embed(text, memory_action="search")
+                        raw = active_memory.vector_store.search(
                             query=text, vectors=[qv], top_k=limit,
                             filters={"user_id": user_id},
                         )
@@ -242,9 +431,14 @@ def make_handler(memory: object, cfg: dict) -> type:
                     if not text or len(text.strip()) < 3:
                         self._json({"memories": [], "method": "empty_query"})
                         return
+                    try:
+                        active_memory = _get_memory()
+                    except Exception as e:
+                        self._json(_memory_unavailable_response(e), 503)
+                        return
                     limit = int(data.get("limit", cfg.get("recall_limit", 50)))
                     memories, method = do_recall_b(
-                        memory, text, user_id=user_id, cfg=cfg,
+                        active_memory, text, user_id=user_id, cfg=cfg,
                         limit=limit,
                     )
                     print(f"[cogito] /recall_b '{text[:50]}' → {len(memories)} results ({method})", flush=True)
@@ -264,48 +458,17 @@ def make_handler(memory: object, cfg: dict) -> type:
                     if tier not in ("zero_llm", "filter", "flagship"):
                         self._json({"error": f"invalid tier: {tier}"}, 400)
                         return
+                    try:
+                        active_memory = _get_memory()
+                    except Exception as e:
+                        self._json(_memory_unavailable_response(e), 503)
+                        return
                     memories, method = do_recall_hybrid(
-                        memory, text, user_id=user_id, cfg=cfg,
+                        active_memory, text, user_id=user_id, cfg=cfg,
                         limit=limit, tier=tier, top_k=top_k,
                     )
                     print(f"[cogito] /recall_hybrid '{text[:50]}' tier={tier} → {len(memories)} results ({method})", flush=True)
                     self._json({"memories": memories, "method": method})
-
-                elif self.path == "/store":
-                    # Verbatim write — agent decides content, no extraction LLM.
-                    # Uses safe_add: queues locally if dependency (Ollama) is down.
-                    text = data.get("text", "")
-                    if not text or len(text.strip()) < 3:
-                        self._json({"error": "no text"}, 400)
-                        return
-                    result = safe_add(memory, text, user_id, kind="store")  # type: ignore
-                    self._json({**result, "queued_total": queued_count()})
-
-                elif self.path == "/add":
-                    # Uses safe_add: queues locally if Ollama is unreachable.
-                    text = data.get("text", "")
-                    if not text:
-                        self._json({"error": "no text"}, 400)
-                        return
-                    result = safe_add(memory, text, user_id, kind="add")  # type: ignore
-                    if result["status"] == "queued":
-                        self._json({
-                            "status": "queued",
-                            "id": result["id"],
-                            "reason": result["reason"],
-                            "queued_total": queued_count(),
-                        }, 202)  # 202 Accepted: write deferred
-                    else:
-                        extracted = result.get("extracted", [])
-                        response = {
-                            "status": "stored",
-                            "count": len(extracted),
-                            "memories": extracted,
-                        }
-                        if result.get("degraded"):
-                            response["degraded"] = result["degraded"]
-                            response["id"] = result.get("id")
-                        self._json(response)
 
                 else:
                     self._json({"error": "not found"}, 404)
@@ -340,16 +503,23 @@ def main():
 
     src = cfg.get("_config_file", "defaults + env")
     print(f"[cogito] Starting server v{__version__} (config: {src})", flush=True)
-    print("[cogito] Loading memory store...", flush=True)
 
-    memory = _boot(cfg)
+    # Lazy memory construction: the historical eager `_boot(cfg)` call here
+    # required a reachable Ollama before the HTTP server even bound, so a
+    # registry inspector (Glama et al.) that starts this entry point with no
+    # Ollama running never got past this line before crashing — GET /health
+    # was unreachable. MemoryHolder defers the real construction to first
+    # use by a request handler and is thread-safe / retry-on-failure (see
+    # its docstring above). This preserves identical behavior when Ollama IS
+    # reachable: the first request just pays the one-time construction cost
+    # instead of it happening before bind.
+    memory = MemoryHolder(cfg)
 
     # Background replay thread — sweeps the queue every 60s. Items that failed
     # at write time (Ollama momentarily unreachable, embed timeout) get retried
     # without requiring a server restart. The first sweep runs ~5s after server
     # start so HTTP serving is up immediately rather than blocking on a long
     # drain. Items stay in the queue across server restarts.
-    import threading
     def _replay_loop():
         import time as _t
         _t.sleep(5)  # let serve_forever() bind first
@@ -366,7 +536,12 @@ def main():
             try:
                 pending = queued_count()
                 if pending > 0:
-                    result = replay_queue(memory, user_id=cfg["user_id"])
+                    # Sweeping requires the real Memory object; if it can't
+                    # be constructed yet (Ollama still unreachable), this
+                    # raises and the outer except below backs off — the
+                    # queue simply waits for a later sweep, same as before.
+                    active_memory = memory.get()
+                    result = replay_queue(active_memory, user_id=cfg["user_id"])
                     print(
                         f"[fidelis] queue sweep: replayed={result.get('replayed', 0)} "
                         f"(verbatim_fallback={result.get('replayed_verbatim', 0)}) "
@@ -427,10 +602,16 @@ def main():
         except Exception as e:  # noqa: silent — best-effort socket close
             logger.debug("httpd.server_close() raised: %s", e)
         try:
-            client = getattr(memory.vector_store, "client", None)
-            if client is not None and hasattr(client, "_admin_client"):
-                # chromadb PersistentClient — let GC trigger __del__ checkpoint
-                pass
+            # Only touch vector_store if Memory was actually constructed —
+            # a server that shuts down before ever handling a memory-backed
+            # request (e.g. the registry inspector's health-only probe) has
+            # nothing to checkpoint.
+            if memory.ready:
+                active_memory = memory.get()
+                client = getattr(active_memory.vector_store, "client", None)
+                if client is not None and hasattr(client, "_admin_client"):
+                    # chromadb PersistentClient — let GC trigger __del__ checkpoint
+                    pass
         except Exception as e:  # noqa: silent — chromadb internals may shift across versions; fall back to GC
             logger.debug("chromadb close hook raised: %s", e)
         print("[fidelis] Stopped cleanly.", flush=True)

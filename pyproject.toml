@@ -46,6 +46,7 @@ dev = ["pytest", "pytest-asyncio", "httpx", "ruff==0.15.22"]
 [project.scripts]
 fidelis = "fidelis.cli:main"
 fidelis-server = "fidelis.server:main"
+fidelis-mcp = "fidelis.mcp_server:main"
 fidelis-lpci-server = "fidelis.scaffold_server:main"
 
 [project.urls]
