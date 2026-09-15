@@ -41,6 +41,13 @@ serve.
 
 ---
 
+## Registries
+
+- [Official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.hermes-labs-ai%2Ffidelis-memory/versions/0.1.0) —
+  `io.github.hermes-labs-ai/fidelis-memory`, latest published version 0.1.0.
+- [Glama MCP server directory](https://glama.ai/mcp/servers/hermes-labs-ai/fidelis) —
+  independent third-party server listing.
+
 ## Quickstart
 
 ```bash
