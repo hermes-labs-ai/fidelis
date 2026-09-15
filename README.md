@@ -49,6 +49,14 @@ serve.
 - [Glama MCP server directory](https://glama.ai/mcp/servers/hermes-labs-ai/fidelis) —
   independent third-party server listing.
 
+## Docker / Glama
+
+`docker build .` runs the MCP stdio server (`fidelis mcp serve`) by default —
+what a registry build/inspector (e.g. Glama) talks `initialize` / `tools/list`
+to — and needs no Ollama or running `fidelis-server`. To run the HTTP memory
+server in a container instead, set `FIDELIS_ENTRYPOINT=http` (see
+`docker-compose.yml` for the full stack including Ollama).
+
 ## Quickstart
 
 ```bash

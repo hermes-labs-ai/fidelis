@@ -1,0 +1,19 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.6, pytest-9.0.2, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/rbr_lpci/ai-infra/_workspace/hermes-agent/repos/fidelis
+configfile: pyproject.toml
+plugins: anyio-4.12.1, mock-3.15.1, cov-7.1.0, timeout-2.4.0, datadir-1.8.0, asyncio-1.3.0, logfire-4.32.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 2 items
+
+tests/test_mcp_smoke_no_ollama.py::test_initialize_then_tools_list_without_ollama PASSED [ 50%]
+tests/test_mcp_smoke_no_ollama.py::test_exits_zero_within_budget_with_no_ollama PASSED [100%]
+
+============================== 2 passed in 0.27s ===============================
+exit_code: 0
+elapsed_s: 0.122
+--- stdout ---
+{"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "fidelis", "version": "0.1.0"}}}
+{"jsonrpc": "2.0", "id": 2, "result": {"tools": [{"name": "fidelis_recall", "description": "Retrieve memories from the local fidelis store. Two-stage recall with optional LLM filter; zero-LLM by default.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Natural-language query"}, "limit": {"type": "integer", "description": "Max results", "default": 20}}, "required": ["query"]}}, {"name": "fidelis_query", "description": "Fast vector-only query over fidelis memories (no filter).", "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}, "limit": {"type": "integer", "description": "Max results", "default": 5}}, "required": ["query"]}}, {"name": "fidelis_health", "description": "Check the fidelis server's health and memory count.", "inputSchema": {"type": "object", "properties": {}}}, {"name": "fidelis_orient", "description": "Context-sensitive re-entry for prior work. Call when a turn mentions a known project, decision, earlier work, maintenance, comparison, or possible reuse\u2014even when the turn is not phrased as a question. Returns an evidence-bound orientation packet or explicitly abstains.", "inputSchema": {"type": "object", "properties": {"utterance": {"type": "string", "description": "Current user turn"}, "recent_turns": {"type": "array", "items": {"type": "string"}, "description": "Up to four recent turns for referent resolution"}, "entity": {"type": "string", "description": "Optional exact known project or concept name"}, "limit": {"type": "integer", "default": 5}}, "required": ["utterance"]}}]}}
+--- stderr ---
