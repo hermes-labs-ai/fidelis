@@ -129,7 +129,10 @@ def test_server_post_endpoint_returns_503_without_ollama(tmp_path: Path):
         except urllib.error.HTTPError as e:
             assert e.code == 503
             body = json.loads(e.read())
-            assert "ollama_url" in body or "embed_model" in body
+            assert body == {"error": "memory store unavailable"}
+            # Internal dependency configuration (embed_model, ollama_url) and
+            # exception text must never reach the HTTP client.
+            assert "ollama_url" not in body and "embed_model" not in body and "detail" not in body
             assert "error" in body
 
         # Process must still be alive and healthy after the failed request.

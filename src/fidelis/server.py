@@ -43,6 +43,7 @@ import argparse
 import concurrent.futures
 import json
 import logging
+import math
 import os
 import sys
 import threading
@@ -88,9 +89,25 @@ class MemoryHolder:
         # which dials Ollama over the network — once per request. A single
         # request past the cooldown gets the real retry (holding `_lock`);
         # everything else in that window reuses the cached failure.
-        self._retry_cooldown_s: float = float(
-            os.environ.get("FIDELIS_MEMORY_RETRY_COOLDOWN_SECS", 5)
+        self._retry_cooldown_s: float = self._parse_retry_cooldown(
+            os.environ.get("FIDELIS_MEMORY_RETRY_COOLDOWN_SECS")
         )
+
+    @staticmethod
+    def _parse_retry_cooldown(raw: str | None, default: float = 5.0) -> float:
+        """Parse FIDELIS_MEMORY_RETRY_COOLDOWN_SECS defensively.
+
+        A malformed, negative, NaN, or infinite value must never abort
+        startup — fall back to the documented default instead."""
+        if raw is None:
+            return default
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return default
+        if not math.isfinite(value) or value < 0:
+            return default
+        return value
 
     @property
     def ready(self) -> bool:
@@ -165,12 +182,17 @@ def make_handler(memory: object, cfg: dict) -> type:
         return memory
 
     def _memory_unavailable_response(e: Exception) -> dict:
-        return {
-            "error": "memory store unavailable",
-            "detail": str(e),
-            "embed_model": cfg.get("embed_model"),
-            "ollama_url": cfg.get("ollama_url"),
-        }
+        # Log full diagnostics server-side; never expose exception text,
+        # embed_model, or ollama_url to HTTP clients — those reveal internal
+        # dependency configuration to anyone who can reach the port.
+        logger.warning(
+            "memory store unavailable: %s: %s (embed_model=%s ollama_url=%s)",
+            type(e).__name__,
+            e,
+            cfg.get("embed_model"),
+            cfg.get("ollama_url"),
+        )
+        return {"error": "memory store unavailable"}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):  # suppress default logging
@@ -309,10 +331,12 @@ def make_handler(memory: object, cfg: dict) -> type:
                         active_memory = _get_memory()
                     except Exception as e:
                         mid = queue_write(text, user_id, kind="store" if self.path == "/store" else "add")
+                        logger.warning(
+                            "write queued, memory unavailable: %s: %s", type(e).__name__, e
+                        )
                         self._json({
                             "status": "queued",
                             "id": mid,
-                            "reason": f"{type(e).__name__}: {e}",
                             "queued_total": queued_count(),
                         }, 202)
                         return
