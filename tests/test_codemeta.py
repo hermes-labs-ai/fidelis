@@ -68,7 +68,7 @@ def test_codemeta_matches_release_metadata():
     )
     assert codemeta["releaseNotes"] == f"{repository}/releases/tag/v{version}"
     assert codemeta["identifier"] == DOI
-    assert codemeta["author"][0]["@id"] == ORCID
+    assert codemeta["author"][0]["identifier"] == ORCID
     assert f'orcid: "{ORCID}"' in citation
     assert "applicationCategory" not in codemeta
     assert VOLATILE_DATE_KEYS.isdisjoint(codemeta)
