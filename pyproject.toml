@@ -58,6 +58,15 @@ Changelog = "https://github.com/hermes-labs-ai/fidelis/blob/main/CHANGELOG.md"
 [tool.hatch.build.targets.wheel]
 packages = ["src/fidelis"]
 
+[tool.uv]
+# onnxruntime 1.24.1-1.24.3 (pulled in transitively by chromadb) declare
+# `requires-python = ">=3.10"` but ship no cp310 wheel and no sdist. uv resolves
+# universally across our whole floor, believes that metadata, and then fails to
+# install on 3.10; pip backtracks per-interpreter and never sees it. Excluding the
+# three mislabelled releases lets uv fork correctly: 1.23.2 on 3.10, latest above.
+# Upstream fixed the metadata from 1.24.4 onward.
+constraint-dependencies = ["onnxruntime!=1.24.1,!=1.24.2,!=1.24.3"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

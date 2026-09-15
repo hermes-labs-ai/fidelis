@@ -21,3 +21,4 @@ TODO.md
 # Benchmark run-log artifacts (outputs, not source)
 *.log
 bench/runs/
+uv.lock
