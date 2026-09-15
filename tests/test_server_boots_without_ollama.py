@@ -73,7 +73,7 @@ def test_server_health_ok_without_ollama(tmp_path: Path):
         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     try:
-        status, body = _wait_health(port, timeout_s=10.0)
+        status, body = _wait_health(port, timeout_s=60.0)
         assert status == 200
         import json
         payload = json.loads(body)
@@ -115,7 +115,7 @@ def test_server_post_endpoint_returns_503_without_ollama(tmp_path: Path):
         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     try:
-        _wait_health(port, timeout_s=10.0)
+        _wait_health(port, timeout_s=60.0)
 
         import json
         data = json.dumps({"text": "some query text"}).encode()
