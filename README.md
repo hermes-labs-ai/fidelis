@@ -357,6 +357,39 @@ Once Ollama and the embedding model are available, the quickstart covers the
 full init-to-first-recall path. The default retrieval path needs no memory API
 key.
 
+**Ollama is currently required to boot the service at all, including for the
+default zero-LLM retrieval path.** The BM25 + dense + RRF retrieval logic
+itself makes no LLM call, but `fidelis-server` boots through mem0's
+`Memory.from_config()`, and mem0's Ollama embedder validates its connection
+at construction time — before any query runs. We installed `fidelis-memory`
+from PyPI in a clean venv and confirmed this directly:
+
+```bash
+python3 -m venv /tmp/fv && source /tmp/fv/bin/activate
+pip install "fidelis-memory==0.1.0"
+python3 -c 'import fidelis; print(fidelis.__version__)'
+# 0.1.0 — installs and imports fine, no Ollama needed for this step
+
+COGITO_OLLAMA_URL=http://127.0.0.1:1 fidelis-server   # Ollama unreachable on purpose
+```
+
+```text
+ConnectionError: Failed to connect to Ollama. Please check that Ollama is
+downloaded, running and accessible. https://ollama.com/download
+  File ".../mem0/embeddings/ollama.py", line 30, in _ensure_model_exists
+    local_models = self.client.list()["models"]
+```
+
+The package installs and imports cleanly without Ollama. The server process
+— and every documented path that goes through it (`fidelis health`, `fidelis
+query`, `fidelis recall-hybrid --tier zero_llm`, the MCP server, and
+`fidelis.augment`) — does not start without a reachable Ollama instance. There
+is currently no lighter-weight standalone way to exercise the zero-LLM
+retrieval path without the full Ollama + service stack. This is a real gap
+between the "zero-LLM retrieval" framing and the actual boot dependency; we
+are not fixing the Ollama boot coupling here, just documenting it honestly so
+you know what to expect before you install Ollama.
+
 ## Quick reference
 
 ```bash
@@ -448,6 +481,15 @@ fidelis is open-source under MIT and free for any use, including commercial. If 
 ## License
 
 MIT. Built by Hermes Labs (Roli Bosch). Issues + PRs welcome.
+
+---
+
+## Also from Hermes Labs
+
+- [lintlang](https://github.com/hermes-labs-ai/lintlang) - Static analysis for AI agent configs, tool descriptions, and system prompts; zero-LLM, deterministic checks built for CI.
+- [zer0dex](https://github.com/hermes-labs-ai/zer0dex) - A local dual-layer memory pattern: a compact markdown index paired with semantic retrieval from a local vector store, queried before each message.
+- [little-canary](https://github.com/hermes-labs-ai/little-canary) - Detects prompt injection by its effect on a sacrificial canary model, returning block/flag/pass before your primary model acts.
+- [quick-gate-js](https://github.com/hermes-labs-ai/quick-gate-js) - A deterministic JS/TS CI quality gate that unifies ESLint, TypeScript, build, and Lighthouse checks into one fail-fast result.
 
 ---
 
