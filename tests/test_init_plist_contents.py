@@ -145,13 +145,13 @@ def test_systemd_unit_includes_telemetry_kill(fake_home):
 
 def test_legacy_label_bootout_is_idempotent(fake_home):
     """`_bootout_legacy_macos` must work even when no legacy plist exists.
-    Idempotency matters — the function runs on every `fidelis init`."""
+    Without explicit force=True, it should not remove legacy plists (gating change)."""
     from fidelis.init_cmd import _bootout_legacy_macos
 
     # No legacy plist on disk; must not raise.
     _bootout_legacy_macos()
 
-    # Plant a fake legacy plist; verify it gets removed.
+    # Plant a fake legacy plist; verify it does NOT get removed without force=True.
     legacy_dir = fake_home / "Library/LaunchAgents"
     legacy_dir.mkdir(parents=True, exist_ok=True)
     legacy_plist = legacy_dir / "ai.hermeslabs.cogito-server.plist"
@@ -165,4 +165,9 @@ def test_legacy_label_bootout_is_idempotent(fake_home):
         fake_run.return_value = _Result()
         _bootout_legacy_macos()
 
-    assert not legacy_plist.exists(), "legacy plist not removed by migration"
+    # After our fix, legacy plist should still exist (force=False is default)
+    assert legacy_plist.exists(), "legacy plist should not be removed without --migrate flag"
+
+    # With force=True, it should be removed.
+    _bootout_legacy_macos(force=True)
+    assert not legacy_plist.exists(), "legacy plist should be removed with force=True"

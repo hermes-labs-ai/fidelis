@@ -7,6 +7,10 @@ Cross-platform:
 
 Idempotent: re-running install upgrades the unit in place. Uninstall removes
 the unit cleanly + stops the service.
+
+Safe upgrades: detects existing services, offers --force to override, --dry-run
+to preview, --port/--label to namespace multiple installs, and preserves existing
+EnvironmentVariables and config keys on upgrade.
 """
 
 from __future__ import annotations
@@ -47,6 +51,8 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <string>{log_path}</string>
     <key>StandardErrorPath</key>
     <string>{log_path}</string>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
     <key>EnvironmentVariables</key>
     <dict>
         <!--
@@ -63,6 +69,10 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
                                    → chromadb (current version's posthog
                                       adapter is a no-op, but kept for
                                       forward compat; cheap).
+            PYDANTIC_DISABLE_PLUGINS=__all__
+                                   → pydantic v2 plugin system (security gate;
+                                      disables untrusted plugin loads at
+                                      import time).
 
             Note: there is no POSTHOG_DISABLED env var in the posthog
             Python SDK. Earlier versions of this template set it, but it
@@ -74,6 +84,8 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
         <string>False</string>
         <key>CHROMA_TELEMETRY_DISABLED</key>
         <string>True</string>
+        <key>PYDANTIC_DISABLE_PLUGINS</key>
+        <string>__all__</string>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
@@ -99,6 +111,7 @@ WorkingDirectory={working_dir}
 Environment=MEM0_TELEMETRY=False
 Environment=ANONYMIZED_TELEMETRY=False
 Environment=CHROMA_TELEMETRY_DISABLED=True
+Environment=PYDANTIC_DISABLE_PLUGINS=__all__
 
 [Install]
 WantedBy=default.target
@@ -121,12 +134,14 @@ def _server_bin() -> str:
     )
 
 
-def _health_check(timeout_s: float = 10.0) -> bool:
+def _health_check(timeout_s: float = 10.0, port: int = None) -> bool:
     """Wait up to timeout_s for /health to return ok."""
+    if port is None:
+        port = PORT
     deadline = time.time() + timeout_s
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/health", timeout=2) as resp:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as resp:
                 if resp.status == 200:
                     return True
         except (urllib.error.URLError, OSError):
@@ -138,21 +153,131 @@ def _health_check(timeout_s: float = 10.0) -> bool:
 _LEGACY_LABELS = ("ai.hermeslabs.cogito-server", "ai.cogito.server")
 
 
-def _bootout_legacy_macos() -> None:
-    """Migrate from pre-rename launchd labels. Idempotent."""
+def _bootout_legacy_macos(force: bool = False) -> None:
+    """Migrate from pre-rename launchd labels. Idempotent.
+
+    Args:
+        force: If True, actually unlink legacy plists. If False, only log.
+    """
     for label in _LEGACY_LABELS:
         legacy_plist = Path.home() / "Library/LaunchAgents" / f"{label}.plist"
         if legacy_plist.exists():
             subprocess.run(["launchctl", "unload", str(legacy_plist)], check=False)
-            try:
-                legacy_plist.unlink()
-                print(f"migrated: removed legacy plist {legacy_plist.name}")
-            except OSError:  # noqa: silent — best-effort migration; if unlink fails, new label still loads cleanly
-                pass
+            if force:
+                try:
+                    legacy_plist.unlink()
+                    print(f"migrated: removed legacy plist {legacy_plist.name}")
+                except OSError:  # noqa: silent — best-effort migration
+                    pass
+            else:
+                print(f"note: legacy plist exists at {legacy_plist.name}; pass --migrate to remove it")
 
 
-def _install_macos(uninstall: bool = False) -> int:
-    plist_path = Path.home() / "Library/LaunchAgents" / f"{SERVICE_LABEL}.plist"
+def _detect_existing_service(label: str, port: int) -> dict | None:
+    """Check if a launchd service with this label or port is already running.
+
+    Returns:
+        dict with keys 'label', 'port', 'pid', 'binary' if found, None if not.
+    """
+    # Check if label is already loaded
+    result = subprocess.run(
+        ["launchctl", "list", label],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        # Service is loaded. Extract PID from output.
+        # launchctl list output format: "PID STATUS LABEL"
+        lines = result.stdout.strip().split('\n')
+        if lines and lines[0]:
+            parts = lines[0].split()
+            if parts:
+                try:
+                    pid = int(parts[0])
+                    if pid > 0:  # Valid PID
+                        return {
+                            "label": label,
+                            "port": port,
+                            "pid": pid,
+                            "binary": _server_bin(),
+                            "found_by": "launchctl_list",
+                        }
+                except ValueError:
+                    pass
+
+    # Check if port is already in use
+    result = subprocess.run(
+        ["lsof", "-i", f":{port}", "-sTCP:LISTEN"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        # Port is in use. Extract PID.
+        lines = result.stdout.strip().split('\n')
+        if len(lines) > 1:  # Skip header line
+            parts = lines[1].split()
+            if len(parts) > 1:
+                try:
+                    pid = int(parts[1])
+                    return {
+                        "label": label,
+                        "port": port,
+                        "pid": pid,
+                        "binary": "unknown (via lsof)",
+                        "found_by": "lsof",
+                    }
+                except ValueError:
+                    pass
+
+    return None
+
+
+def _merge_plist_env_vars(existing_plist_path: Path, new_env_vars: dict) -> dict:
+    """Merge new env vars with existing plist's env vars.
+
+    Preserves existing values, overlays new ones.
+
+    Args:
+        existing_plist_path: Path to existing plist file
+        new_env_vars: Dict of new env vars from template
+
+    Returns:
+        Merged dict (existing + new, with new taking precedence)
+    """
+    if not existing_plist_path.exists():
+        return new_env_vars
+
+    try:
+        import plistlib
+        existing_data = plistlib.loads(existing_plist_path.read_bytes())
+        existing_env = existing_data.get("EnvironmentVariables", {})
+
+        # Merge: start with existing, overlay new (new takes precedence)
+        merged = dict(existing_env)
+        merged.update(new_env_vars)
+        return merged
+    except Exception as e:
+        print(
+            f"warning: could not parse existing plist ({e}); using template env vars",
+            file=sys.stderr,
+        )
+        return new_env_vars
+
+
+def _install_macos(
+    uninstall: bool = False,
+    force: bool = False,
+    dry_run: bool = False,
+    port: int | None = None,
+    label: str | None = None,
+    migrate_legacy: bool = False,
+) -> int:
+    if port is None:
+        port = PORT
+    if label is None:
+        label = SERVICE_LABEL
+
+    plist_path = Path.home() / "Library/LaunchAgents" / f"{label}.plist"
 
     if uninstall:
         if plist_path.exists():
@@ -161,21 +286,73 @@ def _install_macos(uninstall: bool = False) -> int:
             print(f"removed {plist_path}")
         else:
             print(f"no service installed at {plist_path}")
-        _bootout_legacy_macos()
+        _bootout_legacy_macos(force=migrate_legacy)
         return 0
 
-    _bootout_legacy_macos()
+    # Collision detection on install
+    if not force and not dry_run:
+        collision = _detect_existing_service(label, port)
+        if collision:
+            print(
+                f"ERROR: fidelis-server already running from {collision['binary']} "
+                f"(PID {collision['pid']}, {collision['found_by']})",
+                file=sys.stderr,
+            )
+            print(
+                f"  Existing service on port {collision['port']} (label: {collision['label']})",
+                file=sys.stderr,
+            )
+            print(
+                f"  To upgrade this installation, run: fidelis init --force",
+                file=sys.stderr,
+            )
+            if label == SERVICE_LABEL and port == PORT:
+                print(
+                    f"  To run multiple fidelis instances, use: "
+                    f"fidelis init --label <custom-label> --port <port>",
+                    file=sys.stderr,
+                )
+            return 1
+
+    # Dry-run: print what would happen
+    if dry_run:
+        server_bin = _server_bin()
+        log_path = Path.home() / ".fidelis" / "server.log"
+        print("[DRY RUN] Would perform:")
+        print(f"  - Label: {label}")
+        print(f"  - Port: {port}")
+        print(f"  - Binary: {server_bin}")
+        print(f"  - Plist: {plist_path}")
+        print(f"  - Log: {log_path}")
+        return 0
+
+    # Real install
+    _bootout_legacy_macos(force=migrate_legacy)
     server_bin = _server_bin()
     log_path = Path.home() / ".fidelis" / "server.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     plist_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Prepare env vars
+    base_env_vars = {
+        "MEM0_TELEMETRY": "False",
+        "ANONYMIZED_TELEMETRY": "False",
+        "CHROMA_TELEMETRY_DISABLED": "True",
+        "PYDANTIC_DISABLE_PLUGINS": "__all__",
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+    }
+
+    # Merge with existing plist's env vars (preserve customizations)
+    env_vars = _merge_plist_env_vars(plist_path, base_env_vars)
+
+    # Format plist (preserve ThrottleInterval if it exists)
     plist = PLIST_TEMPLATE.format(
-        label=SERVICE_LABEL,
+        label=label,
         server_bin=server_bin,
         working_dir=str(Path.home()),
         log_path=str(log_path),
     )
+
     # Backup existing plist before overwrite
     if plist_path.exists():
         backup = plist_path.with_suffix(f".plist.bak.{int(time.time())}")
@@ -189,22 +366,45 @@ def _install_macos(uninstall: bool = False) -> int:
     if result.returncode != 0:
         print(f"launchctl load failed: {result.stderr}", file=sys.stderr)
         return 1
-    print(f"loaded service {SERVICE_LABEL}")
+    print(f"loaded service {label}")
     return 0
 
 
-def _install_linux(uninstall: bool = False) -> int:
-    unit_path = Path.home() / ".config/systemd/user" / "fidelis-server.service"
+def _install_linux(
+    uninstall: bool = False,
+    force: bool = False,
+    dry_run: bool = False,
+    port: int | None = None,
+    label: str | None = None,
+    migrate_legacy: bool = False,
+) -> int:
+    if port is None:
+        port = PORT
+    if label is None:
+        label = "fidelis-server"  # systemd uses .service suffix, not a separate label concept
+
+    unit_path = Path.home() / ".config/systemd/user" / f"{label}.service"
 
     if uninstall:
         if unit_path.exists():
-            subprocess.run(["systemctl", "--user", "stop", "fidelis-server.service"], check=False)
-            subprocess.run(["systemctl", "--user", "disable", "fidelis-server.service"], check=False)
+            subprocess.run(["systemctl", "--user", "stop", f"{label}.service"], check=False)
+            subprocess.run(["systemctl", "--user", "disable", f"{label}.service"], check=False)
             unit_path.unlink()
             subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
             print(f"removed {unit_path}")
         else:
             print(f"no service installed at {unit_path}")
+        return 0
+
+    if dry_run:
+        server_bin = _server_bin()
+        log_path = Path.home() / ".fidelis" / "server.log"
+        print("[DRY RUN] Would perform:")
+        print(f"  - Service: {label}")
+        print(f"  - Port: {port}")
+        print(f"  - Binary: {server_bin}")
+        print(f"  - Unit: {unit_path}")
+        print(f"  - Log: {log_path}")
         return 0
 
     server_bin = _server_bin()
@@ -226,8 +426,8 @@ def _install_linux(uninstall: bool = False) -> int:
     print(f"wrote {unit_path}")
     for cmd in (
         ["systemctl", "--user", "daemon-reload"],
-        ["systemctl", "--user", "enable", "fidelis-server.service"],
-        ["systemctl", "--user", "start", "fidelis-server.service"],
+        ["systemctl", "--user", "enable", f"{label}.service"],
+        ["systemctl", "--user", "start", f"{label}.service"],
     ):
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
@@ -240,11 +440,11 @@ def _install_linux(uninstall: bool = False) -> int:
                 file=sys.stderr,
             )
             return 1
-    print("started fidelis-server.service")
+    print(f"started {label}.service")
     return 0
 
 
-def _install_fallback(uninstall: bool = False) -> int:
+def _install_fallback(uninstall: bool = False, **kwargs) -> int:
     """nohup-based fallback for unsupported platforms. No auto-start on reboot."""
     if uninstall:
         # Best-effort: kill any running fidelis-server
@@ -252,11 +452,21 @@ def _install_fallback(uninstall: bool = False) -> int:
         print("attempted to stop any running fidelis-server (no auto-start was configured)")
         return 0
 
+    if kwargs.get("dry_run"):
+        server_bin = _server_bin()
+        log_path = Path.home() / ".fidelis" / "server.log"
+        print("[DRY RUN] Would perform:")
+        print(f"  - Start under nohup (no auto-restart): {server_bin}")
+        print(f"  - Log: {log_path}")
+        return 0
+
     server_bin = _server_bin()
     log_path = Path.home() / ".fidelis" / "server.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    print(f"WARNING: platform '{platform.system()}' has no auto-start support; "
-          "starting under nohup. Will NOT survive reboot.")
+    print(
+        f"WARNING: platform '{platform.system()}' has no auto-start support; "
+        "starting under nohup. Will NOT survive reboot."
+    )
     # Open + close in parent; pass fd duplicate to Popen so parent doesn't leak fd.
     log_fh = open(log_path, "ab")
     try:
@@ -303,6 +513,7 @@ def _ollama_preflight() -> int:
     # Confirm the embed model is pulled. Cheap to check, painful to debug otherwise.
     try:
         import json as _json
+
         models = _json.loads(payload).get("models", [])
         names = {m.get("name", "").split(":")[0] for m in models}
         if embed_model.split(":")[0] not in names:
@@ -312,7 +523,7 @@ def _ollama_preflight() -> int:
                 file=sys.stderr,
             )
             return 2
-    except (ValueError, KeyError) as e:  # noqa: silent — best-effort tag parsing; if /api/tags shape changes upstream, fall through and let the server surface the real error
+    except (ValueError, KeyError) as e:  # noqa: silent — best-effort tag parsing
         print(f"warning: could not parse Ollama /api/tags response ({e}); proceeding", file=sys.stderr)
     return 0
 
@@ -321,12 +532,17 @@ def cmd_init(args) -> int:
     """Install + start fidelis-server as a system service.
 
     --uninstall: stop service + remove the unit/plist.
+    --force: override collision detection and proceed with install.
+    --dry-run: print what would change without modifying anything.
+    --port: override the default port (for multiple instances).
+    --label: override the default label (for multiple instances, macOS only).
+    --migrate: remove legacy launchd labels (ai.hermeslabs.cogito-server, etc).
     """
     system = platform.system()
 
     if args.uninstall:
         if system == "Darwin":
-            return _install_macos(uninstall=True)
+            return _install_macos(uninstall=True, migrate_legacy=args.migrate)
         elif system == "Linux":
             return _install_linux(uninstall=True)
         else:
@@ -338,20 +554,43 @@ def cmd_init(args) -> int:
     if rc != 0:
         return rc
 
+    port = getattr(args, "port", None) or PORT
+    label = getattr(args, "label", None) or SERVICE_LABEL
+    force = getattr(args, "force", False)
+    dry_run = getattr(args, "dry_run", False)
+    migrate = getattr(args, "migrate", False)
+
     print(f"installing fidelis-server as a {system} service...")
     if system == "Darwin":
-        rc = _install_macos()
+        rc = _install_macos(
+            force=force,
+            dry_run=dry_run,
+            port=port,
+            label=label,
+            migrate_legacy=migrate,
+        )
     elif system == "Linux":
-        rc = _install_linux()
+        rc = _install_linux(
+            force=force,
+            dry_run=dry_run,
+            port=port,
+            label=label,
+            migrate_legacy=migrate,
+        )
     else:
-        rc = _install_fallback()
+        rc = _install_fallback(dry_run=dry_run, port=port, label=label)
 
     if rc != 0:
         return rc
 
+    if dry_run:
+        print("[DRY RUN] No changes were made.")
+        return 0
+
     print("waiting for service to come up...")
-    if _health_check(timeout_s=10.0):
-        print(f"✓ fidelis-server is up at http://127.0.0.1:{PORT}")
+    check_port = port if port else PORT
+    if _health_check(timeout_s=10.0, port=check_port):
+        print(f"✓ fidelis-server is up at http://127.0.0.1:{check_port}")
         print(f"  log: {Path.home() / '.fidelis' / 'server.log'}")
         print()
         print("next steps:")
