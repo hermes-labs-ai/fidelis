@@ -158,6 +158,116 @@ class TestDefectA_CollisionDetection:
             "fidelis init should refuse when the port is already in use"
         )
 
+    def test_collision_detection_parses_real_launchctl_dict_output(
+        self, tmp_path, monkeypatch
+    ):
+        """ADVERSARIAL — reproduces the EXACT failure mode from
+        FLAGS.md 2026-09-15-011: `launchctl list <label>` on a real macOS box
+        does NOT print the tabular "PID STATUS LABEL" format assumed by the
+        two tests above (which use a fabricated stdout of "12345"). For a
+        single label, real launchd prints a property-list dict, e.g.:
+
+            {
+                "PID" = 74977;
+                "Label" = "ai.hermeslabs.fidelis-server";
+                "LastExitStatus" = 0;
+                ...
+            };
+
+        A parser doing int(result.stdout.split('\\n')[0].split()[0]) chokes on
+        the literal "{" token and raises ValueError — which, before this fix,
+        made _detect_existing_service() silently return None for the label
+        check even though the label WAS loaded, relying entirely on the
+        independent port-listener check to catch the collision. This test
+        uses the exact real launchctl output captured from this machine's
+        live production fidelis-server (147,996-memory instance, PID 74977)
+        to prove refusal-not-overwrite against the real shape, and that the
+        PID is correctly extracted for the user-facing message.
+        """
+        fake_home = tmp_path / "home"
+        fake_home.mkdir()
+        monkeypatch.setenv("HOME", str(fake_home))
+
+        launch_agents = fake_home / "Library" / "LaunchAgents"
+        launch_agents.mkdir(parents=True)
+
+        collision_plist_path = launch_agents / f"{SERVICE_LABEL}.plist"
+        old_plist_data = PLIST_TEMPLATE.format(
+            label=SERVICE_LABEL,
+            server_bin="/Users/rbr_lpci/hermes-venv/bin/fidelis-server",
+            working_dir=str(fake_home),
+            log_path=str(fake_home / ".fidelis" / "server.log"),
+            throttle_interval=15,
+            env_vars_xml='        <key>MEM0_TELEMETRY</key>\n        <string>False</string>',
+        )
+        collision_plist_path.write_text(old_plist_data)
+
+        real_launchctl_list_output = (
+            '{\n'
+            '\t"StandardOutPath" = "/Users/rbr_lpci/.fidelis/server.log";\n'
+            '\t"LimitLoadToSessionType" = "Aqua";\n'
+            '\t"StandardErrorPath" = "/Users/rbr_lpci/.fidelis/server.log";\n'
+            '\t"Label" = "ai.hermeslabs.fidelis-server";\n'
+            '\t"OnDemand" = true;\n'
+            '\t"LastExitStatus" = 0;\n'
+            '\t"PID" = 74977;\n'
+            '\t"Program" = "/Users/rbr_lpci/hermes-venv/bin/fidelis-server";\n'
+            '\t"ProgramArguments" = (\n'
+            '\t\t"/Users/rbr_lpci/hermes-venv/bin/fidelis-server";\n'
+            '\t);\n'
+            '};'
+        )
+
+        launchctl_calls = []
+
+        def mock_subprocess_run(cmd, *args, **kwargs):
+            result = Mock()
+            if cmd[:2] == ["launchctl", "list"]:
+                launchctl_calls.append(cmd)
+                result.returncode = 0
+                result.stdout = real_launchctl_list_output
+            else:
+                result.returncode = 1
+                result.stdout = ""
+            result.stderr = ""
+            return result
+
+        monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+        monkeypatch.setattr(
+            "fidelis.init_cmd._server_bin",
+            lambda: "/current/venv/bin/fidelis-server",
+        )
+        monkeypatch.setattr("fidelis.init_cmd._health_check", lambda timeout_s=10.0, port=None: False)
+
+        from fidelis import init_cmd
+
+        collision = init_cmd._detect_existing_service(SERVICE_LABEL, 19420)
+        assert collision is not None, (
+            "collision detection must recognize the label is loaded from real "
+            "launchctl dict-shaped output, not just a fabricated tabular one"
+        )
+        assert collision["pid"] == 74977, (
+            "PID must be correctly extracted from the real property-list "
+            "output so the refusal message can name the live process"
+        )
+
+        # ACTION: try to install — must refuse, must NOT touch the plist or
+        # call launchctl unload/load on it.
+        result = init_cmd._install_macos()
+
+        assert result != 0, (
+            "fidelis init must refuse when launchctl reports the label loaded "
+            "via real dict-shaped output — this is the exact P0 regression"
+        )
+        assert collision_plist_path.read_text() == old_plist_data, (
+            "plist must be byte-identical after a refused install — no "
+            "overwrite, no unload/reload of a possibly-live service"
+        )
+        for call_args in launchctl_calls:
+            assert call_args[:2] != ["launchctl", "unload"], (
+                "must never unload the colliding service without --force"
+            )
+
 
 class TestDefectB_ConfigDegradation:
     """Tests for DEFECT B: Silent config degradation.

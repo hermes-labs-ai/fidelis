@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -191,24 +192,33 @@ def _detect_existing_service(label: str, port: int) -> dict | None:
         text=True,
     )
     if result.returncode == 0:
-        # Service is loaded. Extract PID from output.
-        # launchctl list output format: "PID STATUS LABEL"
-        lines = result.stdout.strip().split('\n')
-        if lines and lines[0]:
-            parts = lines[0].split()
-            if parts:
-                try:
-                    pid = int(parts[0])
-                    if pid > 0:  # Valid PID
-                        return {
-                            "label": label,
-                            "port": port,
-                            "pid": pid,
-                            "binary": _server_bin(),
-                            "found_by": "launchctl_list",
-                        }
-                except ValueError:
-                    pass
+        # Label is loaded. `launchctl list <label>` output is NOT the
+        # tabular "PID STATUS LABEL" format used by bare `launchctl list`;
+        # for a single label it prints a property-list dict, e.g.:
+        #   { "PID" = 74977; "Label" = "..."; "LastExitStatus" = 0; ... }
+        # The previous parser assumed the tabular format and did
+        # int(result.stdout.split('\n')[0].split()[0]), expecting an int
+        # first token — against real launchd output that token is the
+        # literal "{", so int() always raised ValueError and the label
+        # collision was silently missed whenever the port-listener check
+        # (the second, independent signal below) didn't also catch it.
+        # Confirmed against the live production service on this host:
+        #   launchctl list ai.hermeslabs.fidelis-server -> PID 74977
+        # returncode == 0 alone already proves the label is loaded (launchd
+        # sets this correctly); PID extraction below is best-effort, used
+        # only to name the process in the refusal message — never a gate
+        # on whether to refuse.
+        pid = None
+        match = re.search(r'"PID"\s*=\s*(\d+)', result.stdout)
+        if match:
+            pid = int(match.group(1))
+        return {
+            "label": label,
+            "port": port,
+            "pid": pid,
+            "binary": _server_bin(),
+            "found_by": "launchctl_list",
+        }
 
     # Check if port is already in use
     result = subprocess.run(

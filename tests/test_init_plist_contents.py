@@ -50,12 +50,19 @@ def test_macos_plist_includes_telemetry_kill(fake_home):
     templates but is not a real posthog env var, so it has been removed."""
     from fidelis.init_cmd import _install_macos
 
-    with patch("subprocess.run") as fake_run:
+    def _fake_run(cmd, *args, **kwargs):
         class _Result:
             returncode = 0
             stdout = ""
             stderr = ""
-        fake_run.return_value = _Result()
+        result = _Result()
+        if cmd[:2] == ["launchctl", "list"]:
+            result.returncode = 1  # no collision: label not loaded
+        elif cmd[0] == "lsof":
+            result.returncode = 1  # no collision: port not in use
+        return result
+
+    with patch("subprocess.run", side_effect=_fake_run):
         rc = _install_macos(uninstall=False)
         assert rc == 0
 
@@ -95,12 +102,19 @@ def test_macos_plist_uses_console_script(fake_home):
     machines/venvs hit a path that doesn't exist."""
     from fidelis.init_cmd import _install_macos
 
-    with patch("subprocess.run") as fake_run:
+    def _fake_run(cmd, *args, **kwargs):
         class _Result:
             returncode = 0
             stdout = ""
             stderr = ""
-        fake_run.return_value = _Result()
+        result = _Result()
+        if cmd[:2] == ["launchctl", "list"]:
+            result.returncode = 1
+        elif cmd[0] == "lsof":
+            result.returncode = 1
+        return result
+
+    with patch("subprocess.run", side_effect=_fake_run):
         _install_macos(uninstall=False)
 
     plist_path = fake_home / "Library/LaunchAgents/ai.hermeslabs.fidelis-server.plist"
