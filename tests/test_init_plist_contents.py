@@ -169,5 +169,11 @@ def test_legacy_label_bootout_is_idempotent(fake_home):
     assert legacy_plist.exists(), "legacy plist should not be removed without --migrate flag"
 
     # With force=True, it should be removed.
-    _bootout_legacy_macos(force=True)
+    with patch("subprocess.run") as fake_run:
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+        fake_run.return_value = _Result()
+        _bootout_legacy_macos(force=True)
     assert not legacy_plist.exists(), "legacy plist should be removed with force=True"
