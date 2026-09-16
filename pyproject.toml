@@ -15,18 +15,20 @@ authors = [
 keywords = [
   "ai", "agents", "memory", "rag", "retrieval", "llm",
   "mem0", "agent", "zer0dex", "integer-pointer", "fidelity",
-  "vector-store", "chromadb", "ollama",
+  "vector-store", "chromadb", "ollama", "mcp", "agent-memory",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Python Modules",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
 ]
 dependencies = [
   "mem0ai>=2.0.0,<3.0",
@@ -55,6 +57,7 @@ Repository = "https://github.com/hermes-labs-ai/fidelis"
 Documentation = "https://github.com/hermes-labs-ai/fidelis#readme"
 Issues = "https://github.com/hermes-labs-ai/fidelis/issues"
 Changelog = "https://github.com/hermes-labs-ai/fidelis/blob/main/CHANGELOG.md"
+Source = "https://github.com/hermes-labs-ai/fidelis"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fidelis"]
