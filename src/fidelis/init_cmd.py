@@ -52,7 +52,7 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <key>StandardErrorPath</key>
     <string>{log_path}</string>
     <key>ThrottleInterval</key>
-    <integer>15</integer>
+    <integer>{throttle_interval}</integer>
     <key>EnvironmentVariables</key>
     <dict>
         <!--
@@ -77,21 +77,26 @@ PLIST_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
             Note: there is no POSTHOG_DISABLED env var in the posthog
             Python SDK. Earlier versions of this template set it, but it
             was inert — see git history for the removal commit.
+
+            The entries below are rendered dynamically from the merged
+            env-var dict (existing plist's vars + template defaults) so
+            that a re-init preserves customizations instead of silently
+            reverting them — see _merge_plist_env_vars.
         -->
-        <key>MEM0_TELEMETRY</key>
-        <string>False</string>
-        <key>ANONYMIZED_TELEMETRY</key>
-        <string>False</string>
-        <key>CHROMA_TELEMETRY_DISABLED</key>
-        <string>True</string>
-        <key>PYDANTIC_DISABLE_PLUGINS</key>
-        <string>__all__</string>
-        <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+{env_vars_xml}
     </dict>
 </dict>
 </plist>
 """
+
+
+def _render_env_vars_xml(env_vars: dict) -> str:
+    """Render an EnvironmentVariables dict as indented plist <key>/<string> pairs."""
+    lines = []
+    for key, value in env_vars.items():
+        lines.append(f"        <key>{key}</key>")
+        lines.append(f"        <string>{value}</string>")
+    return "\n".join(lines)
 
 SYSTEMD_TEMPLATE = """[Unit]
 Description=Fidelis agent memory server
@@ -303,13 +308,13 @@ def _install_macos(
                 file=sys.stderr,
             )
             print(
-                f"  To upgrade this installation, run: fidelis init --force",
+                "  To upgrade this installation, run: fidelis init --force",
                 file=sys.stderr,
             )
             if label == SERVICE_LABEL and port == PORT:
                 print(
-                    f"  To run multiple fidelis instances, use: "
-                    f"fidelis init --label <custom-label> --port <port>",
+                    "  To run multiple fidelis instances, use: "
+                    "fidelis init --label <custom-label> --port <port>",
                     file=sys.stderr,
                 )
             return 1
@@ -345,12 +350,25 @@ def _install_macos(
     # Merge with existing plist's env vars (preserve customizations)
     env_vars = _merge_plist_env_vars(plist_path, base_env_vars)
 
-    # Format plist (preserve ThrottleInterval if it exists)
+    # Preserve ThrottleInterval from an existing plist, if any
+    throttle_interval = 15
+    if plist_path.exists():
+        try:
+            import plistlib
+
+            existing_data = plistlib.loads(plist_path.read_bytes())
+            throttle_interval = existing_data.get("ThrottleInterval", 15)
+        except Exception:
+            pass
+
+    # Format plist (preserve ThrottleInterval + EnvironmentVariables if they exist)
     plist = PLIST_TEMPLATE.format(
         label=label,
         server_bin=server_bin,
         working_dir=str(Path.home()),
         log_path=str(log_path),
+        throttle_interval=throttle_interval,
+        env_vars_xml=_render_env_vars_xml(env_vars),
     )
 
     # Backup existing plist before overwrite

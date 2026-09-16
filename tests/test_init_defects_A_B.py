@@ -17,25 +17,15 @@ No actual destructive operations are executed.
 
 from __future__ import annotations
 
-import json
-import os
 import plistlib
 import subprocess
-import sys
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import Mock
 
-import pytest
 
 # Import the functions we're testing
 from fidelis.init_cmd import (
     PLIST_TEMPLATE,
-    PORT,
     SERVICE_LABEL,
-    _bootout_legacy_macos,
-    _install_macos,
-    _server_bin,
 )
 
 
@@ -81,6 +71,8 @@ class TestDefectA_CollisionDetection:
             server_bin="/other/venv/bin/fidelis-server",
             working_dir=str(fake_home),
             log_path=str(fake_home / ".fidelis" / "server.log"),
+            throttle_interval=15,
+            env_vars_xml='        <key>MEM0_TELEMETRY</key>\n        <string>False</string>',
         )
         collision_plist_path.write_text(old_plist_data)
 
@@ -225,6 +217,8 @@ class TestDefectB_ConfigDegradation:
             server_bin="/usr/local/bin/fidelis-server",
             working_dir=str(fake_home),
             log_path=str(fake_home / ".fidelis" / "server.log"),
+            throttle_interval=15,
+            env_vars_xml='        <key>MEM0_TELEMETRY</key>\n        <string>False</string>',
         )
 
         # Parse and inject custom env vars
@@ -258,7 +252,7 @@ class TestDefectB_ConfigDegradation:
         from fidelis import init_cmd
 
         # ACTION: re-run fidelis init
-        result = init_cmd._install_macos()
+        init_cmd._install_macos()
 
         # Read the new plist that was written
         new_plist_data = plistlib.loads(plist_path.read_bytes())
