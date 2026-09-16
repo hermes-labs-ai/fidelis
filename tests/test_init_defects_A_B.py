@@ -194,7 +194,7 @@ class TestDefectA_CollisionDetection:
         collision_plist_path = launch_agents / f"{SERVICE_LABEL}.plist"
         old_plist_data = PLIST_TEMPLATE.format(
             label=SERVICE_LABEL,
-            server_bin="/Users/rbr_lpci/hermes-venv/bin/fidelis-server",
+            server_bin="/Users/testuser/hermes-venv/bin/fidelis-server",
             working_dir=str(fake_home),
             log_path=str(fake_home / ".fidelis" / "server.log"),
             throttle_interval=15,
@@ -204,16 +204,16 @@ class TestDefectA_CollisionDetection:
 
         real_launchctl_list_output = (
             '{\n'
-            '\t"StandardOutPath" = "/Users/rbr_lpci/.fidelis/server.log";\n'
+            '\t"StandardOutPath" = "/Users/testuser/.fidelis/server.log";\n'
             '\t"LimitLoadToSessionType" = "Aqua";\n'
-            '\t"StandardErrorPath" = "/Users/rbr_lpci/.fidelis/server.log";\n'
+            '\t"StandardErrorPath" = "/Users/testuser/.fidelis/server.log";\n'
             '\t"Label" = "ai.hermeslabs.fidelis-server";\n'
             '\t"OnDemand" = true;\n'
             '\t"LastExitStatus" = 0;\n'
             '\t"PID" = 74977;\n'
-            '\t"Program" = "/Users/rbr_lpci/hermes-venv/bin/fidelis-server";\n'
+            '\t"Program" = "/Users/testuser/hermes-venv/bin/fidelis-server";\n'
             '\t"ProgramArguments" = (\n'
-            '\t\t"/Users/rbr_lpci/hermes-venv/bin/fidelis-server";\n'
+            '\t\t"/Users/testuser/hermes-venv/bin/fidelis-server";\n'
             '\t);\n'
             '};'
         )
