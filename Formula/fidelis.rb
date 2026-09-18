@@ -16,10 +16,7 @@ class Fidelis < Formula
   desc "Agent memory with zero-LLM retrieval and a $0-incremental QA scaffold"
   homepage "https://github.com/hermes-labs-ai/fidelis"
   url "https://github.com/hermes-labs-ai/fidelis/archive/refs/tags/v0.1.0.tar.gz"
-  # SHA256 placeholder — populated when the v0.1.0 tag tarball is published.
-  # `brew create` and `brew bump-formula-pr` will fill this in automatically
-  # once the GitHub release tarball is available.
-  sha256 "TBD-fill-when-v0.1.0-tag-tarball-is-published"
+  sha256 "e8e4df1918d5af4b0625bfaddd9d1e22f21d2bb621ff501ba80ac53c50c64a68"
   license "MIT"
   version "0.1.0"
 
