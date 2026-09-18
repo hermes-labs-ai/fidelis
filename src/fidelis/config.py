@@ -76,6 +76,12 @@ _DEFAULTS: dict[str, Any] = {
 
 _ENV_MAP = {
     "COGITO_PORT": ("port", int),
+    # Every client path (cli, mcp_server, watch, augment) reads FIDELIS_PORT
+    # first and falls back to COGITO_PORT. The server resolves its bind port
+    # through this map, so FIDELIS_PORT has to land here too or a client and
+    # its own server end up on different ports. Listed after COGITO_PORT so
+    # that when both are set the FIDELIS_ name wins, matching the clients.
+    "FIDELIS_PORT": ("port", int),
     "COGITO_USER_ID": ("user_id", str),
     "COGITO_FILTER_ENDPOINT": ("filter_endpoint", str),
     "COGITO_FILTER_TOKEN": ("filter_token", str),

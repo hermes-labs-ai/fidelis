@@ -1,0 +1,11 @@
+{
+  "name": "fidelis",
+  "displayName": "fidelis",
+  "description": "Local-first agent memory: bundles the fidelis MCP server (recall, query, health, orient) from the released fidelis-memory PyPI distribution, plus a workflow skill for recalling before answering and storing after a decision.",
+  "version": "0.1.0",
+  "author": { "name": "Hermes Labs", "email": "roli@hermes-labs.ai", "url": "https://github.com/hermes-labs-ai" },
+  "homepage": "https://github.com/hermes-labs-ai/fidelis",
+  "repository": "https://github.com/hermes-labs-ai/fidelis",
+  "license": "MIT",
+  "keywords": ["memory", "agent-memory", "mcp", "retrieval", "rag", "local-first", "hermes-labs"]
+}
