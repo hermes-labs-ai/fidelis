@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DOI = "https://doi.org/10.5281/zenodo.21873318"
+DOI = "https://doi.org/10.5281/zenodo.22732418"
 ORCID = "https://orcid.org/0009-0005-4896-1112"
 VOLATILE_DATE_KEYS = {"dateCreated", "dateModified", "datePublished"}
 
