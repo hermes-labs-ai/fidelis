@@ -59,6 +59,10 @@ server in a container instead, set `FIDELIS_ENTRYPOINT=http` (see
 
 ## Quickstart
 
+> **Platform support:** macOS or Linux (Windows not yet supported). Install Ollama via
+> [Homebrew](https://brew.sh) on macOS, or the [Ollama Linux install](https://ollama.com/download)
+> on Linux. See [Requirements](#requirements) for the full prerequisite list.
+
 ```bash
 # 0. one-time: Ollama + the local embedder (~280 MB)
 brew install ollama && ollama serve &
