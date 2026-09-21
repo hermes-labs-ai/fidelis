@@ -1,7 +1,7 @@
 <!-- mcp-name: io.github.hermes-labs-ai/fidelis-memory -->
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hermes-labs-ai/fidelis/v0.3.0rc1/assets/fidelis-memory-artwork.jpg" width="420" alt="Fidelis Memory, the golden retriever mascot" />
+  <img src="assets/fidelis-memory-artwork.jpg" width="420" alt="Fidelis Memory, the golden retriever mascot" />
 </p>
 
 # Fidelis Memory
