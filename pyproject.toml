@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "fidelis-memory"
 version = "0.3.0rc1"
-description = "Fidelis Memory: faithful agent memory with zero-LLM retrieval by default. By Hermes Labs."
+description = "Fidelis Memory: faithful agent memory with zero-LLM retrieval by default."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
