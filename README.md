@@ -10,6 +10,10 @@
 
 Fidelis is a local memory and retrieval service for Codex, Claude Code, and other AI agents. Keep your notes available across sessions and retrieve stored text without generative rewriting.
 
+Fidelis is developed by [Hermes Labs](https://hermes-labs.ai).
+
+Hermes Labs studies failure modes in agent and LLM systems, develops open-source tools that treat language as part of the runtime, and works with teams to remediate reliability failures in production.
+
 A summary can preserve "we tried the migration" while dropping why it failed, what it affected, and what must change before trying again. Fidelis's verbatim ingestion path keeps those details in the stored note instead of requiring a generated fact to replace it.
 
 [![PyPI pre-release](https://img.shields.io/badge/PyPI-0.3.0rc1-blue)](https://pypi.org/project/fidelis-memory/0.3.0rc1/)
@@ -149,4 +153,4 @@ Found a missed passage, an unexpected rewrite, or an installation problem? [Open
 
 ## License
 
-[MIT](LICENSE). Built by [Hermes Labs](https://hermes-labs.ai).
+[MIT](LICENSE).
