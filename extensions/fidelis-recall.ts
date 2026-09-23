@@ -5,6 +5,7 @@ const DEFAULT_PORT = 19420;
 const TIMEOUT_MS = 1000;
 const MAX_PASSAGES = 3;
 const MAX_PASSAGE_CHARS = 2000;
+const MAX_RESPONSE_BYTES = 64 * 1024;
 
 function localPort(): number | undefined {
   const raw = process.env.FIDELIS_PORT ?? process.env.COGITO_PORT;
@@ -63,15 +64,32 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const response = await fetch(`http://127.0.0.1:${port}/recall_b`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: prompt, limit: MAX_PASSAGES }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: controller.signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload: unknown = await response.json();
+      if (!response.body) throw new Error("empty response stream");
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let bytes = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > MAX_RESPONSE_BYTES) {
+          void reader.cancel().catch(() => {});
+          controller.abort();
+          throw new Error("response too large");
+        }
+        chunks.push(value);
+      }
+      const payload: unknown = JSON.parse(Buffer.concat(chunks, bytes).toString("utf8"));
       if (typeof payload !== "object" || payload === null || !Array.isArray((payload as { memories?: unknown }).memories)) {
         throw new Error("invalid response");
       }
@@ -117,6 +135,9 @@ export default function (pi: ExtensionAPI) {
         warnedUnavailable = true;
       }
       return;
+    } finally {
+      controller.abort();
+      clearTimeout(timeout);
     }
   });
 }

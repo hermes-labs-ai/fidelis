@@ -141,6 +141,17 @@ test("a stalled local service times out and leaves the turn usable", async (t) =
   assert.match(pi.notices[0][0], /timed out/);
 });
 
+test("an oversized local response is rejected before parsing and leaves the turn usable", async (t) => {
+  await server(t, (_req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ memories: [{ id: "oversize", text: "A".repeat(70 * 1024) }] }));
+  });
+  const pi = hook();
+  assert.equal(await pi.call("oversize query"), undefined);
+  assert.equal(pi.notices.length, 1);
+  assert.match(pi.notices[0][0], /continuing without memory/);
+});
+
 test("invalid port skips network and reports it", async (t) => {
   const prior = process.env.FIDELIS_PORT;
   process.env.FIDELIS_PORT = "https://example.com";
