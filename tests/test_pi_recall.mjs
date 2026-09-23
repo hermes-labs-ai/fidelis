@@ -71,6 +71,20 @@ test("retrieves at most three verbatim local notes before a Pi turn", async (t) 
   assert.deepEqual(pi.notices, []);
 });
 
+test("two non-whitespace Unicode characters do not trigger recall", async (t) => {
+  const requests = await server(t, (_req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ memories: [{ text: "Exact note" }] }));
+  });
+  const pi = hook();
+  assert.equal(await pi.call("😀a"), undefined);
+  assert.equal(await pi.call("😀 a"), undefined);
+  assert.deepEqual(requests, []);
+  assert.deepEqual(pi.notices, []);
+  assert.equal((await pi.call("😀ab")).message.customType, "fidelis-pi-recall");
+  assert.equal(requests.length, 1);
+});
+
 test("equal text with different record IDs remains distinct", async (t) => {
   await server(t, (_req, res) => {
     res.setHeader("Content-Type", "application/json");

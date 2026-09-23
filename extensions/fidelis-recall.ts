@@ -53,7 +53,11 @@ export default function (pi: ExtensionAPI) {
   pi.on("before_agent_start", async (event, ctx) => {
     currentRecallContent = undefined;
     const prompt = event.prompt;
-    if (prompt.trim().length < 3) return;
+    let meaningfulCharacters = 0;
+    for (const character of prompt) {
+      if (!/\s/u.test(character) && ++meaningfulCharacters === 3) break;
+    }
+    if (meaningfulCharacters < 3) return;
 
     const port = localPort();
     if (port === undefined) {
@@ -105,15 +109,16 @@ export default function (pi: ExtensionAPI) {
         if (seen.has(key)) continue;
         seen.add(key);
         const supersession = memory.supersession as { status?: unknown; note?: unknown } | undefined;
-        const excerpt = Array.from(memory.text).slice(0, MAX_PASSAGE_CHARS).join("");
+        const textCharacters = Array.from(memory.text);
+        const excerpt = textCharacters.slice(0, MAX_PASSAGE_CHARS).join("");
         notes.push({
           ...(typeof memory.id === "string" ? { id: memory.id } : {}),
           text: excerpt,
-          ...(excerpt.length < memory.text.length ? { truncated: true } : {}),
+          ...(textCharacters.length > MAX_PASSAGE_CHARS ? { truncated: true } : {}),
           ...(supersession && typeof supersession.status === "string"
             ? { supersession: {
-              status: supersession.status.slice(0, 80),
-              ...(typeof supersession.note === "string" ? { note: supersession.note.slice(0, 300) } : {}),
+              status: Array.from(supersession.status).slice(0, 80).join(""),
+              ...(typeof supersession.note === "string" ? { note: Array.from(supersession.note).slice(0, 300).join("") } : {}),
             } } : {}),
         });
         if (notes.length === MAX_PASSAGES) break;
