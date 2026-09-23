@@ -1,25 +1,27 @@
 <!-- mcp-name: io.github.hermes-labs-ai/fidelis-memory -->
 
-<p align="center">
-  <img src="assets/fidelis-memory-artwork.png" width="420" alt="Fidelis Memory, the golden retriever mascot" />
-</p>
+<div align="center">
 
 # Fidelis Memory
 
-**Agent memory that brings back the source, not another summary.**
+<img src="assets/fidelis-memory-artwork.png" width="420" alt="Fidelis Memory, the golden retriever mascot" />
 
-Fidelis is a local memory and retrieval service for Codex, Claude Code, and other AI agents. Keep your notes available across sessions and retrieve stored text without generative rewriting.
+**Agent memory that brings back the source, not another summary.**
 
 Fidelis is developed by [Hermes Labs](https://hermes-labs.ai).
 
-Hermes Labs studies failure modes in agent and LLM systems, develops open-source tools that treat language as part of the runtime, and works with teams to remediate reliability failures in production.
-
-A summary can preserve "we tried the migration" while dropping why it failed, what it affected, and what must change before trying again. Fidelis's verbatim ingestion path keeps those details in the stored note instead of requiring a generated fact to replace it.
+Hermes Labs is an agentic infrastructure company building the reliability layer for autonomous systems.
 
 [![PyPI pre-release](https://img.shields.io/badge/PyPI-0.3.0rc1-blue)](https://pypi.org/project/fidelis-memory/0.3.0rc1/)
 [![CI](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/fidelis-memory)](https://pypi.org/project/fidelis-memory/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+</div>
+
+Fidelis is a local memory and retrieval service for Codex, Claude Code, and other AI agents. Keep your notes available across sessions and retrieve stored text without generative rewriting.
+
+A summary can preserve "we tried the migration" while dropping why it failed, what it affected, and what must change before trying again. Fidelis's verbatim ingestion path keeps those details in the stored note instead of requiring a generated fact to replace it.
 
 [Quickstart](#quickstart) · [Connect your agent](#connect-your-agent) · [How it works](#how-it-works) · [Benchmarks](#benchmarks) · [Documentation](#documentation)
 
