@@ -15,6 +15,8 @@ PLUGIN = ROOT / "claude-plugin"
 MANIFEST = PLUGIN / ".claude-plugin" / "plugin.json"
 MCP_CONFIG = PLUGIN / ".mcp.json"
 SKILL = PLUGIN / "skills" / "fidelis-memory" / "SKILL.md"
+PORTABLE_MANIFEST = ROOT / "plugin.json"
+PORTABLE_MCP = ROOT / "mcp.json"
 
 DISTRIBUTION = "fidelis-memory"
 
@@ -38,6 +40,19 @@ def test_manifest_version_tracks_the_package_version():
     manifest = json.loads(MANIFEST.read_text())
     assert manifest["name"] == "fidelis"
     assert manifest["version"] == _package_version()
+
+
+def test_portable_cursor_plugin_uses_the_same_released_server():
+    manifest = json.loads(PORTABLE_MANIFEST.read_text())
+    config = json.loads(PORTABLE_MCP.read_text())
+    claude_entry = json.loads(MCP_CONFIG.read_text())["mcpServers"]["fidelis"]
+    assert manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+    assert manifest["name"] == "fidelis-memory"
+    assert manifest["version"] == _package_version()
+    assert config["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
+    assert config["mcpServers"] == {
+        "fidelis": {"type": "stdio", "command": claude_entry["command"], "args": claude_entry["args"]}
+    }
 
 
 def test_mcp_command_pins_the_released_distribution_exactly():

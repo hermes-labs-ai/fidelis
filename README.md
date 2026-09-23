@@ -65,19 +65,35 @@ Trouble retrieving? Run `fidelis health` and check that Ollama is running with `
 
 After the local retrieval works, register Fidelis with the client you use:
 
-| Client | Install command |
-| --- | --- |
-| Codex | `fidelis mcp install --client codex` |
-| Claude Code | `fidelis mcp install` |
-| GitHub Copilot CLI | `fidelis mcp install --client copilot` |
-| Gemini CLI | `fidelis mcp install --client gemini` |
-| OpenClaw | `fidelis mcp install --client openclaw` |
+| Client | Install command | Remove command |
+| --- | --- | --- |
+| Codex | `fidelis mcp install --client codex` | `fidelis mcp uninstall --client codex` |
+| Claude Code | `fidelis mcp install` | `fidelis mcp uninstall` |
+| Cursor | `fidelis mcp install --client cursor` | `fidelis mcp uninstall --client cursor` |
+| GitHub Copilot CLI | `fidelis mcp install --client copilot` | `fidelis mcp uninstall --client copilot` |
+| Gemini CLI | `fidelis mcp install --client gemini` | `fidelis mcp uninstall --client gemini` |
+| OpenClaw | `fidelis mcp install --client openclaw` | `fidelis mcp uninstall --client openclaw` |
 
-Restart your client, then try:
+The installer preserves other MCP servers and refuses to replace a different
+server named `fidelis` unless you explicitly use `--force`. Cursor's default
+destination is `~/.cursor/mcp.json`; pass `--settings PATH` to target a project
+`.cursor/mcp.json` instead. Keep the Python environment used to install Fidelis
+in place, because Cursor launches that environment's bundled MCP server.
+
+Restart your client, confirm `fidelis` appears in its MCP tool list (Cursor:
+Customize → MCP), then try:
 
 > Use Fidelis to retrieve my Atlas billing migration note. What must happen before we retry? Quote the relevant text.
 
-Fidelis exposes six MCP tools: `fidelis_recall`, `fidelis_store`, `fidelis_correct`, `fidelis_get`, `fidelis_recent`, and `fidelis_health`. Your agent decides when to call them. Installing the integration does not guarantee automatic recall on every turn. See the [technical reference](docs/full-reference.md) for client prerequisites and configuration.
+Fidelis exposes six MCP tools: `fidelis_recall`, `fidelis_store`, `fidelis_correct`, `fidelis_get`, `fidelis_recent`, and `fidelis_health`. Ask for `fidelis_health` first: it distinguishes a registered client from a reachable local service. Then `fidelis_recall` should return the Atlas note, including the exact retry condition. Your agent decides when to call the tools; registration does not guarantee automatic recall on every turn. See the [technical reference](docs/full-reference.md) for client prerequisites and configuration.
+
+The repository root also supplies a portable Agent Plugin (`plugin.json` and
+`mcp.json`) for clients that load Agent Plugins 1.0, including Cursor. It launches
+the same released stdio MCP server through `uvx`; install [uv](https://docs.astral.sh/uv/)
+first. Use **either** that plugin **or** `fidelis mcp install --client cursor` in
+one Cursor profile, to avoid two copies of the six tools. The local service and
+ingested notes are still required. The plugin adds no persistent memory by
+itself.
 
 **MCP update in 0.3.0rc1:** recall, recent results, and correction chains return full stored text; the old silent 300-character previews are removed. Corrections retain superseded records, and recall supports validity dates and historical views. Replace old `fidelis_query` calls with `fidelis_recall` and restart clients to refresh their tool lists. See the [upgrade and rollback notes](docs/releases/0.3.0rc1.md).
 

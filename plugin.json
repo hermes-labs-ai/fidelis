@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fidelis-memory",
+  "version": "0.3.0rc1",
+  "description": "Recall locally stored agent memories through the Fidelis MCP server.",
+  "author": {
+    "name": "Hermes Labs",
+    "url": "https://github.com/hermes-labs-ai"
+  },
+  "homepage": "https://github.com/hermes-labs-ai/fidelis",
+  "repository": "https://github.com/hermes-labs-ai/fidelis",
+  "license": "MIT",
+  "keywords": ["memory", "mcp", "local-first", "agent-memory"]
+}

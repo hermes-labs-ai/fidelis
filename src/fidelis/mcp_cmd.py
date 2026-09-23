@@ -83,10 +83,96 @@ DEFAULT_SETTINGS = Path.home() / ".claude" / "settings.local.json"
 MCP_SERVER_NAME = "fidelis"
 COPILOT_MCP_CONFIG_NAME = "mcp-config.json"
 OPENCLAW_CONFIG_NAME = "openclaw.json"
+CURSOR_SETTINGS = Path.home() / ".cursor" / "mcp.json"
 
 # Bundled MCP server file lives alongside this module
 PACKAGE_DIR = Path(__file__).resolve().parent
 MCP_SERVER_FILE = PACKAGE_DIR / "mcp_server.py"
+
+
+def _cursor_entry() -> dict:
+    """Use the currently installed Fidelis environment, without another fetch."""
+    return {
+        "type": "stdio",
+        "command": sys.executable,
+        "args": [str(MCP_SERVER_FILE)],
+    }
+
+
+def _cmd_cursor_install(args) -> int:
+    path = Path(args.settings).expanduser() if args.settings else CURSOR_SETTINGS
+    if not MCP_SERVER_FILE.is_file():
+        print(f"error: bundled MCP server not found at {MCP_SERVER_FILE}", file=sys.stderr)
+        return 1
+    try:
+        config = json.loads(path.read_text()) if path.exists() else {}
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"error: cannot read Cursor MCP config at {path}: {exc}", file=sys.stderr)
+        return 1
+    if not isinstance(config, dict) or not isinstance(config.get("mcpServers", {}), dict):
+        print(f"error: invalid Cursor MCP config at {path}", file=sys.stderr)
+        return 1
+    servers = config.setdefault("mcpServers", {})
+    entry = _cursor_entry()
+    existing = servers.get(MCP_SERVER_NAME)
+    if existing == entry:
+        print(f"Cursor MCP server '{MCP_SERVER_NAME}' is already configured")
+        return 0
+    if existing is not None and not args.force:
+        print(
+            f"error: a different Cursor MCP server named '{MCP_SERVER_NAME}' exists in {path}; "
+            "use --force only if you intend to replace it",
+            file=sys.stderr,
+        )
+        return 1
+    servers[MCP_SERVER_NAME] = entry
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            print(f"backed up existing settings to {_backup(path)}")
+        _atomic_write_json(path, config)
+    except OSError as exc:
+        print(f"error: cannot write Cursor MCP config at {path}: {exc}", file=sys.stderr)
+        return 1
+    print(f"registered Cursor MCP server '{MCP_SERVER_NAME}' in {path}")
+    print("next: restart Cursor, open Customize > MCP, and confirm Fidelis has six tools")
+    return 0
+
+
+def _cmd_cursor_uninstall(args) -> int:
+    path = Path(args.settings).expanduser() if args.settings else CURSOR_SETTINGS
+    if not path.exists():
+        print(f"no Cursor MCP config at {path}; nothing to uninstall")
+        return 0
+    try:
+        config = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"error: cannot read Cursor MCP config at {path}: {exc}", file=sys.stderr)
+        return 1
+    if not isinstance(config, dict) or not isinstance(config.get("mcpServers", {}), dict):
+        print(f"error: invalid Cursor MCP config at {path}", file=sys.stderr)
+        return 1
+    servers = config["mcpServers"]
+    existing = servers.get(MCP_SERVER_NAME)
+    if existing is None:
+        print(f"Cursor MCP server '{MCP_SERVER_NAME}' is not configured")
+        return 0
+    if existing != _cursor_entry() and not args.force:
+        print(
+            f"error: Cursor MCP server '{MCP_SERVER_NAME}' is not this installation; "
+            "refusing to remove it without --force",
+            file=sys.stderr,
+        )
+        return 1
+    del servers[MCP_SERVER_NAME]
+    try:
+        print(f"backed up existing settings to {_backup(path)}")
+        _atomic_write_json(path, config)
+    except OSError as exc:
+        print(f"error: cannot write Cursor MCP config at {path}: {exc}", file=sys.stderr)
+        return 1
+    print(f"removed Cursor MCP server '{MCP_SERVER_NAME}' from {path}")
+    return 0
 
 
 def _is_fidelis_codex_entry(entry: dict) -> bool:
@@ -1288,7 +1374,7 @@ def _reject_scope(client: str) -> bool:
         return False
     print(
         "error: --scope is only supported for the Gemini CLI client; "
-        "Claude Code, Copilot CLI, and OpenClaw use --settings",
+        "Claude Code, Cursor, Copilot CLI, and OpenClaw use --settings",
         file=sys.stderr,
     )
     return True
@@ -1306,6 +1392,8 @@ def cmd_mcp_install(args) -> int:
         return _cmd_gemini_install(args)
     if client == "openclaw":
         return _cmd_openclaw_install(args)
+    if client == "cursor":
+        return _cmd_cursor_install(args)
 
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 
@@ -1384,6 +1472,8 @@ def cmd_mcp_uninstall(args) -> int:
         return _cmd_copilot_uninstall(args)
     if client == "openclaw":
         return _cmd_openclaw_uninstall(args)
+    if client == "cursor":
+        return _cmd_cursor_uninstall(args)
 
     settings_path = Path(args.settings).expanduser() if args.settings else DEFAULT_SETTINGS
 
