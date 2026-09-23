@@ -95,6 +95,38 @@ one Cursor profile, to avoid two copies of the six tools. The local service and
 ingested notes are still required. The plugin adds no persistent memory by
 itself.
 
+### Pi prompt-time recall
+
+Pi 0.87.1 or newer (Node.js 22.19 or newer) can load the repository's native
+extension after the local Fidelis service and your notes are ready:
+
+```bash
+pi install git:github.com/hermes-labs-ai/fidelis@main
+pi list
+```
+
+Restart Pi or run `/reload`. Installing this Git package opts in to one local
+`POST /recall_b` before each user turn containing at least three non-whitespace
+characters. The extension sends only the
+expanded prompt to `127.0.0.1` on `FIDELIS_PORT` (or `COGITO_PORT`, default
+`19420`), requests at most three results, and displays their source text in the
+Pi transcript before the model answers. Long notes appear as marked, exact
+prefixes with their IDs so you can retrieve the full record. Older recall
+messages remain visible in the transcript but leave the next turn's model
+context; all recall messages are excluded from compaction summaries. The
+extension never writes memory.
+Unavailable or slow recall produces a warning and lets the turn continue within
+one second. An empty result adds no context. Pi package registration alone does
+not prove recall worked: ask about a distinctive note you have already ingested
+and confirm its exact text appears in the displayed `fidelis-pi-recall` message.
+
+This route adds prompt-time context, not the six MCP tools or a new memory store.
+You can use Pi's MCP adapter separately when you need explicit get, store, or
+correction tools. `/recall_b` does not apply Fidelis's full temporal view, so
+this adapter labels temporal status as unchecked. Retrieved notes may be outdated
+or superseded; inspect their status and source before relying on them. Remove this adapter with
+`pi remove git:github.com/hermes-labs-ai/fidelis@main`.
+
 **MCP update in 0.3.0rc1:** recall, recent results, and correction chains return full stored text; the old silent 300-character previews are removed. Corrections retain superseded records, and recall supports validity dates and historical views. Replace old `fidelis_query` calls with `fidelis_recall` and restart clients to refresh their tool lists. See the [upgrade and rollback notes](docs/releases/0.3.0rc1.md).
 
 ## Why keep the source?
