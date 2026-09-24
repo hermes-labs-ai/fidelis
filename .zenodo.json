@@ -3,7 +3,7 @@
   "description": "Local agent memory with verbatim records, correction history, and time-aware retrieval. Default MCP recall uses local embeddings without a generative LLM. Package: fidelis-memory.",
   "upload_type": "software",
   "access_right": "open",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "creators": [
     {
       "name": "Bosch, Rolando",

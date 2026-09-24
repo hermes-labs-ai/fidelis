@@ -16,7 +16,7 @@ FROM python:3.12-slim
 LABEL org.opencontainers.image.title="fidelis"
 LABEL org.opencontainers.image.description="Local memory with verbatim records and correction history"
 LABEL org.opencontainers.image.source="https://github.com/hermes-labs-ai/fidelis"
-LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.version="0.3.0rc1"
 
 # System deps for chromadb + sqlite

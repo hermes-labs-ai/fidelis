@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,7 +7,8 @@ name = "fidelis-memory"
 version = "0.3.0rc1"
 description = "Fidelis Memory: faithful agent memory with zero-LLM retrieval by default. By Hermes Labs."
 readme = "README.md"
-license = { text = "MIT" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
   { name = "Hermes Labs", email = "roli@hermes-labs.ai" },

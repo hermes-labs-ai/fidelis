@@ -10,7 +10,7 @@
   },
   "homepage": "https://github.com/hermes-labs-ai/fidelis",
   "repository": "https://github.com/hermes-labs-ai/fidelis",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "memory",
     "agent-memory",

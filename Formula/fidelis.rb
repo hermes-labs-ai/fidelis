@@ -18,6 +18,7 @@ class Fidelis < Formula
   desc "Local memory with verbatim records and correction history"
   homepage "https://github.com/hermes-labs-ai/fidelis"
   url "https://github.com/hermes-labs-ai/fidelis.git", tag: "v0.3.0rc1"
+  # License of the pinned release; current main uses Apache-2.0.
   license "MIT"
   version "0.3.0rc1"
 

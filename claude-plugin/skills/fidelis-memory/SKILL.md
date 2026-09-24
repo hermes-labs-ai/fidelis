@@ -1,7 +1,7 @@
 ---
 name: fidelis-memory
 description: Recall local records when a turn depends on prior work or decisions, or store and correct facts the user intends to retain. Requires a running Fidelis service; provides fidelis_recall, fidelis_store, fidelis_correct, fidelis_get, fidelis_recent, and fidelis_health.
-license: MIT
+license: Apache-2.0
 ---
 
 # Fidelis memory workflow

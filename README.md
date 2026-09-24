@@ -15,7 +15,7 @@ Hermes Labs is an agentic infrastructure company building the reliability layer 
 [![PyPI pre-release](https://img.shields.io/badge/PyPI-0.3.0rc1-blue)](https://pypi.org/project/fidelis-memory/0.3.0rc1/)
 [![CI](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/fidelis-memory)](https://pypi.org/project/fidelis-memory/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 </div>
 
@@ -203,4 +203,4 @@ Found a missed passage, an unexpected rewrite, or an installation problem? [Open
 
 ## License
 
-[MIT](LICENSE).
+[Apache-2.0](LICENSE).
