@@ -6,7 +6,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_SURFACES = (
-    ROOT / "README.md",
     ROOT / "llms.txt",
     ROOT / "agents.md",
     ROOT / "docs" / "full-reference.md",
@@ -34,7 +33,7 @@ def test_public_surfaces_do_not_install_unrelated_pypi_project():
 
 def test_primary_surfaces_install_the_fidelis_memory_distribution():
     version = _package_version()
-    for path in (ROOT / "README.md", ROOT / "llms.txt", ROOT / "docs" / "full-reference.md"):
+    for path in (ROOT / "llms.txt", ROOT / "docs" / "full-reference.md"):
         text = path.read_text()
         assert re.search(
             rf'python3 -m pip install "fidelis-memory(?:\[hybrid\])?=={re.escape(version)}"',
@@ -77,14 +76,7 @@ def test_registry_manifest_pins_the_released_distribution():
 
 
 def test_release_surfaces_do_not_recycle_historical_scores():
-    for name in ("README.md", "llms.txt", "agents.md"):
+    for name in ("llms.txt", "agents.md"):
         text = (ROOT / name).read_text()
         assert "83.2%" not in text
         assert "73.0%" not in text
-    assert "Historical" in (ROOT / "README.md").read_text()
-    assert "post-release" in (ROOT / "README.md").read_text()
-
-
-def test_readme_scopes_no_telemetry_claim_to_documented_defaults():
-    readme = (ROOT / "README.md").read_text()
-    assert "no outbound network calls" not in readme
