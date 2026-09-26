@@ -4,51 +4,36 @@
 
 # Fidelis Memory
 
-<img src="assets/fidelis-memory-artwork.png" width="420" alt="Fidelis Memory, the golden retriever mascot" />
+<img src="assets/fidelis-memory-artwork.png" width="420" alt="Fidelis Memory mascot" />
 
-**Agent memory that brings back the source, not another summary.**
+**Your agent can forget a summary. Fidelis brings back the note.**
 
-Fidelis is developed by [Hermes Labs](https://hermes-labs.ai).
+Local memory for Codex, Claude Code, and other agents: save text across sessions and retrieve the original passage when it matters.
 
-Hermes Labs is an agentic infrastructure company building the reliability layer for autonomous systems.
+by [Hermes Labs](https://hermes-labs.ai)
 
-[![PyPI pre-release](https://img.shields.io/badge/PyPI-0.3.0rc1-blue)](https://pypi.org/project/fidelis-memory/0.3.0rc1/)
-[![CI](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml/badge.svg)](https://github.com/hermes-labs-ai/fidelis/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/pypi/pyversions/fidelis-memory)](https://pypi.org/project/fidelis-memory/)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
+[PyPI](https://pypi.org/project/fidelis-memory/) · [Connect an agent](#connect-an-agent) · [Technical reference](docs/full-reference.md)
 
 </div>
 
-Fidelis is a local memory and retrieval service for Codex, Claude Code, and other AI agents. Keep your notes available across sessions and retrieve stored text without generative rewriting.
+A project summary might say “billing migration rolled back.” The original note says **why** it failed and **do not retry until the idempotency fix is verified**. When your next session depends on that condition, the missing sentence matters.
 
-A summary can preserve "we tried the migration" while dropping why it failed, what it affected, and what must change before trying again. Fidelis's verbatim ingestion path keeps those details in the stored note instead of requiring a generated fact to replace it.
+Fidelis stores your Markdown and text notes and retrieves their stored wording. Its default retrieval does not ask a generative model to rewrite your memory.
 
-[Quickstart](#quickstart) · [Connect your agent](#connect-your-agent) · [How it works](#how-it-works) · [Benchmarks](#benchmarks) · [Documentation](#documentation)
+## Try it with one note
 
-## Quickstart
-
-You need **Python 3.10+, macOS or Ubuntu, and Ollama running locally**. Ubuntu service installation uses systemd. Install [Ollama](https://docs.ollama.com/quickstart) first; if its server is not running, start `ollama serve` in another terminal. This walkthrough needs no model API key.
-
-### 1. Install and start Fidelis
+This path supports Python 3.10+, macOS or Ubuntu, and a local [Ollama](https://docs.ollama.com/quickstart) service. Start Ollama if needed (`ollama serve` in a separate terminal). No model API key is required. The current release is **0.3.0rc1**.
 
 ```bash
 ollama pull nomic-embed-text
-
 python3 -m venv ~/.venvs/fidelis
 source ~/.venvs/fidelis/bin/activate
 python3 -m pip install "fidelis-memory[hybrid]==0.3.0rc1"
-
 fidelis init
-```
 
-The `hybrid` extra adds BM25 keyword search. `fidelis init` installs the background memory service using this Python environment, so keep the environment in place. The package is **`fidelis-memory`**; the command is **`fidelis`**.
-
-### 2. Store a note and retrieve it
-
-```bash
 demo_dir=$(mktemp -d)
 cat > "$demo_dir/atlas.md" <<'NOTE'
-Atlas billing migration, 2026-09-20:
+Atlas billing migration:
 Duplicate charges appeared in staging. Rolled back.
 Do not retry until the idempotency fix is verified.
 NOTE
@@ -57,150 +42,34 @@ fidelis watch "$demo_dir" --once
 fidelis recall-hybrid "Atlas billing migration retry condition" --tier zero_llm
 ```
 
-**Success means the returned text includes both the rollback and the retry condition.** The command retrieves stored text; it does not generate an answer. Scores and ordering depend on your store.
+Look for both the rollback and the retry condition in the retrieved text. This is retrieval of a saved note, not a generated answer. For your own files, replace `"$demo_dir"` with a notes directory. If retrieval fails, run `fidelis health` and confirm Ollama has `nomic-embed-text` available. Keep the virtual environment after `fidelis init`; the background service uses it.
 
-For your own notes, run `fidelis watch ~/notes --once`. Omit `--once` to keep watching in a separate terminal. The watcher ingests Markdown and text files, not every conversation in your agent clients.
+## Connect an agent
 
-Trouble retrieving? Run `fidelis health` and check that Ollama is running with `nomic-embed-text` available. A responding health endpoint alone does not prove that ingestion and retrieval work.
-
-## Connect your agent
-
-After the local retrieval works, register Fidelis with the client you use:
-
-| Client | Install command | Remove command |
-| --- | --- | --- |
-| Codex | `fidelis mcp install --client codex` | `fidelis mcp uninstall --client codex` |
-| Claude Code | `fidelis mcp install` | `fidelis mcp uninstall` |
-| Cursor | `fidelis mcp install --client cursor` | `fidelis mcp uninstall --client cursor` |
-| GitHub Copilot CLI | `fidelis mcp install --client copilot` | `fidelis mcp uninstall --client copilot` |
-| Gemini CLI | `fidelis mcp install --client gemini` | `fidelis mcp uninstall --client gemini` |
-| OpenClaw | `fidelis mcp install --client openclaw` | `fidelis mcp uninstall --client openclaw` |
-
-The installer preserves other MCP servers and refuses to replace a different
-server named `fidelis` unless you explicitly use `--force`. Cursor's default
-destination is `~/.cursor/mcp.json`; pass `--settings PATH` to target a project
-`.cursor/mcp.json` instead. Keep the Python environment used to install Fidelis
-in place, because Cursor launches that environment's bundled MCP server.
-
-Restart your client, confirm `fidelis` appears in its MCP tool list (Cursor:
-Customize → MCP), then try:
-
-> Use Fidelis to retrieve my Atlas billing migration note. What must happen before we retry? Quote the relevant text.
-
-Fidelis exposes six MCP tools: `fidelis_recall`, `fidelis_store`, `fidelis_correct`, `fidelis_get`, `fidelis_recent`, and `fidelis_health`. Ask for `fidelis_health` first: it distinguishes a registered client from a reachable local service. Then `fidelis_recall` should return the Atlas note, including the exact retry condition. Your agent decides when to call the tools; registration does not guarantee automatic recall on every turn. See the [technical reference](docs/full-reference.md) for client prerequisites and configuration.
-
-The repository root also supplies a portable Agent Plugin (`plugin.json` and
-`mcp.json`) for clients that load Agent Plugins 1.0, including Cursor. It launches
-the same released stdio MCP server through `uvx`; install [uv](https://docs.astral.sh/uv/)
-first. Use **either** that plugin **or** `fidelis mcp install --client cursor` in
-one Cursor profile, to avoid two copies of the six tools. The local service and
-ingested notes are still required. The plugin adds no persistent memory by
-itself.
-
-### Pi prompt-time recall
-
-Pi 0.87.1 or newer (Node.js 22.19 or newer) can load the repository's native
-extension after the local Fidelis service and your notes are ready:
+Once the note is retrievable locally, install the MCP connection for your client:
 
 ```bash
-pi install git:github.com/hermes-labs-ai/fidelis@main
-pi list
+fidelis mcp install --client codex
+# Or, for Claude Code:
+fidelis mcp install
 ```
 
-Restart Pi or run `/reload`. Installing this Git package opts in to one local
-`POST /recall_b` before each user turn containing at least three non-whitespace
-characters. The extension sends only the
-expanded prompt to `127.0.0.1` on `FIDELIS_PORT` (or `COGITO_PORT`, default
-`19420`), requests at most three results, and displays their source text in the
-Pi transcript before the model answers. Long notes appear as marked, exact
-prefixes with their IDs so you can retrieve the full record. Older recall
-messages remain visible in the transcript but leave the next turn's model
-context; all recall messages are excluded from compaction summaries. The
-extension never writes memory.
-Unavailable or slow recall produces a warning and lets the turn continue within
-one second. An empty result adds no context. Pi package registration alone does
-not prove recall worked: ask about a distinctive note you have already ingested
-and confirm its exact text appears in the displayed `fidelis-pi-recall` message.
+Restart the client and try: **“Use Fidelis to find my Atlas billing migration note. What must happen before we retry? Quote the relevant text.”**
 
-This route adds prompt-time context, not the six MCP tools or a new memory store.
-You can use Pi's MCP adapter separately when you need explicit get, store, or
-correction tools. `/recall_b` does not apply Fidelis's full temporal view, so
-this adapter labels temporal status as unchecked. Retrieved notes may be outdated
-or superseded; inspect their status and source before relying on them. Remove this adapter with
-`pi remove git:github.com/hermes-labs-ai/fidelis@main`.
+The client gets tools to recall, store, correct, fetch, and inspect memory. It decides when to call them; installing the connection does not make every turn recall automatically. [Other clients and uninstall commands](docs/full-reference.md) include Cursor, Gemini CLI, Copilot CLI, and OpenClaw. A separate [Pi extension](extensions/) provides prompt-time recall.
 
-**MCP update in 0.3.0rc1:** recall, recent results, and correction chains return full stored text; the old silent 300-character previews are removed. Corrections retain superseded records, and recall supports validity dates and historical views. Replace old `fidelis_query` calls with `fidelis_recall` and restart clients to refresh their tool lists. See the [upgrade and rollback notes](docs/releases/0.3.0rc1.md).
+## What Fidelis preserves
 
-## Why keep the source?
+- **Original wording.** `watch`, `store`, and other verbatim write paths keep the text you supplied, so retrieval can return the condition that a summary might omit.
+- **Local retrieval.** Fast vector search is the default MCP recall path. Explicit hybrid search combines keyword and vector results without a generative LLM at its `zero_llm` tier; local embeddings still require Ollama.
+- **Corrections over time.** A correction can supersede a prior record without erasing it. Recall can show validity and historical status instead of silently replacing the old note.
 
-Summaries are useful for navigating a long history. They can also leave out information that becomes important to a later question. Once the summary is all that remains, retrieval cannot recover what was discarded.
+Fidelis also has optional extraction and model-assisted routes. Those can transform or filter inputs; use the verbatim path when the original wording is the point. Retrieved text can still be wrong or out of date, and your agent's model provider may see it when answering.
 
-Fidelis is built for work where you need to revisit the evidence:
+## Current scope
 
-- **Decisions and constraints:** recover the rationale, exceptions, and exact conditions in a saved note.
-- **Failed approaches:** retrieve what broke and what must change before another attempt.
-- **Work across sessions:** make your saved project context accessible to different agent clients on the same machine.
+Fidelis 0.3.0rc1 is a single-machine pre-release, not a hosted team memory service. The [LongMemEval-S retrieval run](bench/DEFAULT-RETRIEVAL-METHODOLOGY.md) measured whether the redesigned default path retrieved material across 470 questions; it did not measure answer accuracy. See the [results](bench/results-default-0.3.0rc1.json), [user-fit guide](docs/user-fit.md), and [security policy](SECURITY.md) for deeper detail.
 
-The principle is simple: **use derived representations to find evidence, not to replace it.**
+[Full reference](docs/full-reference.md) · [Upgrade notes](docs/releases/0.3.0rc1.md) · [Contribute](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
-## How it works
-
-```text
-Your Markdown or text files
-          |
-   Verbatim ingestion
-          |
-   Local memory store
-          |
-   Retrieve and rank candidates
-          |
-   Stored text for your agent
-```
-
-Default MCP recall uses fast local vector retrieval without a generative LLM. Explicit `mode: "thorough"` selects the hybrid path. The hybrid retrieval path combines keyword search, dense-vector similarity, and reciprocal rank fusion. Its default `zero_llm` tier does not call a generative LLM. Local embeddings are still required.
-
-Optional model-assisted tiers can help select candidates. Their accepted output is a list of candidate numbers. Code resolves those numbers to stored text rather than returning the model's prose as memory.
-
-Fidelis builds on mem0 and ChromaDB for storage and adds its retrieval, fidelity, service, and agent-integration layers.
-
-### The fidelity boundary
-
-The source-preserving paths include `fidelis watch`, `fidelis store`, `fidelis add`, and HTTP `POST /store`. Explicit `fidelis add --extract` and `fidelis seed` use extraction or curation and can transform input before storage. Snapshots are derived summaries, not source evidence.
-
-Fidelity means preserving the text supplied through the verbatim path. It does not prove that the text is true, current, complete, or the original record of an event. Store only a summary and only that summary can be recovered. Full provenance tracking is not a release guarantee.
-
-With local Ollama, the quickstart keeps storage and retrieval local. Your agent may send retrieved text to its model provider when answering. Optional LLM features follow their configured data boundaries.
-
-## Benchmarks
-
-The redesigned default zero-LLM retrieval path completed a fresh LongMemEval-S run of **470 questions on September 21, 2026**, with zero errors. The [results](bench/results-default-0.3.0rc1.json) and [methodology](bench/DEFAULT-RETRIEVAL-METHODOLOGY.md) record the source snapshot, corpus construction, metrics, and limitations.
-
-These are whole-session retrieval measurements, not answer accuracy or a matched comparison with competitors. Historical chunked retrieval and QA scores do not measure this redesign and are not reused as release evidence. Full LLM/QA evaluation is post-release work.
-
-Fast recall remains the default. Optional thorough hybrid retrieval needs further tuning; that work is deferred beyond this pre-release.
-
-## Is Fidelis a fit?
-
-Choose Fidelis when your working context lives in local notes, you want to retrieve their text rather than replace it with synthesized memory, and you can run a local service.
-
-Version 0.3.0rc1 is an early, single-machine pre-release. It is not a hosted team-memory platform. Windows service installation and managed multi-user authorization are not supported contracts. Preserving a past statement also does not make it current: review dates and conflicting records before acting.
-
-See the [user-fit guide](docs/user-fit.md) and [security policy](SECURITY.md) before deploying.
-
-## Documentation
-
-| Need | Start here |
-| --- | --- |
-| Commands, HTTP API, configuration, and client setup | [Technical reference](docs/full-reference.md) |
-| Supported workflows and limitations | [User-fit guide](docs/user-fit.md) |
-| Optional guidance for an LLM reading retrieved evidence | [QA scaffold](docs/scaffold.md) |
-| Release history | [Changelog](CHANGELOG.md) |
-| Contributing or reporting security issues | [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) |
-
-## Contributing
-
-Found a missed passage, an unexpected rewrite, or an installation problem? [Open an issue](https://github.com/hermes-labs-ai/fidelis/issues) with a minimal, redacted example. Retrieval regressions, fidelity tests, and documentation fixes are welcome.
-
-## License
-
-[Apache-2.0](LICENSE).
+Apache-2.0. [Hermes Labs](https://hermes-labs.ai) builds agentic infrastructure for autonomous systems.
