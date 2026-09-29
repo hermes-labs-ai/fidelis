@@ -4,17 +4,18 @@
 
 ```bash
 pip install -e ".[dev]"
-export FIDELIS_QUEUE_DIR="$(mktemp -d)"   # temp queue, not ~/.cogito/queue; delete it when done
-python -m pytest tests/ \
+queue_dir="$(mktemp -d)"   # temp queue for this run, not ~/.cogito/queue
+FIDELIS_QUEUE_DIR="$queue_dir" python -m pytest tests/ \
   --ignore=tests/scaffold/test_e2e_store_query.py \
   --ignore=tests/scaffold/test_backend_portability.py \
   --ignore=tests/scaffold/test_anthropic_cache_wire.py \
   --ignore=tests/scaffold/test_openai_format_compatibility.py \
   --ignore=tests/scaffold/test_streaming_marker_integrity.py \
   -q
+rm -rf -- "$queue_dir"
 ```
 
-This is the suite CI runs; CI likewise points `FIDELIS_QUEUE_DIR` at a temporary directory, so set it as shown rather than letting tests use the default queue location. It needs no Ollama or ChromaDB. The five ignored files are not part of it: `test_e2e_store_query.py` starts a real `fidelis-server` and needs Ollama, `test_backend_portability.py` and `test_openai_format_compatibility.py` include live smoke tests against local Ollama (or the `claude` CLI) that skip when those are absent, and `test_anthropic_cache_wire.py` and `test_streaming_marker_integrity.py` are mocked-transport wire-format tests that CI does not run. Run them separately when you change that surface. Guard any other test that needs a live server with a conditional skip such as `pytest.mark.skipif(not _ollama_reachable(), reason="requires local Ollama on :11434")` (see `tests/test_graceful_shutdown.py`), so it still runs where the server is available.
+This is the suite CI runs; CI likewise points `FIDELIS_QUEUE_DIR` at a temporary directory. The variable is set for that one `pytest` command only (not exported), so it does not redirect later `fidelis` commands in your shell. It needs no Ollama or ChromaDB. The five ignored files are not part of it: `test_e2e_store_query.py` starts a real `fidelis-server` and needs Ollama, `test_backend_portability.py` and `test_openai_format_compatibility.py` include live smoke tests against local Ollama (or the `claude` CLI) that skip when those are absent, and `test_anthropic_cache_wire.py` and `test_streaming_marker_integrity.py` are mocked-transport wire-format tests that CI does not run. Run them separately when you change that surface. Guard any other test that needs a live server with a conditional skip such as `pytest.mark.skipif(not _ollama_reachable(), reason="requires local Ollama on :11434")` (see `tests/test_graceful_shutdown.py`), so it still runs where the server is available.
 
 ## Bench cases
 
