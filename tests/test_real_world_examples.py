@@ -169,7 +169,7 @@ def test_write_gate_strings_come_from_the_gate_test():
 def _pyproject():
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     version = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE).group(1)
-    scripts_block = re.search(r"\[project\.scripts\]\n(.*?)(?:\n\[|\Z)", text, re.S).group(1)
+    scripts_block = re.search(r"\[project\.scripts\]\n(.*?)(?:\n\[|\Z)", text, re.DOTALL).group(1)
     scripts = dict(re.findall(r'^([\w-]+)\s*=\s*"([^"]+)"', scripts_block, re.MULTILINE))
     return version, scripts
 
