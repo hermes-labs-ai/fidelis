@@ -1,0 +1,27 @@
+{
+  "launch": {
+    "executable": "uvx",
+    "from_requirement": "fidelis-memory==<pyproject version>",
+    "console_script": "fidelis",
+    "argv": [
+      "mcp",
+      "serve"
+    ]
+  },
+  "console_script_targets": {
+    "fidelis": "fidelis.cli:main",
+    "fidelis-mcp": "fidelis.mcp_server:main"
+  },
+  "cli_subcommand_path": [
+    "mcp",
+    "serve"
+  ],
+  "tools": [
+    "fidelis_correct",
+    "fidelis_get",
+    "fidelis_health",
+    "fidelis_recall",
+    "fidelis_recent",
+    "fidelis_store"
+  ]
+}

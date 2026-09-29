@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "fidelis": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "fidelis-memory==0.3.0rc1",
+        "fidelis",
+        "mcp",
+        "serve"
+      ],
+      "timeout": 60000
+    }
+  }
+}

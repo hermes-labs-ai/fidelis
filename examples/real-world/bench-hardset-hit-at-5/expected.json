@@ -1,0 +1,34 @@
+[
+  {
+    "qid": "d3ab962e",
+    "n_gold": 2,
+    "gold_in_top5": [
+      "answer_5237bb0b_1",
+      "answer_5237bb0b_2"
+    ],
+    "hit_at_5_any_gold": true,
+    "gold_recall_at_5": 1.0,
+    "all_gold_in_top5": true,
+    "matches_recorded_s1_hit_at_5": true
+  },
+  {
+    "qid": "gpt4_e061b84f",
+    "n_gold": 3,
+    "gold_in_top5": [
+      "answer_8c64ce25_3"
+    ],
+    "hit_at_5_any_gold": true,
+    "gold_recall_at_5": 0.3333,
+    "all_gold_in_top5": false,
+    "matches_recorded_s1_hit_at_5": true
+  },
+  {
+    "qid": "gpt4_af6db32f",
+    "n_gold": 1,
+    "gold_in_top5": [],
+    "hit_at_5_any_gold": false,
+    "gold_recall_at_5": 0.0,
+    "all_gold_in_top5": false,
+    "matches_recorded_s1_hit_at_5": true
+  }
+]

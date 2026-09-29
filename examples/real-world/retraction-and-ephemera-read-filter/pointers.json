@@ -1,0 +1,15 @@
+{
+  "retracted": [
+    {
+      "id": "gw-port-1",
+      "pattern": "listens on port 8811",
+      "status": "SUPERSEDED",
+      "note": "Gateway moved to port 8822; see the later record."
+    }
+  ],
+  "ephemera_patterns": [
+    "^\\s*You are QA for\\b",
+    "^\\s*\\[?tool_result",
+    "^\\s*User is currently"
+  ]
+}

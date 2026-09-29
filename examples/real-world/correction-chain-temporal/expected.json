@@ -1,0 +1,83 @@
+{
+  "current_view": [
+    {
+      "id": "rec-b",
+      "text": "The Zephyrine gateway service was moved to port 8822 for the new deployment.",
+      "temporal": {
+        "status": "current",
+        "recorded_at": "2026-03-10T09:00:00Z",
+        "recorded_at_known": true,
+        "superseded_by": [],
+        "valid_from": "2026-03-10T00:00:00Z",
+        "valid_to": null,
+        "event_at": null,
+        "evaluated_at": "2026-04-01T00:00:00Z",
+        "index": "ok"
+      }
+    },
+    {
+      "id": "rec-filler",
+      "text": "The Zephyrine gateway service supports TLS termination for inbound connections.",
+      "temporal": {
+        "status": "current",
+        "recorded_at": "2026-03-02T09:00:00Z",
+        "recorded_at_known": true,
+        "superseded_by": [],
+        "valid_from": null,
+        "valid_to": null,
+        "event_at": null,
+        "evaluated_at": "2026-04-01T00:00:00Z",
+        "index": "ok"
+      }
+    },
+    {
+      "id": "rec-a",
+      "text": "The Zephyrine gateway service listens on port 8811.",
+      "temporal": {
+        "status": "superseded",
+        "recorded_at": "2026-03-01T09:00:00Z",
+        "recorded_at_known": true,
+        "superseded_by": [
+          "rec-b"
+        ],
+        "valid_from": null,
+        "valid_to": null,
+        "event_at": null,
+        "evaluated_at": "2026-04-01T00:00:00Z",
+        "index": "ok"
+      }
+    }
+  ],
+  "as_of_before_correction": [
+    {
+      "id": "rec-a",
+      "text": "The Zephyrine gateway service listens on port 8811.",
+      "temporal": {
+        "status": "current",
+        "recorded_at": "2026-03-01T09:00:00Z",
+        "recorded_at_known": true,
+        "superseded_by": [],
+        "valid_from": null,
+        "valid_to": null,
+        "event_at": null,
+        "evaluated_at": "2026-03-05T00:00:00Z",
+        "index": "ok"
+      }
+    },
+    {
+      "id": "rec-filler",
+      "text": "The Zephyrine gateway service supports TLS termination for inbound connections.",
+      "temporal": {
+        "status": "current",
+        "recorded_at": "2026-03-02T09:00:00Z",
+        "recorded_at_known": true,
+        "superseded_by": [],
+        "valid_from": null,
+        "valid_to": null,
+        "event_at": null,
+        "evaluated_at": "2026-03-05T00:00:00Z",
+        "index": "ok"
+      }
+    }
+  ]
+}

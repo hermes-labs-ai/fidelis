@@ -1,0 +1,15 @@
+{
+  "texts": [
+    "Fidelis server listens on port 19420.",
+    "The store audit on 2026-09-20 found task-notification tags inside stored memories.",
+    "The canary probe runs every 300 seconds and only reads.",
+    "Maya prefers terse replies; answer yes or no when asked a yes/no question.",
+    "GitHub tokens start with ghp_ and must never be stored.",
+    "User: my sister's birthday is 2026-11-03.\nAssistant: Noted.",
+    "You are QA for a drafted fix. Answer ONLY: YES or NO",
+    "User: You are QA for a drafted fix.\nAssistant: YES",
+    "Extract discrete, atomic facts from the conversation below.",
+    "User mentioned 'canary-probe-ad4f3ff1'",
+    "[tool_result: exit 0] total 48"
+  ]
+}

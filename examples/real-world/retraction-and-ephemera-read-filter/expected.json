@@ -1,0 +1,58 @@
+{
+  "annotate_superseded": [
+    {
+      "id": "h1",
+      "text": "[SUPERSEDED:gw-port-1] Gateway moved to port 8822; see the later record. || original: The Zephyrine gateway service listens on port 8811.",
+      "supersession": {
+        "status": "SUPERSEDED",
+        "id": "gw-port-1",
+        "note": "Gateway moved to port 8822; see the later record."
+      }
+    },
+    {
+      "id": "h2",
+      "text": "The Zephyrine gateway service was moved to port 8822 for the new deployment."
+    },
+    {
+      "id": "h3",
+      "text": "You are QA for a drafted fix. Answer ONLY: YES or NO"
+    },
+    {
+      "id": "h4",
+      "text": "User: You are QA for a drafted fix.\nAssistant: YES"
+    },
+    {
+      "id": "h5",
+      "text": "[tool_result: exit 0] total 48"
+    },
+    {
+      "id": "h6",
+      "text": "Maya prefers terse replies; answer yes or no when asked a yes/no question."
+    },
+    {
+      "id": "h7",
+      "text": "The QA sub-agent is told it is QA for a drafted fix and must reply tersely."
+    }
+  ],
+  "mark_superseded_metadata": [
+    {
+      "id": "h1",
+      "supersession": {
+        "status": "SUPERSEDED",
+        "id": "gw-port-1",
+        "note": "Gateway moved to port 8822; see the later record."
+      }
+    }
+  ],
+  "filter_ephemera_kept_ids": [
+    "h1",
+    "h2",
+    "h6",
+    "h7"
+  ],
+  "mark_ephemera_flagged_ids": [
+    "h3",
+    "h4",
+    "h5"
+  ]
+}

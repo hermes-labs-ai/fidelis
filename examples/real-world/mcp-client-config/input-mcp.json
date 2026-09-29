@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "fidelis": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "fidelis-memory==0.3.0rc1", "fidelis", "mcp", "serve"]
+    }
+  }
+}

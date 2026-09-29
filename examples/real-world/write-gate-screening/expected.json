@@ -1,0 +1,68 @@
+[
+  {
+    "text": "Fidelis server listens on port 19420.",
+    "accept": true,
+    "reason": null,
+    "detail": null
+  },
+  {
+    "text": "The store audit on 2026-09-20 found task-notification tags inside stored memories.",
+    "accept": true,
+    "reason": null,
+    "detail": null
+  },
+  {
+    "text": "The canary probe runs every 300 seconds and only reads.",
+    "accept": true,
+    "reason": null,
+    "detail": null
+  },
+  {
+    "text": "Maya prefers terse replies; answer yes or no when asked a yes/no question.",
+    "accept": true,
+    "reason": null,
+    "detail": null
+  },
+  {
+    "text": "GitHub tokens start with ghp_ and must never be stored.",
+    "accept": true,
+    "reason": null,
+    "detail": null
+  },
+  {
+    "text": "User: my sister's birthday is 2026-11-03.\nAssistant: Noted.",
+    "accept": true,
+    "reason": null,
+    "detail": null
+  },
+  {
+    "text": "You are QA for a drafted fix. Answer ONLY: YES or NO",
+    "accept": false,
+    "reason": "scaffold_prompt",
+    "detail": "template opener 'You are QA for'"
+  },
+  {
+    "text": "User: You are QA for a drafted fix.\nAssistant: YES",
+    "accept": false,
+    "reason": "scaffold_prompt",
+    "detail": "template opener 'You are QA for'"
+  },
+  {
+    "text": "Extract discrete, atomic facts from the conversation below.",
+    "accept": false,
+    "reason": "scaffold_prompt",
+    "detail": "template opener 'Extract discrete, atomic'"
+  },
+  {
+    "text": "User mentioned 'canary-probe-ad4f3ff1'",
+    "accept": false,
+    "reason": "probe_residue",
+    "detail": "probe id at offset 16"
+  },
+  {
+    "text": "[tool_result: exit 0] total 48",
+    "accept": false,
+    "reason": "harness_envelope",
+    "detail": "leading [tool_result bracket"
+  }
+]

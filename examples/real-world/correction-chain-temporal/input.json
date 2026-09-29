@@ -1,0 +1,47 @@
+{
+  "records": [
+    {
+      "id": "rec-a",
+      "text": "The Zephyrine gateway service listens on port 8811.",
+      "write_time": "2026-03-01T09:00:00Z",
+      "declared": {
+        "source": "ops-notes"
+      }
+    },
+    {
+      "id": "rec-filler",
+      "text": "The Zephyrine gateway service supports TLS termination for inbound connections.",
+      "write_time": "2026-03-02T09:00:00Z",
+      "declared": {}
+    },
+    {
+      "id": "rec-b",
+      "text": "The Zephyrine gateway service was moved to port 8822 for the new deployment.",
+      "write_time": "2026-03-10T09:00:00Z",
+      "declared": {
+        "supersedes": [
+          "rec-a"
+        ],
+        "valid_from": "2026-03-10T00:00:00Z",
+        "source": "ops-notes"
+      }
+    }
+  ],
+  "relevance_order": [
+    "rec-a",
+    "rec-b",
+    "rec-filler"
+  ],
+  "views": [
+    {
+      "name": "current_view",
+      "now": "2026-04-01T00:00:00Z",
+      "as_of": null
+    },
+    {
+      "name": "as_of_before_correction",
+      "now": "2026-04-01T00:00:00Z",
+      "as_of": "2026-03-05T00:00:00Z"
+    }
+  ]
+}

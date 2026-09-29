@@ -1,0 +1,91 @@
+{
+  "cases": [
+    {
+      "qid": "d3ab962e",
+      "qi": 150,
+      "qtype": "multi-session",
+      "question": "What is the total distance of the hikes I did on two consecutive weekends?",
+      "gold_session_ids": [
+        "answer_5237bb0b_2",
+        "answer_5237bb0b_1"
+      ],
+      "n_gold": 2,
+      "s1_top5_ids": [
+        "3329e5e8_1",
+        "answer_5237bb0b_1",
+        "answer_5237bb0b_2",
+        "ultrachat_564044",
+        "ultrachat_248741"
+      ],
+      "s2_top5_ids": [
+        "3329e5e8_1",
+        "answer_5237bb0b_1",
+        "answer_5237bb0b_2",
+        "ultrachat_564044",
+        "ultrachat_248741"
+      ],
+      "route_decision": "default_s1",
+      "failure_mode_note": "multi_session_aggregation",
+      "s1_hit_at_5": true,
+      "s2_hit_at_5": true
+    },
+    {
+      "qid": "gpt4_e061b84f",
+      "qi": 244,
+      "qtype": "temporal-reasoning",
+      "question": "What is the order of the three sports events I participated in during the past month, from earliest to latest?",
+      "gold_session_ids": [
+        "answer_8c64ce25_2",
+        "answer_8c64ce25_1",
+        "answer_8c64ce25_3"
+      ],
+      "n_gold": 3,
+      "s1_top5_ids": [
+        "ultrachat_129606",
+        "ultrachat_194928",
+        "answer_8c64ce25_3",
+        "77974d02",
+        "0a6bf5e4_1"
+      ],
+      "s2_top5_ids": [
+        "0a6bf5e4_1",
+        "answer_8c64ce25_3",
+        "ultrachat_194928",
+        "77974d02",
+        "ultrachat_129606"
+      ],
+      "route_decision": "llm",
+      "failure_mode_note": "temporal_multi_hop",
+      "s1_hit_at_5": true,
+      "s2_hit_at_5": true
+    },
+    {
+      "qid": "gpt4_af6db32f",
+      "qi": 258,
+      "qtype": "temporal-reasoning",
+      "question": "How many days ago did I watch the Super Bowl?",
+      "gold_session_ids": [
+        "answer_184c8f56_1"
+      ],
+      "n_gold": 1,
+      "s1_top5_ids": [
+        "aee13015_6",
+        "ultrachat_552923",
+        "ec1b557a_1",
+        "ultrachat_251919",
+        "8617737e"
+      ],
+      "s2_top5_ids": [
+        "ec1b557a_1",
+        "aee13015_6",
+        "8617737e",
+        "ultrachat_552923",
+        "ultrachat_251919"
+      ],
+      "route_decision": "llm",
+      "failure_mode_note": "other",
+      "s1_hit_at_5": false,
+      "s2_hit_at_5": false
+    }
+  ]
+}
