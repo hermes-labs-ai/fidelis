@@ -11,7 +11,7 @@ Historical benchmark scores are not evidence for the redesigned default path.
 
 - Pin supersession fail-open, cache reload, annotation, and ephemera filtering
   contracts with server-free unit tests.
-
+- Clarify the benchmark case-file roles, disposable-server requirement, and quickstart service use in contributor documentation.
 - Add read-only `fidelis recent` and `fidelis get` CLI commands with bounded
   options, correction metadata, raw JSON output, and explicit failures.
 - Add five server-free worked examples under examples/real-world/ (correction chain, retraction/ephemera read filter, write-gate screening, MCP client config, benchmark hardset hit@5), re-verified by tests/test_real_world_examples.py.

@@ -22,7 +22,13 @@ This is the suite CI runs; CI likewise points `FIDELIS_QUEUE_DIR` at a temporary
 
 ## Bench cases
 
-Bench cases live in `bench/`. `bench/cases.json` and `bench/eval_cases.json` are lists of objects with a `query` and an `expected` list of keywords, plus a `difficulty` or `case_type` field. `python bench/eval.py` runs the combined eval against a running `fidelis-server` and its live corpus, so it is not part of the server-free test suite and is not needed for most contributions. Add cases that cover real retrieval failures or regressions.
+Bench files live in `bench/`, with different consumers and formats:
+
+- `bench/cases.json` is the default input to `bench/benchmark.py`: a list of objects with `query`, an `expected` list of keywords, and optional `difficulty` or `notes`.
+- `bench/eval_cases.json` is the default static input to `bench/eval.py` (override with `--cases`): a list of objects with `query`, an `expected` list of keywords, `case_type`, and optional `notes`.
+- `bench/hardset.json` contains historical LongMemEval records with `qid`, `question`, `gold_session_ids`, and retrieval results. Older experimental runners such as `bench/longmemeval_combined_pipeline_v33.py` use only its `qid` fields to select hardset questions; it is not an input to `bench/eval.py` or `bench/benchmark.py`.
+
+`python bench/eval.py` requires a running `fidelis-server` and its live corpus. In addition to the static cases, it generates direct-recall cases from that corpus via `/recall_b` by default. `--static-only` skips generation but still requires the server for the eval. Use a disposable server and store, never a store holding real data. For a server-free check, run `python bench/eval.py --help` or `python bench/benchmark.py --help`. These live benchmarks are not part of the server-free test suite and are not needed for most contributions. Add cases that cover real retrieval failures or regressions.
 
 ## Code style
 
