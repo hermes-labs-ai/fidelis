@@ -42,6 +42,8 @@ fidelis watch "$demo_dir" --once
 fidelis recall-hybrid "Atlas billing migration retry condition" --tier zero_llm
 ```
 
+`fidelis watch` and `fidelis recall-hybrid` use the background service started by `fidelis init`.
+
 Look for both the rollback and the retry condition in the retrieved text. This is retrieval of a saved note, not a generated answer. For your own files, replace `"$demo_dir"` with a notes directory. If retrieval fails, run `fidelis health` and confirm Ollama has `nomic-embed-text` available. Keep the virtual environment after `fidelis init`; the background service uses it.
 
 What this changes on your machine: `fidelis init` installs a per-user background service (launchd on macOS, `systemd --user` on Linux) that starts `fidelis-server` automatically at login. `fidelis watch` sends the note to that server, which saves it in the local store at `~/.cogito/store` by default, not in the temporary demo directory. The watcher also records ingested files in `~/.fidelis/watched.json`. To remove the default service on macOS, run `fidelis init --uninstall`; it stops the service and deletes the launchd plist only. On Linux, find the installed unit with `systemctl --user list-unit-files '*fidelis-server*'`, then run `systemctl --user disable --now <unit>`, delete that unit file from `~/.config/systemd/user/`, and run `systemctl --user daemon-reload`. Neither path deletes your data. The store is shared by everything you save with Fidelis, so deleting `~/.cogito/store` erases all of it, not just the demo note; do that only on a throwaway install. Also delete the temporary demo directory (`$demo_dir`), and `~/.fidelis/watched.json` if you want its record of the file path gone.
