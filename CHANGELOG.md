@@ -9,6 +9,8 @@ Historical benchmark scores are not evidence for the redesigned default path.
 
 # Unreleased
 
+- Clarify that quickstart recall searches the whole shared store and may return
+  notes saved before the demo.
 - Pin supersession fail-open, cache reload, annotation, and ephemera filtering
   contracts with server-free unit tests.
 - Clarify the benchmark case-file roles, disposable-server requirement, and quickstart service use in contributor documentation.
