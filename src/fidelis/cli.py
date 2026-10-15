@@ -10,6 +10,8 @@ fidelis CLI
   fidelis route-turn "message"       host orientation-first route (same /orient)
   fidelis recall-legacy "query"      legacy two-stage recall for comparison
   fidelis query  "query"             simple vector query (no filter)
+  fidelis recent                     list recently recorded memories
+  fidelis get    RECORD_ID            fetch a memory and its correction chain
   fidelis store  "text"              store text verbatim (preferred write path)
   fidelis add    "text"              add a memory (verbatim; --extract for legacy path)
   fidelis seed   ~/memory/ ~/notes/  bulk-seed from markdown files
@@ -26,10 +28,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
-import os
 
 from fidelis import __version__
 
@@ -51,7 +53,7 @@ def _server_error(exc: BaseException) -> None:
     sys.exit(1)
 
 
-def _post(path: str, payload: dict) -> dict:
+def _post(path: str, payload: dict, *, structured_errors: bool = False) -> dict:
     data = json.dumps(payload).encode()
     req = urllib.request.Request(
         f"{_base_url()}{path}",
@@ -62,6 +64,17 @@ def _post(path: str, payload: dict) -> dict:
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if not structured_errors:
+            _server_error(e)
+        try:
+            body = json.loads(e.read())
+        except (OSError, json.JSONDecodeError):
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        body.setdefault("error", f"fidelis-server returned HTTP {e.code}")
+        return body
     except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
         _server_error(e)
 
@@ -206,6 +219,100 @@ def cmd_query(args):
         print(json.dumps(result, indent=2))
         return
     _print_memories(result.get("memories", []))
+
+
+def _raise_response_error(result: dict, *, raw: bool) -> None:
+    error = result.get("error")
+    if not error:
+        return
+    if raw:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"Error: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def _recent_limit(value: str) -> int:
+    try:
+        limit = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("limit must be an integer from 1 to 50") from exc
+    if not 1 <= limit <= 50:
+        raise argparse.ArgumentTypeError("limit must be from 1 to 50")
+    return limit
+
+
+def _print_chain(entries: list, label: str) -> None:
+    print(f"{label}:")
+    if not entries:
+        print("  (nothing)")
+        return
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        recorded = entry.get("recorded_at") or "unknown"
+        print(
+            f"  {entry.get('id')} [{entry.get('status', 'current')}] "
+            f"recorded {recorded} {entry.get('text', '')}"
+        )
+
+
+def cmd_get(args):
+    result = _post("/get", {"id": args.record_id}, structured_errors=True)
+    _raise_response_error(result, raw=args.raw)
+    if args.raw:
+        print(json.dumps(result, indent=2))
+        return
+
+    temporal = result.get("temporal") or {}
+    print(f"id: {result.get('id')}")
+    print(f"text: {result.get('text', '')}")
+    if result.get("source"):
+        print(f"source: {result['source']}")
+    status = temporal.get("status", "current")
+    status_line = f"status: {status}"
+    if status == "superseded" and temporal.get("superseded_by"):
+        status_line += f" (superseded by {', '.join(temporal['superseded_by'])})"
+    elif status == "expired":
+        status_line += f" (valid_to {temporal.get('valid_to')})"
+    elif status == "not_yet_valid":
+        status_line += f" (valid_from {temporal.get('valid_from')})"
+    print(status_line)
+    print(f"recorded_at: {temporal.get('recorded_at') or 'unknown'}")
+    _print_chain(result.get("supersedes") or [], "supersedes (oldest last)")
+    _print_chain(result.get("superseded_by") or [], "superseded_by (newest last)")
+    if result.get("index") == "unavailable":
+        print("(temporal index unavailable -- chain may be incomplete)")
+
+
+def cmd_recent(args):
+    payload = {"limit": args.limit, "kind": args.kind}
+    if args.since is not None:
+        payload["since"] = args.since
+    result = _post("/recent", payload, structured_errors=True)
+    _raise_response_error(result, raw=args.raw)
+    if args.raw:
+        print(json.dumps(result, indent=2))
+        return
+
+    records = result.get("records", [])
+    if not records:
+        note = result.get("note")
+        print(f"0 memories.{f' {note}' if note else ''}")
+        return
+    since_note = f" since {args.since}" if args.since else ""
+    print(f"{len(records)} memories{since_note} (kind={args.kind}):")
+    for index, record in enumerate(records, 1):
+        recorded = record.get("recorded_at") or "unknown"
+        source = f" source={record['source']}" if record.get("source") else ""
+        supersedes = record.get("supersedes") or []
+        correction = f" supersedes={','.join(supersedes)}" if supersedes else ""
+        print(
+            f"  [{index}] id={record.get('id')} "
+            f"[{record.get('status', 'current')}] recorded={recorded}"
+            f"{source}{correction}"
+        )
+        print(f"      {record.get('text', '')}")
 
 
 def _store_verbatim(text: str) -> None:
@@ -489,6 +596,19 @@ def main():
     p_query.add_argument("--limit", type=int, default=5)
     p_query.add_argument("--raw", action="store_true")
     p_query.set_defaults(func=cmd_query)
+
+    # read-only record browsing
+    p_recent = sub.add_parser("recent", help="List recently recorded memories")
+    p_recent.add_argument("--limit", type=_recent_limit, default=10)
+    p_recent.add_argument("--kind", choices=("all", "corrections"), default="all")
+    p_recent.add_argument("--since", help="ISO 8601 lower bound for recorded_at")
+    p_recent.add_argument("--raw", action="store_true")
+    p_recent.set_defaults(func=cmd_recent)
+
+    p_get = sub.add_parser("get", help="Fetch a memory and its correction chain")
+    p_get.add_argument("record_id")
+    p_get.add_argument("--raw", action="store_true")
+    p_get.set_defaults(func=cmd_get)
 
     # store — explicit verbatim write (the server's preferred write path)
     p_store = sub.add_parser("store", help="Store text verbatim (no extraction LLM)")

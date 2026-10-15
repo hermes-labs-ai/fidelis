@@ -9,7 +9,13 @@ Historical benchmark scores are not evidence for the redesigned default path.
 
 # Unreleased
 
-- README quickstart now says `fidelis recall-hybrid` queries the same running service and shared store as `fidelis watch`.
+- Clarify that quickstart recall searches the whole shared store and may return
+  notes saved before the demo.
+- Pin supersession fail-open, cache reload, annotation, and ephemera filtering
+  contracts with server-free unit tests.
+- Clarify the benchmark case-file roles, disposable-server requirement, and quickstart service use in contributor documentation.
+- Add read-only `fidelis recent` and `fidelis get` CLI commands with bounded
+  options, correction metadata, raw JSON output, and explicit failures.
 - Add five server-free worked examples under examples/real-world/ (correction chain, retraction/ephemera read filter, write-gate screening, MCP client config, benchmark hardset hit@5), re-verified by tests/test_real_world_examples.py.
 
 ## v0.2.0

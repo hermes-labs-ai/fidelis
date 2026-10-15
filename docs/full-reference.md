@@ -59,6 +59,24 @@ The `supersedes` target must exist in the configured namespace. HTTP clients
 should check both status codes and response bodies. Memory operations can return
 503 when the backing store cannot load; health/discovery remain available.
 
+## Read-only CLI browsing
+
+The CLI exposes the same bounded `/recent` and point-lookup `/get` paths. These
+commands require a running `fidelis-server` and do not load or scan the store in
+the client process.
+
+```bash
+fidelis recent
+fidelis recent --limit 20 --kind corrections --since 2026-09-01T00:00:00Z
+fidelis get RECORD_ID
+```
+
+`recent` accepts a limit from 1 to 50 and `kind` as `all` or `corrections`.
+Human-readable output includes stable IDs, record text, timestamps, temporal
+status, sources, and correction links when present. Add `--raw` to either
+command to print the service JSON payload for scripting. An unavailable service,
+invalid request, or unknown record exits nonzero with an explicit error.
+
 ## Write acknowledgements
 
 - `stored`: the write landed.
