@@ -62,3 +62,15 @@ See `tests/scaffold/test_top_score_contract.py` for the full contract test suite
 2. Keep changes focused — one feature or fix per PR.
 3. Add a test if the change touches retrieval logic.
 4. Update `CHANGELOG.md` under an `Unreleased` section.
+
+The JSONL reviewer and `hermes-gate-claude-review` command are available in the public Git revision below; PyPI `hermes-gate==0.1.7` does not include them. Install that exact revision into an isolated tool environment and use its executable path for both checks:
+
+```bash
+fidelis_gate_home="${XDG_DATA_HOME:-$HOME/.local/share}/fidelis-gate-tools"
+fidelis_gate_bin="$fidelis_gate_home/bin"
+UV_TOOL_DIR="$fidelis_gate_home/tools" UV_TOOL_BIN_DIR="$fidelis_gate_bin" uv tool install --force 'git+https://github.com/hermes-labs-ai/hermes-gate.git@f20db03fa5f63fc8c5bc11773f4c4b71cb2b61a9'
+PATH="$fidelis_gate_bin:$PATH" hermes-gate fast
+PATH="$fidelis_gate_bin:$PATH" hermes-gate review
+```
+
+Review uses an already installed Claude Code CLI and its existing authenticated session. Missing tooling or authentication leaves review unavailable; these commands do not change account authentication.
