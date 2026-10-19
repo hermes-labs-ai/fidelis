@@ -160,7 +160,7 @@ Existing users are never silently migrated. Manual opt-in only.
 | **cogito 31-case eval** (bench/eval.py) | Atomic paraphrase recall | direct_recall, semantic_gap, adversarial, cross-reference | Exists |
 | **LongMemEval_S** | Session multi-turn retrieval | Temporal ordering, multi-hop, counting | Exists (bench/longmemeval_combined_pipeline_flagship.py) |
 | **LOCOMO** (add this) | Conversational memory + question grounding | Multi-session with structured events | Not yet — download from https://github.com/snap-research/LOCOMO |
-| **MemGPT MemoryBench** (add this) | Agent task memory (tool-use sessions) | Procedural + declarative in one corpus | Not yet — https://github.com/cpacker/MemGPT |
+| **MemGPT MemoryBench** (add this) | Agent task memory (tool-use sessions) | Procedural + declarative in one corpus | Not yet — https://github.com/letta-ai/letta |
 
 **Why LOCOMO:** Structured multi-session with explicit temporal scaffolds — validates Path B on a corpus not used to tune it. First out-of-distribution test.
 
