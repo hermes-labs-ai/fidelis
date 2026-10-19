@@ -68,7 +68,7 @@ The JSONL reviewer and `hermes-gate-claude-review` command are available in the 
 ```bash
 fidelis_gate_home="${XDG_DATA_HOME:-$HOME/.local/share}/fidelis-gate-tools"
 fidelis_gate_bin="$fidelis_gate_home/bin"
-UV_TOOL_DIR="$fidelis_gate_home/tools" UV_TOOL_BIN_DIR="$fidelis_gate_bin" uv tool install --force 'git+https://github.com/hermes-labs-ai/hermes-gate.git@f20db03fa5f63fc8c5bc11773f4c4b71cb2b61a9'
+UV_TOOL_DIR="$fidelis_gate_home/tools" UV_TOOL_BIN_DIR="$fidelis_gate_bin" uv tool install --force 'git+https://github.com/roli-lpci/hermes-gate.git@f20db03fa5f63fc8c5bc11773f4c4b71cb2b61a9'
 PATH="$fidelis_gate_bin:$PATH" hermes-gate fast
 PATH="$fidelis_gate_bin:$PATH" hermes-gate review
 ```

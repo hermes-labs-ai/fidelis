@@ -9,23 +9,23 @@ What is missing in the design and would bite:
 - Insert-time routing is not wired today. `/store` writes directly to one Chroma collection with payload `{"data": text, "user_id": user_id}` and no `mem_type` metadata ([src/cogito/server.py:195-209](src/cogito/server.py:195)). `mem0_config()` only builds one collection name (`cfg["collection"]`) ([src/cogito/config.py:142-167](src/cogito/config.py:142)). `/add` delegates straight to `memory.add()` with no type hook ([src/cogito/server.py:213-223](src/cogito/server.py:213)).
 - The proposed default “query both, merge by score” is underspecified. Both paths expose cosine-like scores after stage 1 (`recall_b` rewrites `score` to cosine at [src/cogito/recall_b.py:280-289](src/cogito/recall_b.py:280); hybrid does the same at [src/cogito/recall_hybrid.py:299-316](src/cogito/recall_hybrid.py:299)), but LLM rerank changes order without recomputing score in either path ([src/cogito/recall.py:61-64](src/cogito/recall.py:61), [src/cogito/recall.py:220-227](src/cogito/recall.py:220), [src/cogito/recall_hybrid.py:419-425](src/cogito/recall_hybrid.py:419), [src/cogito/recall_hybrid.py:507-513](src/cogito/recall_hybrid.py:507)). “Merge by score” would therefore be incorrect after reranking.
 - Migration is nontrivial because `seed.py` currently assumes atomized fact writes to `/store` ([src/cogito/seed.py:328-349](src/cogito/seed.py:328)); the design does not define how existing curated facts, `/add`-extracted facts, and future long-form writes are distinguished or backfilled.
-- The 400-char split is explicitly unmeasured in the design, and the repo contains no production length-distribution measurement yet ([docs/DISPATCHER_DESIGN.md:56-57](docs/DISPATCHER_DESIGN.md:56)).
+- The 400-char split is explicitly unmeasured in the design, and the repo contains no production length-distribution measurement yet ([docs/DISPATCHER_DESIGN.md:56-57](DISPATCHER_DESIGN.md#L56-L57)).
 
 ## 2. Is the skeptic right about the 21pt regression?
 
-On the regression itself: yes. `bench/eval.py` runs `/recall_hybrid` directly as mode `E` ([bench/eval.py:358-368](bench/eval.py:358)), and the status/docs consistently report 54% vs 75%.
+On the regression itself: yes. `bench/eval.py` runs `/recall_hybrid` directly as mode `E` ([bench/eval.py:358-368](../bench/eval.py#L358-L368)), and the status/docs consistently report 54% vs 75%.
 
 On the architect’s diagnosis: only partly proven from code.
 
 - “BM25 hurts short facts” is plausible and code-consistent. The hybrid stage always fuses BM25 runs into RRF when `bm25s` is present ([src/cogito/recall_hybrid.py:264-303](src/cogito/recall_hybrid.py:264)). That is structurally different from `/recall`, which uses multi-query dense recall plus cosine rerank and no BM25 ([src/cogito/recall.py:48-64](src/cogito/recall.py:48), [src/cogito/recall_b.py:313-343](src/cogito/recall_b.py:313)). On a corpus of short fact strings, extra lexical runs can easily perturb rank-1.
 - “150-char filter truncation hurts session content” is true as a code fact: `/recall` shows only 150 chars per candidate to the filter ([src/cogito/recall.py:87-91](src/cogito/recall.py:87)). But it does **not** explain the 21pt regression on cogito’s atomic eval, because that eval compares `/recall` against `/recall_hybrid`, and hybrid mostly keeps Stage 1 order for default-route queries at `tier="filter"` ([src/cogito/recall_hybrid.py:607-613](src/cogito/recall_hybrid.py:607)). The 21pt drop is therefore much more likely a Stage 1 mismatch than a filter-snippet issue.
-- For session retrieval, the bigger code-grounded mismatch is elsewhere: the 96.4% benchmark (runP-v35) relies on turn chunking and dedup back to sessions ([bench/longmemeval_combined_pipeline_flagship.py:140-188](bench/longmemeval_combined_pipeline_flagship.py:140)), while the production port explicitly omits turn chunking and session-date scaffolds ([src/cogito/recall_hybrid.py:20-24](src/cogito/recall_hybrid.py:20)). That gap is more important than the 150-char fact.
+- For session retrieval, the bigger code-grounded mismatch is elsewhere: the 96.4% benchmark (runP-v35) relies on turn chunking and dedup back to sessions ([bench/longmemeval_combined_pipeline_flagship.py:140-188](../bench/longmemeval_combined_pipeline_flagship.py#L140-L188)), while the production port explicitly omits turn chunking and session-date scaffolds ([src/cogito/recall_hybrid.py:20-24](src/cogito/recall_hybrid.py:20)). That gap is more important than the 150-char fact.
 
 ## 3. Fork recommendation
 
 Fast-ship is the right fork.
 
-Reason: the codebase today cleanly supports the narrow claim that `/recall_hybrid` is an opt-in LongMemEval-derived path and leaves `/recall` untouched ([src/cogito/server.py:175-193](src/cogito/server.py:175), [CHANGELOG.md:3-15](CHANGELOG.md:3)). It does **not** yet support the broader dispatcher claim because typed writes, migration, dual-index querying, and valid cross-path merge semantics are missing. Shipping the benchmark result as workload-specific is honest; trying to ship workload-aware dispatch now would be architecture-first, evidence-second.
+Reason: the codebase today cleanly supports the narrow claim that `/recall_hybrid` is an opt-in LongMemEval-derived path and leaves `/recall` untouched ([src/cogito/server.py:175-193](src/cogito/server.py:175), [CHANGELOG.md:3-15](../CHANGELOG.md#L3-L15)). It does **not** yet support the broader dispatcher claim because typed writes, migration, dual-index querying, and valid cross-path merge semantics are missing. Shipping the benchmark result as workload-specific is honest; trying to ship workload-aware dispatch now would be architecture-first, evidence-second.
 
 ## 4. Concrete engineering roadmap
 
@@ -66,13 +66,13 @@ Effort: 6-10h.
 
 ## 5. What to commit now vs hold
 
-Commit now: the opt-in `v0.3.0` hybrid path as an explicitly workload-specific feature. The server endpoint is isolated, `/recall` is unchanged, and the changelog already describes it that way ([CHANGELOG.md:5-15](CHANGELOG.md:5)).
+Commit now: the opt-in `v0.3.0` hybrid path as an explicitly workload-specific feature. The server endpoint is isolated, `/recall` is unchanged, and the changelog already describes it that way ([CHANGELOG.md:5-15](../CHANGELOG.md#L5-L15)).
 
 Hold: any dispatcher, “generalizable” positioning, or default-routing changes. The current repo does not yet implement the storage split or the merge semantics needed to support that claim.
 
 ## 6. What the agents missed
 
-- The benchmark/production mismatch is larger than “150-char truncation.” The benchmark’s win depends on turn chunking and session-level dedup ([bench/longmemeval_combined_pipeline_flagship.py:140-188](bench/longmemeval_combined_pipeline_flagship.py:140)); production hybrid explicitly removed those pieces ([src/cogito/recall_hybrid.py:20-24](src/cogito/recall_hybrid.py:20)).
+- The benchmark/production mismatch is larger than “150-char truncation.” The benchmark’s win depends on turn chunking and session-level dedup ([bench/longmemeval_combined_pipeline_flagship.py:140-188](../bench/longmemeval_combined_pipeline_flagship.py#L140-L188)); production hybrid explicitly removed those pieces ([src/cogito/recall_hybrid.py:20-24](src/cogito/recall_hybrid.py:20)).
 - The dispatcher design assumes score comparability that the code does not preserve after reranking.
 - `bench/results-guard-2026-04-17.json` is only 30 questions, not a full verification run, so it should not be used as evidence of the final claim.
-- `bench/eval.py` scores positive cases by keyword hit threshold, not exact answer matching ([bench/eval.py:24-33](bench/eval.py:24), [bench/eval.py:180-201](bench/eval.py:180)). That is fine for regression tracking, but it widens uncertainty when arguing about small deltas or cross-workload transfer.
+- `bench/eval.py` scores positive cases by keyword hit threshold, not exact answer matching ([bench/eval.py:24-33](../bench/eval.py#L24-L33), [bench/eval.py:180-201](../bench/eval.py#L180-L201)). That is fine for regression tracking, but it widens uncertainty when arguing about small deltas or cross-workload transfer.
